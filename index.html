@@ -14,6 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
+<meta name="build" content="20261028175203">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -497,6 +498,18 @@ function render(s) {
 const IS_PC = !/iPhone|iPad|iPod|Android|Mobile/i.test(navigator.userAgent) &&
   !(navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent)) && // iPadOSはMacと名乗る
   !matchMedia('(pointer:coarse)').matches;
+// 改修を公開したら、ホーム画面アプリでも自動で新しい画面に切り替える。
+// 公開時に埋め込む版番号（meta build）と、公開中のページの版番号を比べ、違えば読み込み直す
+const BUILD = (document.querySelector('meta[name=build]') || {}).content || '';
+function checkUpdate() {
+  if (!BUILD || document.hidden || tkCur || scan || (typeof preOpen !== 'undefined' && preOpen)) return; // 入力中は避ける
+  fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' }).then(r => r.text()).then(t => {
+    const m = t.match(/<meta name="build" content="(\d+)">/);
+    if (m && m[1] !== BUILD) location.reload();
+  }).catch(() => {});
+}
+document.addEventListener('visibilitychange', checkUpdate);
+setInterval(checkUpdate, 30 * 60 * 1000);
 // タスクは勤務中のみ。勤怠対象外の人は常に表示
 function showTasks() { return !!me && !me.noTasks && (me.working || me.noAttend); }
 

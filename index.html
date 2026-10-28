@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261028181240">
+<meta name="build" content="20261028181929">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -403,7 +403,7 @@ async function doLogin() {
     view('clock');
   } finally { busy(false); }
 }
-function logout() { try { localStorage.removeItem('auth'); } catch (e) {} location.reload(); }
+function logout() { try { ['auth', 'snap', 'snapAnnual'].forEach(k => localStorage.removeItem(k)); } catch (e) {} location.reload(); }
 
 function view(v) {
   cur = v;
@@ -424,7 +424,10 @@ function view(v) {
 }
 
 /* ---- 打刻 ---- */
+let annualReq = null; // 起動時に先に始めた寺内スケジュールの読込
+let stale = false;     // 前回の表示内容を出している間（最新を読み込み中）
 function render(s) {
+  if (!stale) try { localStorage.setItem('snap', JSON.stringify({ id: auth && auth.id, s: Object.assign({}, s, { annual: undefined }) })); } catch (e) {}
   const annual = me && me.annual; // 年間予定はログイン後に別読込（ログインを速くするため）
   me = s;
   $('btnLogout').classList.remove('hidden');
@@ -490,7 +493,7 @@ function render(s) {
   if (annual) drawAnnual(annual);
   else {
     $('annual').innerHTML = '<p class="sub">読み込み中…</p>';
-    rawCall('annual', auth).then(drawAnnual).catch(() => { $('annual').innerHTML = '<p class="sub">読み込めませんでした（更新を押してください）</p>'; });
+    (annualReq || rawCall('annual', auth)).then(drawAnnual).catch(() => { $('annual').innerHTML = '<p class="sub">読み込めませんでした（更新を押してください）</p>'; });
   }
 }
 
@@ -577,6 +580,8 @@ function drawDone(kind, list) {
 /* ---- 寺内全体スケジュール（年間予定） ---- */
 function drawAnnual(list) {
   me.annual = list;
+  annualReq = null;
+  try { localStorage.setItem('snapAnnual', JSON.stringify(list)); } catch (e) {}
   const n = list.filter(a => !a.event).length;
   $('annualCount').textContent = n ? `${n}件` : '';
   $('annual').innerHTML = list.length ? '' : '<p class="sub">直近の予定はありません</p>';
@@ -1033,11 +1038,25 @@ function drawAdmin(o) {
 let saved = null;
 try { saved = JSON.parse(localStorage.getItem('auth') || 'null'); } catch (e) {}
 if (saved) { // 名前一覧を待たずにログインを始める
-  $('login').classList.add('hidden'); show('読み込み中…');
+  $('login').classList.add('hidden');
   auth = saved;
+  // 高速化：前回の表示内容をすぐ出し、最新の内容は裏で読む（ログインと寺内スケジュールは同時に）
+  const ar = annualReq = rawCall('annual', auth);
+  ar.then(list => { if (me) drawAnnual(list); }).catch(() => {}); // 前回表示の後でも最新の寺内スケジュールに差し替える
+  let snap = null;
+  try { snap = JSON.parse(localStorage.getItem('snap') || 'null'); } catch (e) {}
+  if (snap && String(snap.id) === String(saved.id) && snap.s) {
+    try {
+      const sa = JSON.parse(localStorage.getItem('snapAnnual') || 'null');
+      if (sa) snap.s.annual = sa;
+      me = { annual: snap.s.annual }; render(snap.s); $('app').classList.remove('hidden'); view('clock');
+    } catch (e) {}
+    stale = true; busy(true); show('最新の情報を読み込み中…');
+  } else show('読み込み中…');
   call('login').then(s => {
+    stale = false; busy(false);
     render(s); $('app').classList.remove('hidden'); show(''); view('clock');
-  }).catch(() => { $('login').classList.remove('hidden'); });
+  }).catch(() => { stale = false; busy(false); $('app').classList.add('hidden'); $('login').classList.remove('hidden'); });
 }
 rawCall('names', null).then(list => {
   names = list;

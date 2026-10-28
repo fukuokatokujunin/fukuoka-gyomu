@@ -795,18 +795,7 @@ async function stampQrSheet(reset) {
   busy(true);
   try {
     const { url } = await call('adminStampQr', { reset });
-    w.document.write(`<!doctype html><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="noindex, nofollow">
-<title>福岡 業務管理システム</title>
-<link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="icon-180.png">
-<link rel="icon" href="icon-192.png">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="業務管理">
-<meta name="apple-mobile-web-app-status-bar-style" content="black">
-<meta name="theme-color" content="#1e2533"><title>打刻用QRコード</title>
+    w.document.write(`<!doctype html><meta charset=utf-8><title>打刻用QRコード</title>
 <style>body{font-family:sans-serif;text-align:center;padding:40px}h1{font-size:40px;margin:0 0 8px}
 p{font-size:20px;color:#444}#q{display:inline-block;margin:24px}#q img{width:420px;height:420px}</style>
 <h1>出勤・退勤 打刻用QRコード</h1><p>アプリの「出勤」「チェックして退勤」を押すとカメラが起動します。このQRコードを写してください</p>

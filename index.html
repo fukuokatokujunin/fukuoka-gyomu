@@ -93,6 +93,7 @@
   .annual .titem.early { background:#fffbeb; margin:0 -8px; padding:10px 8px; border-radius:8px; }
   .annual .titem.evt { color:var(--sub); }
   .annual .kind { display:inline-block; margin-right:6px; padding:0 6px; border-radius:6px; background:#eef2ff; color:#3730a3; font-size:12px; }
+  .annual .trash { flex:none; padding:2px 4px; font-size:16px; opacity:.6; }
   .annual .evmark { width:24px; flex:none; text-align:center; }
   #v-clock { display:flex; flex-direction:column; }
   #annualBox { order:3; }
@@ -360,6 +361,7 @@ function view(v) {
 
 /* ---- 打刻 ---- */
 function render(s) {
+  const annual = me && me.annual; // 年間予定はログイン後に別読込（ログインを速くするため）
   me = s;
   $('who').textContent = s.name + ' さん';
   // 締切アナウンス：希望受付月の前月15日（設定値）まで
@@ -414,7 +416,11 @@ function render(s) {
   $('main').classList.toggle('three', cur === 'clock' && s.working);
   $('taskBox').classList.toggle('hidden', !s.working);
   drawTasks(s.tasks);
-  drawAnnual(s.annual);
+  if (annual) drawAnnual(annual);
+  else {
+    $('annual').innerHTML = '<p class="sub">読み込み中…</p>';
+    rawCall('annual', auth).then(drawAnnual).catch(() => { $('annual').innerHTML = '<p class="sub">読み込めませんでした（更新を押してください）</p>'; });
+  }
 }
 
 /* ---- 寺内全体スケジュール（年間予定） ---- */
@@ -442,8 +448,20 @@ function drawAnnual(list) {
     b.className = 'due' + (a.left < 0 ? ' over' : a.left <= 7 ? ' soon' : '');
     b.textContent = `${m}/${d}` + (a.left < 0 ? `（${-a.left}日過ぎています）` : a.left === 0 ? '（今日）' : `（あと${a.left}日）`);
     const meta = document.createElement('div'); meta.className = 'sub'; meta.appendChild(b);
-    body.append(txt, meta); row.appendChild(body); $('annual').appendChild(row);
+    body.append(txt, meta); row.appendChild(body);
+    if (!a.event) {
+      const del = document.createElement('button'); del.className = 'ghost trash'; del.textContent = '🗑'; del.title = '今後表示しない';
+      del.onclick = ev => { ev.preventDefault(); removeAnnual(a); };
+      row.appendChild(del);
+    }
+    $('annual').appendChild(row);
   });
+}
+async function removeAnnual(a) {
+  if (!confirm(`「${a.text.slice(0, 40)}」を今後表示しないようにしますか？\n（年間予定シートの「有効」をFALSEにします。シートで戻せます）`)) return;
+  busy(true);
+  try { drawAnnual(await call('removeAnnual', { id: a.id })); show('削除しました（今後は表示されません）'); }
+  finally { busy(false); }
 }
 async function reloadAnnual() {
   busy(true);

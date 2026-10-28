@@ -93,7 +93,9 @@
   .annual .titem.early { background:#fffbeb; margin:0 -8px; padding:10px 8px; border-radius:8px; }
   .annual .titem.evt { color:var(--sub); }
   .annual .kind { display:inline-block; margin-right:6px; padding:0 6px; border-radius:6px; background:#eef2ff; color:#3730a3; font-size:12px; }
-  .annual .trash { flex:none; padding:2px 4px; font-size:16px; opacity:.6; }
+  .annual .trashwrap { flex:none; display:flex; flex-direction:column; align-items:center; }
+  .annual .trashwrap small { font-size:10px; color:var(--sub); white-space:nowrap; }
+  .annual .trash { padding:0 4px; font-size:16px; opacity:.6; }
   .annual .evmark { width:24px; flex:none; text-align:center; }
   #v-clock { display:flex; flex-direction:column; }
   #annualBox { order:3; }
@@ -452,7 +454,9 @@ function drawAnnual(list) {
     if (!a.event) {
       const del = document.createElement('button'); del.className = 'ghost trash'; del.textContent = '🗑'; del.title = '今後表示しない';
       del.onclick = ev => { ev.preventDefault(); removeAnnual(a); };
-      row.appendChild(del);
+      const wrap = document.createElement('div'); wrap.className = 'trashwrap';
+      const cap = document.createElement('small'); cap.textContent = '以降不要';
+      wrap.append(cap, del); row.appendChild(wrap);
     }
     $('annual').appendChild(row);
   });

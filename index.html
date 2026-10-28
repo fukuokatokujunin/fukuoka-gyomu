@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261028175934">
+<meta name="build" content="20261028181240">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -815,12 +815,12 @@ async function stampQrSheet(reset) {
   try {
     const { url } = await call('adminStampQr', { reset });
     w.document.write(`<!doctype html><meta charset=utf-8><title>打刻用QRコード</title>
-<style>body{font-family:sans-serif;text-align:center;padding:40px}h1{font-size:40px;margin:0 0 8px}
-p{font-size:20px;color:#444}#q{display:inline-block;margin:24px}#q img{width:420px;height:420px}</style>
+<style>body{font-family:sans-serif;text-align:center;padding:40px}h1{font-size:22px;margin:0 0 8px}
+p{font-size:13px;color:#444}@page{size:A4;margin:15mm}#q{display:inline-block;margin:16px}#q img,#q canvas{width:3cm!important;height:3cm!important}</style>
 <h1>出勤・退勤 打刻用QRコード</h1><p>アプリの「出勤」「チェックして退勤」を押すとカメラが起動します。このQRコードを写してください</p>
 <div id="q"></div><p style="font-size:14px">福岡 業務管理システム</p>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
-<script>new QRCode(document.getElementById('q'),{text:${JSON.stringify(url)},width:420,height:420,correctLevel:QRCode.CorrectLevel.M});
+<script>new QRCode(document.getElementById('q'),{text:${JSON.stringify(url)},width:300,height:300,correctLevel:QRCode.CorrectLevel.M});
 setTimeout(function(){print()},600)<\/script>`);
     w.document.close();
     if (reset) show('QRコードを作り直しました。新しいQRコードを印刷して貼り替えてください');

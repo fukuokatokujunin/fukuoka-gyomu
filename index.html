@@ -38,7 +38,7 @@
   .hitem .t { white-space:pre-wrap; word-break:break-word; }
   label.chk { display:flex; gap:10px; align-items:center; padding:12px 4px; border-bottom:1px solid var(--line); font-size:16px; }
   label.chk input { width:22px; height:22px; margin:0; flex:none; }
-  #hoBox { padding:4px 4px 8px 36px; border-bottom:1px solid var(--line); }
+  #hoBox { margin-top:14px; padding:12px; border-radius:10px; background:#fbefd9; border:1.5px solid #e2b866; }
   .cal { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; margin-top:8px; }
   .cal div.w { text-align:center; font-size:12px; color:var(--sub); }
   .day { aspect-ratio:1; border:1px solid var(--line); border-radius:8px; background:#fff; font-size:15px; display:flex; flex-direction:column; justify-content:center; align-items:center; cursor:pointer; }
@@ -191,12 +191,12 @@
           <button class="ghost" onclick="openPre(false)">閉じる</button>
         </div>
         <div id="checks"></div>
-        <label class="chk"><input type="checkbox" id="hoChk" onchange="toggleHo()">引き継ぎ事項</label>
-        <div id="hoBox" class="hidden">
-          <select id="hoTo"></select>
-          <textarea id="hoText" rows="3" placeholder="引き継ぎ内容を入力"></textarea>
-        </div>
         <textarea id="memo" rows="2" placeholder="未完了がある場合は理由を記入"></textarea>
+        <div id="hoBox">
+          <strong>📝 引き継ぎ事項</strong> <span class="sub">（ある場合のみ入力）</span>
+          <select id="hoTo"></select>
+          <textarea id="hoText" rows="3" placeholder="引き継ぐ内容を入力（なければ空欄のまま）"></textarea>
+        </div>
         <button class="out" onclick="clockOut()">チェックして退勤</button>
         <p class="sub center">今日もお疲れ様でした！</p>
       </div>
@@ -463,7 +463,7 @@ function render(s) {
   });
   $('hoTo').innerHTML = '<option value="">宛先を選択</option><option value="all">全員</option>' +
     s.colleagues.map(c => `<option value="${c.id}">${c.name}さん</option>`).join('');
-  $('hoChk').checked = false; $('hoText').value = ''; toggleHo();
+  $('hoText').value = '';
 
   // タスク（勤務中のみ表示）
   $('v-clock').classList.toggle('working', showTasks());
@@ -678,7 +678,6 @@ async function doneRepeat() {
     show(`完了しました。次回期日は ${m}/${d} です（1か月前・2週前・1週前、以降毎日リマインドします）`);
   } finally { busy(false); }
 }
-function toggleHo() { $('hoBox').classList.toggle('hidden', !$('hoChk').checked); }
 
 async function ack(id, cb) {
   busy(true);
@@ -753,11 +752,10 @@ async function clockOut() {
     $('handBox').scrollIntoView({ behavior: 'smooth' });
     return;
   }
-  if ($('hoChk').checked) {
-    if (!$('hoTo').value) { alert('引き継ぎの宛先を選んでください'); return; }
-    if (!$('hoText').value.trim()) { alert('引き継ぎの内容を入力してください'); return; }
-  }
-  const handover = $('hoChk').checked ? { to: $('hoTo').value, text: $('hoText').value } : null;
+  // 引き継ぎはチェックリストとは別。内容を書いたときだけ送る
+  const hoText = $('hoText').value.trim();
+  if (hoText && !$('hoTo').value) { alert('引き継ぎの宛先を選んでください'); return; }
+  const handover = hoText ? { to: $('hoTo').value, text: hoText } : null;
   const done = [...document.querySelectorAll('#checks input:checked')].map(x => me.checklist[x.value]);
   const deferred = [...defers];
   let qr;

@@ -154,6 +154,7 @@
         <div class="sub" id="last"></div>
         <button id="btnIn" class="in" onclick="clockIn()">出勤</button>
         <button id="btnPre" class="out hidden" onclick="openPre(true)">退勤前チェック</button>
+        <p class="sub hidden" id="qrHint">📷 出勤・退勤は、事務所に掲示している<b>打刻用QRコード</b>をスマホのカメラで読み取ってから行います</p>
       </div>
 
       <div class="card" id="outBox">
@@ -223,6 +224,13 @@
         <div class="chips" id="subm"></div>
         <a id="sheetLink" target="_blank" class="btnlink">📄 データベース（スプレッドシート）を開く</a>
         <span class="sub">従業員の基本公休曜日・基本出勤日、パスワード再設定、チェック項目、設定の編集はこちら</span>
+      </div>
+
+      <div class="card">
+        <strong>打刻用QRコード</strong>
+        <span class="sub">事務所に掲示するQRコードです。読み取った画面からだけ出勤・退勤できます。</span>
+        <button class="sec" onclick="stampQrSheet(false)">QRコードを表示・印刷</button>
+        <button class="ghost" onclick="stampQrSheet(true)">QRコードを作り直す（古いQRは使えなくなります）</button>
       </div>
 
       <div class="card">
@@ -315,6 +323,9 @@ function rawCall(action, a, payload) {
     body: JSON.stringify({ api: action, auth: a, payload: payload || {} }) })
     .then(r => r.json()).then(j => { if (!j.ok) throw new Error(j.error); return j.result; });
 }
+// 打刻用QRの合言葉（?qr=…）。ブックマークで使い回せないようURLからは消し、1回打刻したら破棄する
+let stampQr = new URLSearchParams(location.search).get('qr') || '';
+if (stampQr) history.replaceState(null, '', location.pathname);
 function call(action, payload) {
   return rawCall(action, auth, payload).catch(e => { show(e.message, true); throw e; });
 }
@@ -399,8 +410,9 @@ function render(s) {
   $('today').textContent = new Date().toLocaleDateString('ja-JP', { month:'long', day:'numeric', weekday:'short' });
   $('state').textContent = s.working ? '勤務中' : '勤務外';
   $('last').textContent = s.lastTime ? `最終打刻 ${s.lastTime}` : '本日の打刻なし';
-  $('btnIn').classList.toggle('hidden', s.working);
-  $('btnPre').classList.toggle('hidden', !s.working || preOpen);
+  $('btnIn').classList.toggle('hidden', s.working || !stampQr);
+  $('btnPre').classList.toggle('hidden', !s.working || preOpen || !stampQr);
+  $('qrHint').classList.toggle('hidden', !!stampQr);
   $('outBox').classList.toggle('hidden', !s.working || !preOpen);
   $('checks').innerHTML = '';
   s.checklist.forEach((c, i) => {
@@ -553,7 +565,9 @@ async function ack(id, cb) {
 async function clockIn() {
   busy(true); show('出勤を記録しています…');
   try {
-    render(await call('clockIn'));
+    const r = await call('clockIn', { qr: stampQr });
+    stampQr = '';
+    render(r);
     show(me.handovers.length ? `出勤しました。申し送りが ${me.handovers.length}件 あります` : '出勤しました');
   } finally { busy(false); }
 }
@@ -574,7 +588,8 @@ async function clockOut() {
   const deferred = [...defers];
   busy(true); show('退勤を記録しています…');
   try {
-    const r = await call('clockOut', { done, memo: $('memo').value, handover, defers: deferred });
+    const r = await call('clockOut', { qr: stampQr, done, memo: $('memo').value, handover, defers: deferred });
+    stampQr = '';
     preOpen = false;
     render(r);
     defers.clear();
@@ -582,6 +597,30 @@ async function clockOut() {
     show('退勤しました。お疲れさまでした' + (handover ? '（引き継ぎを送信しました）' : '') +
       (deferred.length ? `\n未完の申し送り ${deferred.length}件 は次回の出勤時にも表示されます` : ''));
   } finally { busy(false); }
+}
+
+/* ---- 打刻用QRコード（管理者） ---- */
+async function stampQrSheet(reset) {
+  if (reset && !confirm('QRコードを作り直します。掲示している古いQRコードは使えなくなります。よろしいですか？')) return;
+  const w = window.open('', '_blank'); // ポップアップを止められないよう先に開く
+  busy(true);
+  try {
+    const { url } = await call('adminStampQr', { reset });
+    w.document.write(`<!doctype html><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>福岡 業務管理システム</title><title>打刻用QRコード</title>
+<style>body{font-family:sans-serif;text-align:center;padding:40px}h1{font-size:40px;margin:0 0 8px}
+p{font-size:20px;color:#444}#q{display:inline-block;margin:24px}#q img{width:420px;height:420px}</style>
+<h1>出勤・退勤 打刻用QRコード</h1><p>スマホのカメラで読み取り、開いた画面で「出勤」または「退勤前チェック」を押してください</p>
+<div id="q"></div><p style="font-size:14px">福岡 業務管理システム</p>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
+<script>new QRCode(document.getElementById('q'),{text:${JSON.stringify(url)},width:420,height:420,correctLevel:QRCode.CorrectLevel.M});
+setTimeout(function(){print()},600)<\/script>`);
+    w.document.close();
+    if (reset) show('QRコードを作り直しました。新しいQRコードを印刷して貼り替えてください');
+  } catch (e) { w.close(); }
+  finally { busy(false); }
 }
 
 /* ---- シフト希望 ---- */

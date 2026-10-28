@@ -110,9 +110,11 @@
   .tklabel { display:block; font-weight:bold; margin-top:6px; }
   .tkdate { display:block; width:100%; box-sizing:border-box; min-height:48px; font-size:18px; border:2px solid #2563eb; border-radius:10px; padding:8px 12px; background:#eff6ff; -webkit-appearance:none; appearance:none; }
   details.fold { margin-top:6px; }
-  details.fold > summary { cursor:pointer; color:var(--sub); font-size:14px; padding:8px 0; list-style:none; }
-  details.fold > summary::before { content:'▸ '; }
-  details.fold[open] > summary::before { content:'▾ '; }
+  details.fold > summary { cursor:pointer; color:var(--sub); font-size:15px; font-weight:bold; padding:10px 0; list-style:none; }
+  details.fold > summary::-webkit-details-marker { display:none; }
+  details.fold > summary::before { content:'🔻 '; font-size:18px; }
+  details.fold[open] > summary::before { content:'🔺 '; }
+  .pcwarn { margin-top:10px; padding:10px; border-radius:10px; background:#fef2f2; color:#b91c1c; font-weight:bold; }
   .hidden { display:none !important; }
 </style>
 </head>
@@ -160,6 +162,7 @@
         <div class="sub" id="last"></div>
         <button id="btnIn" class="in" onclick="clockIn()">出勤</button>
         <button id="btnPre" class="out hidden" onclick="openPre(true)">退勤前チェック</button>
+        <div class="pcwarn hidden" id="pcWarn">⚠ 出勤の打刻をしてください（スマホのアプリから）</div>
         <p class="sub" id="qrHint">📷 出勤・退勤を押すとカメラが起動します。事務所の<b>打刻用QRコード</b>を写すと打刻されます</p>
       </div>
 
@@ -429,9 +432,12 @@ function render(s) {
   // 勤怠対象外（雇用主など）は打刻・希望の締切表示なし
   $('clockCard').classList.toggle('hidden', !!s.noAttend);
   $('deadline').classList.toggle('hidden', !!s.noAttend);
-  $('btnIn').classList.toggle('hidden', s.working);
-  $('btnPre').classList.toggle('hidden', !s.working || preOpen);
-  $('outBox').classList.toggle('hidden', !s.working || !preOpen);
+  // PCはカメラでQRを読めないので打刻ボタンは出さず、状態と打刻時刻だけ表示
+  $('btnIn').classList.toggle('hidden', s.working || IS_PC);
+  $('btnPre').classList.toggle('hidden', !s.working || preOpen || IS_PC);
+  $('qrHint').classList.toggle('hidden', IS_PC);
+  $('pcWarn').classList.toggle('hidden', !IS_PC || s.noAttend || s.working || !!s.lastTime);
+  $('outBox').classList.toggle('hidden', !s.working || !preOpen || IS_PC);
   $('checks').innerHTML = '';
   s.checklist.forEach((c, i) => {
     const l = document.createElement('label'); l.className = 'chk';
@@ -455,6 +461,10 @@ function render(s) {
   }
 }
 
+// スマホ・タブレット以外（PC）は打刻しない
+const IS_PC = !/iPhone|iPad|iPod|Android|Mobile/i.test(navigator.userAgent) &&
+  !(navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent)) && // iPadOSはMacと名乗る
+  !matchMedia('(pointer:coarse)').matches;
 // タスクは勤務中のみ。勤怠対象外の人は常に表示
 function showTasks() { return !!me && (me.working || me.noAttend); }
 
@@ -553,7 +563,7 @@ function drawTasks(list) {
     body.append(txt, meta); row.append(cb, body);
     (left !== null && left > 3 ? far : near).push(row); // 期日なし・超過・3日以内は常に表示
   });
-  foldRows($('tasks'), near, far, '4日以降のタスク', 'tasks');
+  foldRows($('tasks'), near, far, '4日以降先のタスク', 'tasks');
 }
 async function reloadTasks() {
   busy(true);
@@ -564,13 +574,19 @@ setInterval(() => {
   if (!showTasks() || cur !== 'clock' || tkCur || document.hidden) return;
   rawCall('tasks', auth).then(list => { if (!tkCur) drawTasks(list); }).catch(() => {});
 }, 10 * 60 * 1000);
+// PCは打刻をスマホで行うので、開いたままでも状態（勤務中・打刻時刻・警告）を5分ごとと画面に戻ったときに読み直す
+function refreshPc() {
+  if (!IS_PC || !me || cur !== 'clock' || tkCur || document.hidden) return;
+  rawCall('login', auth).then(s => { if (!tkCur) render(s); }).catch(() => {});
+}
+setInterval(refreshPc, 5 * 60 * 1000);
+document.addEventListener('visibilitychange', refreshPc);
 let tkCur = null; // 次回期日を選んでいる繰り返しタスク
 async function doneTask(t, cb) {
   if (t.repeat) {
     tkCur = { t, cb };
     const tm = new Date(); tm.setDate(tm.getDate() + 1);
-    const nm = new Date(); nm.setMonth(nm.getMonth() + 1); // 空欄だとスマホで入力欄と分からないので1か月後を仮に入れる
-    $('tkDate').min = ymd(tm); $('tkDate').value = ymd(nm);
+    $('tkDate').min = ymd(tm); $('tkDate').value = ymd(tm); // 空欄だとスマホで入力欄と分からないので翌日を仮に入れる
     $('tkText').textContent = t.text;
     $('tkPicker').classList.remove('hidden');
     return;

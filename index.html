@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261028175203">
+<meta name="build" content="20261028175934">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -600,6 +600,12 @@ function drawAnnual(list) {
     b.className = 'due' + (a.left < 0 ? ' over' : a.left <= 7 ? ' soon' : '');
     b.textContent = `${m}/${d}` + (a.left < 0 ? `（${-a.left}日過ぎています）` : a.left === 0 ? '（今日）' : `（あと${a.left}日）`);
     const meta = document.createElement('div'); meta.className = 'sub'; meta.appendChild(b);
+    if (a.last) { // 昨年の実施記録（カレンダー）で日付・内容を補正した項目
+      const [, lm, ld] = a.last.split('-').map(Number);
+      const h = document.createElement('span'); h.style.marginLeft = '6px';
+      h.textContent = `昨年 ${lm}/${ld} 実施` + (a.orig ? `（元の予定：${a.orig}）` : '');
+      meta.appendChild(h);
+    }
     body.append(txt, meta); row.appendChild(body);
     if (!a.event) {
       const del = document.createElement('button'); del.className = 'ghost trash'; del.textContent = '🗑'; del.title = '今後表示しない';

@@ -118,6 +118,8 @@
   .donebox { margin:8px 0; padding:8px 10px; border-radius:10px; background:#f1f5f9; }
   .donebox .titem { color:var(--sub); }
   .undo { flex:none; display:flex; flex-direction:column; align-items:center; font-size:11px; color:#2563eb; font-weight:bold; }
+  .hbtn { width:auto; margin:0 0 0 6px; padding:5px 12px; font-size:13px; font-weight:bold; color:#1f2a44; background:#fff; border:1.5px solid #9aa6b8; border-radius:8px; cursor:pointer; box-shadow:0 1px 2px rgba(0,0,0,.08); }
+  .hbtn:active { background:#e9edf3; }
   .hidden { display:none !important; }
 </style>
 </head>
@@ -146,7 +148,7 @@
     <section id="v-clock">
       <aside class="card annual" id="annualBox">
         <div class="head"><h3>寺内スケジュール <span class="sub" id="annualCount"></span></h3>
-          <span><button class="ghost" onclick="toggleDone('annual')">完了済み</button><button class="ghost" onclick="reloadAnnual()">更新</button></span></div>
+          <span><button class="hbtn" onclick="toggleDone('annual')">完了済み</button><button class="hbtn" onclick="reloadAnnual()">更新</button></span></div>
         <div class="donebox hidden" id="annualDoneBox"><b>完了済み（7日間）</b><div id="annualDone"></div></div>
         <p class="sub" style="margin:4px 0 0">毎年の作業の約1か月先まで。★は早めの準備（発注・締切など）。済んだらチェック</p>
         <div id="annual"></div>
@@ -199,7 +201,7 @@
 
       <aside class="card task hidden" id="taskBox">
         <div class="head"><h3>✅ タスク <span class="sub" id="taskCount"></span></h3>
-          <span><button class="ghost" onclick="toggleDone('tasks')">完了済み</button><button class="ghost" onclick="reloadTasks()">更新</button></span></div>
+          <span><button class="hbtn" onclick="toggleDone('tasks')">完了済み</button><button class="hbtn" onclick="reloadTasks()">更新</button></span></div>
         <div class="donebox hidden" id="tasksDoneBox"><b>完了済み（7日間）</b><div id="tasksDone"></div></div>
         <p class="sub" style="margin:4px 0 0">Slackで「@タスク」を付けて送ると、ここに表示されます。終わったらチェック</p>
         <div id="tasks"></div>

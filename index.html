@@ -498,7 +498,7 @@ const IS_PC = !/iPhone|iPad|iPod|Android|Mobile/i.test(navigator.userAgent) &&
   !(navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent)) && // iPadOSはMacと名乗る
   !matchMedia('(pointer:coarse)').matches;
 // タスクは勤務中のみ。勤怠対象外の人は常に表示
-function showTasks() { return !!me && (me.working || me.noAttend); }
+function showTasks() { return !!me && !me.noTasks && (me.working || me.noAttend); }
 
 // 近いものは常に表示し、先のものは折りたたむ（開閉状態は端末に覚える）
 function foldRows(box, near, far, label, key) {

@@ -107,6 +107,12 @@
     #annualBox { order:0; position:sticky; top:16px; max-height:calc(100vh - 32px); overflow-y:auto; }
     #v-clock.working #taskBox { position:sticky; top:16px; }
   }
+  .tklabel { display:block; font-weight:bold; margin-top:6px; }
+  .tkdate { display:block; width:100%; box-sizing:border-box; min-height:48px; font-size:18px; border:2px solid #2563eb; border-radius:10px; padding:8px 12px; background:#eff6ff; -webkit-appearance:none; appearance:none; }
+  details.fold { margin-top:6px; }
+  details.fold > summary { cursor:pointer; color:var(--sub); font-size:14px; padding:8px 0; list-style:none; }
+  details.fold > summary::before { content:'▸ '; }
+  details.fold[open] > summary::before { content:'▾ '; }
   .hidden { display:none !important; }
 </style>
 </head>
@@ -148,7 +154,7 @@
         <div id="hands"></div>
       </div>
 
-      <div class="card center">
+      <div class="card center" id="clockCard">
         <div class="sub" id="today"></div>
         <div class="big" id="state"></div>
         <div class="sub" id="last"></div>
@@ -194,7 +200,8 @@
         <div class="modal">
           <strong>🔁 次回の期日を選んで完了</strong>
           <div class="sub" id="tkText" style="margin:4px 0 6px"></div>
-          <input type="date" id="tkDate">
+          <label for="tkDate" class="tklabel">📅 次回の期日（タップして日付を選ぶ）</label>
+          <input type="date" id="tkDate" class="tkdate">
           <button onclick="doneRepeat()">この日を次回期日にして完了</button>
           <button class="ghost" onclick="closeTk()">キャンセル</button>
         </div>
@@ -367,8 +374,8 @@ function view(v) {
   cur = v;
   ['clock', 'req', 'admin'].forEach(x => $('v-' + x).classList.toggle('hidden', v !== x));
   $('main').classList.toggle('split', v === 'clock');
-  $('main').classList.toggle('three', v === 'clock' && me.working);
-  $('btnReq').classList.toggle('hidden', v === 'req');
+  $('main').classList.toggle('three', v === 'clock' && showTasks());
+  $('btnReq').classList.toggle('hidden', v === 'req' || me.noAttend);
   $('btnAdmin').classList.toggle('hidden', v === 'admin' || !me.admin);
   $('main').classList.toggle('wide', v === 'admin');
   show('');
@@ -419,6 +426,9 @@ function render(s) {
   $('today').textContent = new Date().toLocaleDateString('ja-JP', { month:'long', day:'numeric', weekday:'short' });
   $('state').textContent = s.working ? '勤務中' : '勤務外';
   $('last').textContent = s.lastTime ? `最終打刻 ${s.lastTime}` : '本日の打刻なし';
+  // 勤怠対象外（雇用主など）は打刻・希望の締切表示なし
+  $('clockCard').classList.toggle('hidden', !!s.noAttend);
+  $('deadline').classList.toggle('hidden', !!s.noAttend);
   $('btnIn').classList.toggle('hidden', s.working);
   $('btnPre').classList.toggle('hidden', !s.working || preOpen);
   $('outBox').classList.toggle('hidden', !s.working || !preOpen);
@@ -433,10 +443,10 @@ function render(s) {
   $('hoChk').checked = false; $('hoText').value = ''; toggleHo();
 
   // タスク（勤務中のみ表示）
-  $('v-clock').classList.toggle('working', s.working);
+  $('v-clock').classList.toggle('working', showTasks());
   $('main').classList.toggle('split', cur === 'clock');
-  $('main').classList.toggle('three', cur === 'clock' && s.working);
-  $('taskBox').classList.toggle('hidden', !s.working);
+  $('main').classList.toggle('three', cur === 'clock' && showTasks());
+  $('taskBox').classList.toggle('hidden', !showTasks());
   drawTasks(s.tasks);
   if (annual) drawAnnual(annual);
   else {
@@ -445,12 +455,28 @@ function render(s) {
   }
 }
 
+// タスクは勤務中のみ。勤怠対象外の人は常に表示
+function showTasks() { return !!me && (me.working || me.noAttend); }
+
+// 近いものは常に表示し、先のものは折りたたむ（開閉状態は端末に覚える）
+function foldRows(box, near, far, label, key) {
+  near.forEach(r => box.appendChild(r));
+  if (!far.length) return;
+  const d = document.createElement('details'); d.className = 'fold';
+  try { d.open = localStorage.getItem('fold:' + key) === '1'; } catch (e) {}
+  d.ontoggle = () => { try { localStorage.setItem('fold:' + key, d.open ? '1' : '0'); } catch (e) {} };
+  const sm = document.createElement('summary'); sm.textContent = `${label}（${far.length}件）`;
+  d.appendChild(sm); far.forEach(r => d.appendChild(r));
+  box.appendChild(d);
+}
+
 /* ---- 寺内全体スケジュール（年間予定） ---- */
 function drawAnnual(list) {
   me.annual = list;
   const n = list.filter(a => !a.event).length;
   $('annualCount').textContent = n ? `${n}件` : '';
   $('annual').innerHTML = list.length ? '' : '<p class="sub">直近の予定はありません</p>';
+  const near = [], far = [];
   list.forEach(a => {
     const row = document.createElement('label');
     row.className = 'titem' + (a.early ? ' early' : '') + (a.event ? ' evt' : '');
@@ -478,8 +504,9 @@ function drawAnnual(list) {
       const cap = document.createElement('small'); cap.textContent = '以降不要';
       wrap.append(cap, del); row.appendChild(wrap);
     }
-    $('annual').appendChild(row);
+    (a.left >= 7 ? far : near).push(row);
   });
+  foldRows($('annual'), near, far, '1週間以上先の予定', 'annual');
 }
 async function removeAnnual(a) {
   if (!confirm(`「${a.text.slice(0, 40)}」を今後表示しないようにしますか？\n（年間予定シートの「有効」をFALSEにします。シートで戻せます）`)) return;
@@ -505,7 +532,9 @@ function drawTasks(list) {
   $('taskCount').textContent = list.length ? `${list.length}件` : '';
   $('tasks').innerHTML = list.length ? '' : '<p class="sub">未完了のタスクはありません</p>';
   const today = ymd(new Date());
+  const near = [], far = [];
   list.forEach(t => {
+    let left = null;
     const row = document.createElement('label'); row.className = 'titem';
     const cb = document.createElement('input'); cb.type = 'checkbox';
     cb.onchange = () => { if (cb.checked) doneTask(t, cb); };
@@ -515,14 +544,16 @@ function drawTasks(list) {
     meta.textContent = t.from ? `${t.from}さんより` : '';
     if (t.due) {
       const [, m, d] = t.due.split('-').map(Number);
-      const left = Math.round((new Date(t.due + 'T00:00:00') - new Date(today + 'T00:00:00')) / 864e5);
+      left = Math.round((new Date(t.due + 'T00:00:00') - new Date(today + 'T00:00:00')) / 864e5);
       const b = document.createElement('span');
       b.className = 'due' + (left < 0 ? ' over' : left <= 7 ? ' soon' : '');
       b.textContent = `期日 ${m}/${d}` + (left < 0 ? `（${-left}日超過）` : left === 0 ? '（今日）' : '');
       meta.appendChild(b);
     }
-    body.append(txt, meta); row.append(cb, body); $('tasks').appendChild(row);
+    body.append(txt, meta); row.append(cb, body);
+    (left !== null && left > 3 ? far : near).push(row); // 期日なし・超過・3日以内は常に表示
   });
+  foldRows($('tasks'), near, far, '4日以降のタスク', 'tasks');
 }
 async function reloadTasks() {
   busy(true);
@@ -530,7 +561,7 @@ async function reloadTasks() {
 }
 // 10分ごとに自動更新（勤務中・打刻画面を表示中・期日選択中でないときだけ。失敗しても表示しない）
 setInterval(() => {
-  if (!me || !me.working || cur !== 'clock' || tkCur || document.hidden) return;
+  if (!showTasks() || cur !== 'clock' || tkCur || document.hidden) return;
   rawCall('tasks', auth).then(list => { if (!tkCur) drawTasks(list); }).catch(() => {});
 }, 10 * 60 * 1000);
 let tkCur = null; // 次回期日を選んでいる繰り返しタスク
@@ -538,10 +569,10 @@ async function doneTask(t, cb) {
   if (t.repeat) {
     tkCur = { t, cb };
     const tm = new Date(); tm.setDate(tm.getDate() + 1);
-    $('tkDate').min = ymd(tm); $('tkDate').value = '';
+    const nm = new Date(); nm.setMonth(nm.getMonth() + 1); // 空欄だとスマホで入力欄と分からないので1か月後を仮に入れる
+    $('tkDate').min = ymd(tm); $('tkDate').value = ymd(nm);
     $('tkText').textContent = t.text;
     $('tkPicker').classList.remove('hidden');
-    try { $('tkDate').showPicker(); } catch (e) { $('tkDate').focus(); } // カレンダーをすぐ開く
     return;
   }
   busy(true);

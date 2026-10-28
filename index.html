@@ -154,7 +154,16 @@
         <div class="sub" id="last"></div>
         <button id="btnIn" class="in" onclick="clockIn()">出勤</button>
         <button id="btnPre" class="out hidden" onclick="openPre(true)">退勤前チェック</button>
-        <p class="sub hidden" id="qrHint">📷 出勤・退勤は、事務所に掲示している<b>打刻用QRコード</b>をスマホのカメラで読み取ってから行います</p>
+        <p class="sub" id="qrHint">📷 出勤・退勤を押すとカメラが起動します。事務所の<b>打刻用QRコード</b>を写すと打刻されます</p>
+      </div>
+
+      <div class="overlay hidden" id="scanBox">
+        <div class="modal center">
+          <strong id="scanTitle">QRコードを写してください</strong>
+          <video id="scanVideo" playsinline muted style="width:100%;border-radius:10px;background:#000;margin:10px 0"></video>
+          <p class="sub" id="scanMsg">事務所の打刻用QRコードを枠の中に写してください</p>
+          <button class="ghost" onclick="stopScan(null)">キャンセル</button>
+        </div>
       </div>
 
       <div class="card" id="outBox">
@@ -410,9 +419,8 @@ function render(s) {
   $('today').textContent = new Date().toLocaleDateString('ja-JP', { month:'long', day:'numeric', weekday:'short' });
   $('state').textContent = s.working ? '勤務中' : '勤務外';
   $('last').textContent = s.lastTime ? `最終打刻 ${s.lastTime}` : '本日の打刻なし';
-  $('btnIn').classList.toggle('hidden', s.working || !stampQr);
-  $('btnPre').classList.toggle('hidden', !s.working || preOpen || !stampQr);
-  $('qrHint').classList.toggle('hidden', !!stampQr);
+  $('btnIn').classList.toggle('hidden', s.working);
+  $('btnPre').classList.toggle('hidden', !s.working || preOpen);
   $('outBox').classList.toggle('hidden', !s.working || !preOpen);
   $('checks').innerHTML = '';
   s.checklist.forEach((c, i) => {
@@ -562,11 +570,61 @@ async function ack(id, cb) {
   catch (e) { cb.checked = false; }
   finally { busy(false); }
 }
+/* ---- QR読み取り（出勤・退勤ボタンでカメラを起動） ---- */
+let scan = null; // { stream, done, timer }
+function loadJsQR() {
+  if (window.jsQR) return Promise.resolve();
+  return new Promise((ok, ng) => {
+    const t = document.createElement('script');
+    t.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js';
+    t.onload = ok; t.onerror = () => ng(new Error('読み取り機能を読み込めませんでした。通信状況を確認してください'));
+    document.head.appendChild(t);
+  });
+}
+// 読み取った文字列（配布URL?qr=合言葉）から合言葉を取り出す
+function qrFromText(t) {
+  try { return new URL(t).searchParams.get('qr') || ''; } catch (e) { return ''; }
+}
+function stopScan(code) {
+  if (!scan) return;
+  clearInterval(scan.timer);
+  scan.stream.getTracks().forEach(t => t.stop());
+  $('scanBox').classList.add('hidden');
+  const done = scan.done; scan = null;
+  done(code);
+}
+// QR を読み取って合言葉を返す。キャンセルなら null
+async function scanQr(title) {
+  if (stampQr) { const q = stampQr; stampQr = ''; return q; } // スマホのカメラで直接読み取って開いた場合
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('この端末・ブラウザではカメラを使えません');
+  await loadJsQR();
+  let stream;
+  try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false }); }
+  catch (e) { throw new Error('カメラを起動できませんでした。ブラウザの設定でカメラを許可してください'); }
+  const v = $('scanVideo'); v.srcObject = stream; await v.play();
+  $('scanTitle').textContent = title; $('scanMsg').textContent = '事務所の打刻用QRコードを枠の中に写してください';
+  $('scanBox').classList.remove('hidden');
+  const cv = document.createElement('canvas'), cx = cv.getContext('2d', { willReadFrequently: true });
+  return new Promise(done => {
+    scan = { stream, done, timer: setInterval(() => {
+      if (!v.videoWidth) return;
+      cv.width = v.videoWidth; cv.height = v.videoHeight;
+      cx.drawImage(v, 0, 0);
+      const r = jsQR(cx.getImageData(0, 0, cv.width, cv.height).data, cv.width, cv.height, { inversionAttempts: 'dontInvert' });
+      if (!r) return;
+      const q = qrFromText(r.data);
+      if (q) stopScan(q); else $('scanMsg').textContent = '打刻用のQRコードではありません';
+    }, 250) };
+  });
+}
+
 async function clockIn() {
+  let qr;
+  try { qr = await scanQr('出勤：QRコードを写してください'); } catch (e) { show(e.message, true); return; }
+  if (!qr) return;
   busy(true); show('出勤を記録しています…');
   try {
-    const r = await call('clockIn', { qr: stampQr });
-    stampQr = '';
+    const r = await call('clockIn', { qr });
     render(r);
     show(me.handovers.length ? `出勤しました。申し送りが ${me.handovers.length}件 あります` : '出勤しました');
   } finally { busy(false); }
@@ -586,10 +644,12 @@ async function clockOut() {
   const handover = $('hoChk').checked ? { to: $('hoTo').value, text: $('hoText').value } : null;
   const done = [...document.querySelectorAll('#checks input:checked')].map(x => me.checklist[x.value]);
   const deferred = [...defers];
+  let qr;
+  try { qr = await scanQr('退勤：QRコードを写してください'); } catch (e) { show(e.message, true); return; }
+  if (!qr) return;
   busy(true); show('退勤を記録しています…');
   try {
-    const r = await call('clockOut', { qr: stampQr, done, memo: $('memo').value, handover, defers: deferred });
-    stampQr = '';
+    const r = await call('clockOut', { qr, done, memo: $('memo').value, handover, defers: deferred });
     preOpen = false;
     render(r);
     defers.clear();
@@ -612,7 +672,7 @@ async function stampQrSheet(reset) {
 <title>福岡 業務管理システム</title><title>打刻用QRコード</title>
 <style>body{font-family:sans-serif;text-align:center;padding:40px}h1{font-size:40px;margin:0 0 8px}
 p{font-size:20px;color:#444}#q{display:inline-block;margin:24px}#q img{width:420px;height:420px}</style>
-<h1>出勤・退勤 打刻用QRコード</h1><p>スマホのカメラで読み取り、開いた画面で「出勤」または「退勤前チェック」を押してください</p>
+<h1>出勤・退勤 打刻用QRコード</h1><p>アプリの「出勤」「チェックして退勤」を押すとカメラが起動します。このQRコードを写してください</p>
 <div id="q"></div><p style="font-size:14px">福岡 業務管理システム</p>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
 <script>new QRCode(document.getElementById('q'),{text:${JSON.stringify(url)},width:420,height:420,correctLevel:QRCode.CorrectLevel.M});

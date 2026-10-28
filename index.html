@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>福岡 業務管理システム</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,"Hiragino Sans",sans-serif; background:var(--bg); color:var(--ink); }
+  header { background:var(--ink); color:#fff; padding:10px 16px; display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:8px; }
+  header strong { grid-column:2; text-align:center; white-space:nowrap; }
+  header .tools { grid-column:3; display:flex; gap:6px; align-items:center; justify-content:flex-end; flex-wrap:wrap; }
+  header .tools button { width:auto; margin:0; padding:6px 10px; font-size:13px; border-radius:8px; background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.3); }
+  header .who { font-size:13px; opacity:.85; }
+  main { max-width:520px; margin:0 auto; padding:16px; }
+  main.wide { max-width:1100px; }
+  .card { background:var(--card); border-radius:12px; padding:16px; margin-bottom:14px; box-shadow:0 1px 3px rgba(0,0,0,.06); }
+  input, textarea, select { width:100%; padding:12px; font-size:16px; border:1px solid var(--line); border-radius:8px; margin:6px 0; background:#fff; font-family:inherit; }
+  button { width:100%; padding:16px; font-size:17px; font-weight:600; border:0; border-radius:10px; color:#fff; background:var(--pri); margin-top:8px; cursor:pointer; }
+  button.in { background:var(--ok); padding:22px; font-size:20px; } button.out { background:var(--ng); } button.sec { background:#fff; color:var(--ink); border:1px solid var(--line); }
+  button.ghost { background:none; color:var(--sub); padding:6px; font-size:14px; width:auto; margin:0; }
+  button:disabled { opacity:.5; }
+  .row { display:flex; gap:8px; } .row > * { flex:1; }
+  .big { font-size:34px; font-weight:700; text-align:center; margin:4px 0; }
+  .sub { color:var(--sub); font-size:14px; }
+  .center { text-align:center; }
+  .notice { background:#eff6ff; border:1px solid #bfdbfe; color:#1e40af; border-radius:10px; padding:10px 12px; font-size:14px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .notice a { color:var(--pri); font-weight:700; white-space:nowrap; cursor:pointer; }
+  .hand { border:2px solid var(--warn); }
+  .hand h3 { margin:0 0 6px; font-size:16px; color:var(--warn); }
+  .hitem { display:flex; gap:10px; align-items:flex-start; padding:10px 0; border-top:1px solid var(--line); }
+  .hitem input { width:24px; height:24px; margin:2px 0 0; flex:none; }
+  .hitem .t { white-space:pre-wrap; word-break:break-word; }
+  label.chk { display:flex; gap:10px; align-items:center; padding:12px 4px; border-bottom:1px solid var(--line); font-size:16px; }
+  label.chk input { width:22px; height:22px; margin:0; flex:none; }
+  #hoBox { padding:4px 4px 8px 36px; border-bottom:1px solid var(--line); }
+  .cal { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; margin-top:8px; }
+  .cal div.w { text-align:center; font-size:12px; color:var(--sub); }
+  .day { aspect-ratio:1; border:1px solid var(--line); border-radius:8px; background:#fff; font-size:15px; display:flex; flex-direction:column; justify-content:center; align-items:center; cursor:pointer; }
+  .day small { font-size:10px; color:var(--pri); font-weight:700; }
+  .day.set { background:#eff6ff; border-color:var(--pri); }
+  .msg { padding:10px; border-radius:8px; margin-bottom:12px; font-size:14px; white-space:pre-wrap; word-break:break-all; }
+  .msg.err { background:#fef2f2; color:var(--ng); } .msg.ok { background:#ecfdf5; color:var(--ok); }
+  .badge { display:inline-block; padding:2px 10px; border-radius:99px; font-size:13px; font-weight:700; }
+  .b-案 { background:#fef3c7; color:var(--warn); } .b-確定 { background:#d1fae5; color:var(--ok); } .b-なし { background:#f3f4f6; color:var(--sub); }
+  .chips span { display:inline-block; margin:2px 4px 2px 0; padding:2px 8px; border-radius:6px; font-size:13px; background:#d1fae5; }
+  .chips span.no { background:#fee2e2; }
+  ul.prob { margin:6px 0 0; padding-left:18px; font-size:14px; color:var(--warn); }
+  .scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  table.grid { border-collapse:collapse; font-size:13px; }
+  table.grid th, table.grid td { border:1px solid var(--line); padding:0; text-align:center; min-width:34px; height:34px; }
+  table.grid th.nm { position:sticky; left:0; background:#fff; padding:0 8px; min-width:56px; z-index:1; }
+  table.grid td { cursor:pointer; font-weight:600; }
+  .s1 { color:var(--sub); font-weight:400 !important; } .s2 { background:#fee2e2; } .s5 { background:#dbeafe; }
+  .s6, .s7 { background:#e0f2fe; } .s17 { background:#d1fae5; }
+  .sun { color:var(--ng); } .sat { color:var(--pri); } .ev { background:#fef3c7; }
+  .back { margin-bottom:10px; }
+  a.btnlink { display:block; text-align:center; padding:14px; margin-top:10px; border-radius:10px; border:1px solid var(--line); background:#fff; color:var(--ink); font-weight:600; text-decoration:none; }
+  .day.base { background:#f3f4f6; } .day.base small { color:var(--sub); font-weight:400; }
+  .day.work { background:#ecfdf5; border-color:var(--ok); } .day.work small { color:var(--ok); }
+  .day em { font-style:normal; font-size:9px; color:var(--ng); line-height:1; }
+  table.grid td.bs { box-shadow:inset 0 -3px 0 #9ca3af; }
+  table.grid td.rq { position:relative; }
+  table.grid td.rq::after { content:''; position:absolute; top:3px; right:3px; width:6px; height:6px; border-radius:50%; background:var(--pri); }
+  .lg { display:inline-flex; align-items:center; gap:4px; margin-left:8px; }
+  .lg i { display:inline-block; width:14px; height:14px; border:1px solid var(--line); }
+  .lgb { box-shadow:inset 0 -3px 0 #9ca3af; } .lgr { background:radial-gradient(circle at 75% 25%, var(--pri) 3px, transparent 3.5px); }
+  .overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; padding:16px; z-index:10; }
+  .modal { background:#fff; border-radius:14px; padding:18px; width:100%; max-width:360px; }
+  ol.steps { margin:8px 0 0; padding-left:22px; }
+  ol.steps li { padding:10px 0; border-bottom:1px solid var(--line); }
+  ol.steps li:last-child { border-bottom:0; }
+  ol.steps li b { display:block; }
+  ol.steps .sub, .card > .sub { display:block; margin-top:6px; }
+  .carry { display:inline-block; margin-left:6px; padding:1px 6px; border-radius:6px; background:#fee2e2; color:var(--ng); font-size:12px; font-weight:700; }
+  .hitem .opts { display:flex; gap:8px; margin-top:8px; }
+  .hitem .opts label { flex:1; display:flex; gap:6px; align-items:center; padding:10px; border:1px solid var(--line); border-radius:8px; font-size:15px; }
+  .hitem .opts input { width:20px; height:20px; margin:0; flex:none; }
+  /* タスク：PCは勤務中画面の右、スマホは下 */
+  .task h3 { margin:0; font-size:16px; }
+  .task .head { display:flex; justify-content:space-between; align-items:center; }
+  .titem { display:flex; gap:10px; align-items:flex-start; padding:10px 0; border-top:1px solid var(--line); }
+  .titem input { width:24px; height:24px; margin:2px 0 0; flex:none; }
+  .titem .t { white-space:pre-wrap; word-break:break-word; }
+  .due { display:inline-block; margin-left:6px; padding:1px 6px; border-radius:6px; background:#f3f4f6; font-size:12px; font-weight:700; }
+  .due.soon { background:#fef3c7; color:var(--warn); } .due.over { background:#fee2e2; color:var(--ng); }
+  @media (min-width:900px) {
+    main.split { max-width:1000px; }
+    #v-clock.working { display:grid; grid-template-columns:minmax(0,1fr) 380px; gap:16px; align-items:start; }
+    #v-clock.working #taskBox { position:sticky; top:16px; }
+  }
+  .hidden { display:none !important; }
+</style>
+</head>
+<body>
+<header>
+  <strong>福岡 業務管理システム</strong>
+  <div class="tools">
+    <span class="who" id="who"></span>
+    <button id="btnReq" class="hidden" onclick="view('req')">シフト希望</button>
+    <button id="btnAdmin" class="hidden" onclick="view('admin')">管理</button>
+  </div>
+</header>
+<main id="main">
+  <div id="msg"></div>
+
+  <section id="login" class="card">
+    <p>名前を選んでパスワードを入力してください</p>
+    <select id="eid" onchange="hint()"><option value="">読み込み中…</option></select>
+    <input id="pw" type="password" placeholder="パスワード">
+    <p class="sub" id="pwHint"></p>
+    <button onclick="doLogin()">ログイン</button>
+  </section>
+
+  <div id="app" class="hidden">
+    <!-- 打刻（トップ） -->
+    <section id="v-clock">
+     <div>
+      <div class="notice" id="deadline"></div>
+
+      <div class="card hand hidden" id="handBox">
+        <h3>📝 申し送り</h3>
+        <p class="sub" style="margin:0">「確認した」か「未完（翌日に持ち越す）」にチェックしてください</p>
+        <div id="hands"></div>
+      </div>
+
+      <div class="card center">
+        <div class="sub" id="today"></div>
+        <div class="big" id="state"></div>
+        <div class="sub" id="last"></div>
+        <button id="btnIn" class="in" onclick="clockIn()">出勤</button>
+        <button id="btnPre" class="out hidden" onclick="openPre(true)">退勤前チェック</button>
+      </div>
+
+      <div class="card" id="outBox">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <strong>退勤前チェック</strong>
+          <button class="ghost" onclick="openPre(false)">閉じる</button>
+        </div>
+        <div id="checks"></div>
+        <label class="chk"><input type="checkbox" id="hoChk" onchange="toggleHo()">引き継ぎ事項</label>
+        <div id="hoBox" class="hidden">
+          <select id="hoTo"></select>
+          <textarea id="hoText" rows="3" placeholder="引き継ぎ内容を入力"></textarea>
+        </div>
+        <textarea id="memo" rows="2" placeholder="未完了がある場合は理由を記入"></textarea>
+        <button class="out" onclick="clockOut()">チェックして退勤</button>
+        <p class="sub center">今日もお疲れ様でした！</p>
+      </div>
+      <div class="center"><button class="ghost" onclick="logout()">ログアウト</button></div>
+     </div>
+
+      <aside class="card task hidden" id="taskBox">
+        <div class="head"><h3>✅ タスク <span class="sub" id="taskCount"></span></h3>
+          <button class="ghost" onclick="reloadTasks()">更新</button></div>
+        <p class="sub" style="margin:4px 0 0">Slackで「@タスク」を付けて送ると、ここに表示されます。終わったらチェック</p>
+        <div id="tasks"></div>
+      </aside>
+      <div class="overlay hidden" id="tkPicker" onclick="if (event.target === this) closeTk()">
+        <div class="modal">
+          <strong>🔁 次回の期日を選んで完了</strong>
+          <div class="sub" id="tkText" style="margin:4px 0 6px"></div>
+          <input type="date" id="tkDate">
+          <button onclick="doneRepeat()">この日を次回期日にして完了</button>
+          <button class="ghost" onclick="closeTk()">キャンセル</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- シフト希望 -->
+    <section id="v-req" class="hidden">
+      <button class="ghost back" onclick="view('clock')">← 打刻画面へ戻る</button>
+      <div class="card">
+        <strong id="reqTitle"></strong>
+        <div class="notice" id="reqNote" style="background:#fffbeb;border-color:#fde68a;color:#92400e">⚠ 休みは交代要員を確保した上で申請してください</div>
+        <p class="sub" id="reqHelp"></p>
+        <div class="cal" id="cal"></div>
+        <button onclick="saveReq()">提出する</button>
+        <p class="sub">日付をタップして希望を選んでください。何も選ばずに提出すると「希望なし」になります</p>
+      </div>
+      <div class="overlay hidden" id="rqPicker" onclick="if (event.target === this) this.classList.add('hidden')">
+        <div class="modal">
+          <strong id="rqTitle"></strong>
+          <div id="rqOpts"></div>
+          <button class="ghost" onclick="$('rqPicker').classList.add('hidden')">閉じる</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 管理 -->
+    <section id="v-admin" class="hidden">
+      <button class="ghost back" onclick="view('clock')">← 打刻画面へ戻る</button>
+      <div class="card">
+        <div class="row" style="align-items:center">
+          <select id="ym" onchange="loadAdmin()"></select>
+          <div style="flex:none">シフト <span id="status" class="badge"></span></div>
+        </div>
+        <div class="sub" style="margin-top:6px">希望の提出状況</div>
+        <div class="chips" id="subm"></div>
+        <a id="sheetLink" target="_blank" class="btnlink">📄 データベース（スプレッドシート）を開く</a>
+        <span class="sub">従業員の基本公休曜日・基本出勤日、パスワード再設定、チェック項目、設定の編集はこちら</span>
+      </div>
+
+      <div class="card">
+        <strong>シフト作成の手順</strong>
+        <ol class="steps">
+          <li>
+            <b>シフト案を作る</b>
+            <button class="sec" onclick="build()">希望からシフト案を作成</button>
+            <span class="sub">各人の基本公休曜日を公休にし、提出された希望（休み・代わりの出勤）で上書きして、下の表にシフト案を作ります。希望が出ていない人は基本公休曜日だけで組みます。</span>
+          </li>
+          <li>
+            <b>案を確認・修正する</b>
+            <span class="sub">「確定前確認事項」と下の表を見て、直したいマスをタップします。</span>
+          </li>
+          <li>
+            <b>シフトを確定する</b>
+            <button onclick="approve()">シフトを確定する</button>
+            <span class="sub">確定すると次の2つを行います：<br>・ハーモス取込用のCSVファイルを作成<br>・休み／有休／パート出勤日をGoogleカレンダーに登録</span>
+            <button class="sec hidden" id="btnUnapprove" onclick="unapprove()">確定を取り消す（カレンダー登録を元に戻す）</button>
+            <span class="sub hidden" id="unapproveNote">確定前の状態に戻します。Googleカレンダーに登録した予定を削除し、シフトを「案（未確定）」に戻します。<br>※すでにハーモスにCSVを取り込んでいる場合、ハーモス側の内容は元に戻りません。</span>
+          </li>
+          <li>
+            <b>ハーモスに取り込む</b>
+            <button class="sec" onclick="askClaude()">ハーモス取込をClaudeに依頼</button>
+            <span class="sub">押すとCSVファイルがダウンロードされ、Claudeへの依頼文がコピーされます。依頼文を Claude Code に貼り付けると、ClaudeがChromeでハーモスに取り込み、⑤の確認まで行います。<br>※ハーモスはシステムから直接シフトを登録できないため、CSVで取り込みます（手作業で取り込んでもかまいません）。</span>
+            <textarea id="claudeCmd" class="hidden" rows="3" readonly onclick="this.select()"></textarea>
+          </li>
+          <li>
+            <b>取り込み結果を確認する</b>
+            <button class="sec" onclick="hrmosCheck()">ハーモスの取り込み結果を確認</button>
+            <span class="sub">確定シフトとハーモス上のシフトを1日ずつ照らし合わせ、食い違う日を一覧表示します。</span>
+          </li>
+        </ol>
+      </div>
+
+      <div class="card">
+        <strong>勤務の実績を確認する（月の途中・月末）</strong>
+        <button class="sec" onclick="reconcile()">実績確認（予定と実績の差異）</button>
+        <span class="sub">シフトの予定と、ハーモスの実際の打刻を昨日分まで照らし合わせ、「出勤予定なのに打刻なし」「休み予定なのに打刻あり」の日を一覧表示します。シフトは自動では直しません。</span>
+      </div>
+      <div class="card hidden" id="resBox">
+        <strong id="resTitle"></strong>
+        <ul class="prob" id="res"></ul>
+      </div>
+      <div class="card" id="probBox">
+        <strong>確定前確認事項</strong>
+        <ul class="prob" id="prob"></ul>
+      </div>
+      <div class="card">
+        <strong>シフト表</strong> <span class="sub hidden" id="saving">保存中…</span>
+        <span class="sub" style="display:block;margin:4px 0 8px">マスをタップすると勤務区分を選べます。
+          <span class="lg"><i class="lgb"></i>基本公休日（パートは基本出勤日）</span>
+          <span class="lg"><i class="lgr"></i>本人の希望あり</span>
+          <span class="lg" style="color:var(--ng)">祝</span>＝祝日・正月・お盆（基本公休なし）</span>
+        <div class="scroll"><table class="grid" id="grid"></table></div>
+      </div>
+      <div class="overlay hidden" id="picker" onclick="if (event.target === this) this.classList.add('hidden')">
+        <div class="modal">
+          <strong id="pkTitle"></strong>
+          <div class="sub" id="pkNote" style="margin:4px 0 6px"></div>
+          <div id="pkOpts"></div>
+          <button class="ghost" onclick="$('picker').classList.add('hidden')">閉じる</button>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script>
+let auth = null, me = null, req = {}, names = [], ov = null, cur = 'clock';
+let preOpen = false; // 退勤前チェックを開いているか
+function openPre(on) {
+  preOpen = on;
+  $('btnPre').classList.toggle('hidden', on);
+  $('outBox').classList.toggle('hidden', !on);
+  if (on) $('outBox').scrollIntoView({ behavior: 'smooth' });
+}
+const defers = new Set(); // 「未完」にチェックした申し送りID（退勤時に送信）
+const $ = id => document.getElementById(id);
+const LABEL = { 1:'出', 2:'公', 5:'有', 6:'前', 7:'後', 17:'出' };
+const mlabel = ym => Number(ym.split('-')[1]) + '月';
+
+// GASの画面内なら google.script.run、外部（GitHub Pages）に置いた場合はWebアプリへPOST
+const API_URL = 'https://script.google.com/macros/s/AKfycbxGC61rsYaixzfniMtKk_hOAez4mIntPfGnTgTVC3KX8rqTGb6w0A7oK_iL34GZCXrDeA/exec';
+const inGas = typeof google !== 'undefined' && google.script && google.script.run;
+function rawCall(action, a, payload) {
+  if (inGas) return new Promise((ok, ng) => google.script.run.withSuccessHandler(ok).withFailureHandler(ng).api(action, a, payload || {}));
+  // text/plain にすると事前確認(CORS)なしで送れる
+  return fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ api: action, auth: a, payload: payload || {} }) })
+    .then(r => r.json()).then(j => { if (!j.ok) throw new Error(j.error); return j.result; });
+}
+function call(action, payload) {
+  return rawCall(action, auth, payload).catch(e => { show(e.message, true); throw e; });
+}
+function show(t, err) {
+  $('msg').innerHTML = '';
+  if (!t) return;
+  const d = document.createElement('div');
+  d.className = 'msg ' + (err ? 'err' : 'ok'); d.textContent = t;
+  $('msg').appendChild(d); window.scrollTo(0, 0);
+}
+function busy(on) { document.querySelectorAll('button,select').forEach(b => b.disabled = on); }
+
+function hint() {
+  const n = names.find(x => String(x.id) === $('eid').value);
+  $('pwHint').textContent = n && !n.registered ? '初回です。自分で決めたパスワード（4文字以上）を入力してください。次回からそのパスワードでログインします。' : '';
+}
+async function doLogin() {
+  auth = { id: $('eid').value, pw: $('pw').value };
+  busy(true);
+  try {
+    render(await call('login'));
+    try { localStorage.setItem('auth', JSON.stringify(auth)); } catch (e) {}
+    $('login').classList.add('hidden'); $('app').classList.remove('hidden'); show('');
+    view('clock');
+  } finally { busy(false); }
+}
+function logout() { try { localStorage.removeItem('auth'); } catch (e) {} location.reload(); }
+
+function view(v) {
+  cur = v;
+  ['clock', 'req', 'admin'].forEach(x => $('v-' + x).classList.toggle('hidden', v !== x));
+  $('main').classList.toggle('split', v === 'clock' && me.working);
+  $('btnReq').classList.toggle('hidden', v === 'req');
+  $('btnAdmin').classList.toggle('hidden', v === 'admin' || !me.admin);
+  $('main').classList.toggle('wide', v === 'admin');
+  show('');
+  if (v === 'req') loadReq();
+  if (v === 'admin') {
+    if (!$('ym').options.length) {
+      [me.nextMonth, me.thisMonth].forEach(m => $('ym').add(new Option(m.replace('-', '年') + '月', m)));
+    }
+    loadAdmin();
+  }
+}
+
+/* ---- 打刻 ---- */
+function render(s) {
+  me = s;
+  $('who').textContent = s.name + ' さん';
+  // 締切アナウンス：希望受付月の前月15日（設定値）まで
+  const [y, m] = s.requestMonth.split('-').map(Number);
+  const dlMonth = m === 1 ? 12 : m - 1;
+  $('deadline').innerHTML = '';
+  const t = document.createElement('span');
+  t.textContent = `📢 ${m}月の休み希望は ${dlMonth}月${s.deadline}日 までに提出してください`;
+  const a = document.createElement('a'); a.textContent = '提出 ›'; a.onclick = () => view('req');
+  $('deadline').append(t, a);
+
+  // 申し送り
+  $('handBox').classList.toggle('hidden', !s.handovers.length);
+  $('hands').innerHTML = '';
+  s.handovers.forEach(h => {
+    const row = document.createElement('div'); row.className = 'hitem';
+    const body = document.createElement('div'); body.style.flex = '1';
+    const meta = document.createElement('div'); meta.className = 'sub'; meta.textContent = `${h.from}さんより（${h.date}）`;
+    if (h.carried) { const c = document.createElement('span'); c.className = 'carry'; c.textContent = `持ち越し（${h.carried} 未完）`; meta.appendChild(c); }
+    const txt = document.createElement('div'); txt.className = 't'; txt.textContent = h.text;
+    const opts = document.createElement('div'); opts.className = 'opts';
+    const l1 = document.createElement('label'), c1 = document.createElement('input');
+    c1.type = 'checkbox'; c1.onchange = () => { if (c1.checked) ack(h.id, c1); };
+    l1.append(c1, '確認した');
+    const l2 = document.createElement('label'), c2 = document.createElement('input');
+    c2.type = 'checkbox'; c2.checked = defers.has(h.id);
+    c2.onchange = () => { c2.checked ? defers.add(h.id) : defers.delete(h.id); };
+    l2.append(c2, '未完（翌日に持ち越す）');
+    opts.append(l1, l2);
+    body.append(meta, txt, opts); row.append(body); $('hands').appendChild(row);
+  });
+
+  $('today').textContent = new Date().toLocaleDateString('ja-JP', { month:'long', day:'numeric', weekday:'short' });
+  $('state').textContent = s.working ? '勤務中' : '勤務外';
+  $('last').textContent = s.lastTime ? `最終打刻 ${s.lastTime}` : '本日の打刻なし';
+  $('btnIn').classList.toggle('hidden', s.working);
+  $('btnPre').classList.toggle('hidden', !s.working || preOpen);
+  $('outBox').classList.toggle('hidden', !s.working || !preOpen);
+  $('checks').innerHTML = '';
+  s.checklist.forEach((c, i) => {
+    const l = document.createElement('label'); l.className = 'chk';
+    l.innerHTML = `<input type="checkbox" value="${i}">`; l.append(c);
+    $('checks').appendChild(l);
+  });
+  $('hoTo').innerHTML = '<option value="">宛先を選択</option><option value="all">全員</option>' +
+    s.colleagues.map(c => `<option value="${c.id}">${c.name}さん</option>`).join('');
+  $('hoChk').checked = false; $('hoText').value = ''; toggleHo();
+
+  // タスク（勤務中のみ表示）
+  $('v-clock').classList.toggle('working', s.working);
+  $('main').classList.toggle('split', cur === 'clock' && s.working);
+  $('taskBox').classList.toggle('hidden', !s.working);
+  drawTasks(s.tasks);
+}
+
+/* ---- タスク ---- */
+const ymd = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+function drawTasks(list) {
+  me.tasks = list;
+  $('taskCount').textContent = list.length ? `${list.length}件` : '';
+  $('tasks').innerHTML = list.length ? '' : '<p class="sub">未完了のタスクはありません</p>';
+  const today = ymd(new Date());
+  list.forEach(t => {
+    const row = document.createElement('label'); row.className = 'titem';
+    const cb = document.createElement('input'); cb.type = 'checkbox';
+    cb.onchange = () => { if (cb.checked) doneTask(t, cb); };
+    const body = document.createElement('div'); body.style.flex = '1';
+    const txt = document.createElement('div'); txt.className = 't'; txt.textContent = (t.repeat ? '🔁 ' : '') + t.text;
+    const meta = document.createElement('div'); meta.className = 'sub';
+    meta.textContent = t.from ? `${t.from}さんより` : '';
+    if (t.due) {
+      const [, m, d] = t.due.split('-').map(Number);
+      const left = Math.round((new Date(t.due + 'T00:00:00') - new Date(today + 'T00:00:00')) / 864e5);
+      const b = document.createElement('span');
+      b.className = 'due' + (left < 0 ? ' over' : left <= 7 ? ' soon' : '');
+      b.textContent = `期日 ${m}/${d}` + (left < 0 ? `（${-left}日超過）` : left === 0 ? '（今日）' : '');
+      meta.appendChild(b);
+    }
+    body.append(txt, meta); row.append(cb, body); $('tasks').appendChild(row);
+  });
+}
+async function reloadTasks() {
+  busy(true);
+  try { drawTasks(await call('tasks')); } finally { busy(false); }
+}
+// 10分ごとに自動更新（勤務中・打刻画面を表示中・期日選択中でないときだけ。失敗しても表示しない）
+setInterval(() => {
+  if (!me || !me.working || cur !== 'clock' || tkCur || document.hidden) return;
+  rawCall('tasks', auth).then(list => { if (!tkCur) drawTasks(list); }).catch(() => {});
+}, 10 * 60 * 1000);
+let tkCur = null; // 次回期日を選んでいる繰り返しタスク
+async function doneTask(t, cb) {
+  if (t.repeat) {
+    tkCur = { t, cb };
+    const tm = new Date(); tm.setDate(tm.getDate() + 1);
+    $('tkDate').min = ymd(tm); $('tkDate').value = '';
+    $('tkText').textContent = t.text;
+    $('tkPicker').classList.remove('hidden');
+    try { $('tkDate').showPicker(); } catch (e) { $('tkDate').focus(); } // カレンダーをすぐ開く
+    return;
+  }
+  busy(true);
+  try { drawTasks(await call('doneTask', { id: t.id })); show('タスクを完了しました'); }
+  catch (e) { cb.checked = false; }
+  finally { busy(false); }
+}
+function closeTk() { if (tkCur) tkCur.cb.checked = false; tkCur = null; $('tkPicker').classList.add('hidden'); }
+async function doneRepeat() {
+  const next = $('tkDate').value;
+  if (!next) { alert('次回の期日を選んでください'); return; }
+  const { t } = tkCur;
+  busy(true);
+  try {
+    drawTasks(await call('doneTask', { id: t.id, next }));
+    tkCur = null; $('tkPicker').classList.add('hidden');
+    const [, m, d] = next.split('-').map(Number);
+    show(`完了しました。次回期日は ${m}/${d} です（1か月前・2週前・1週前、以降毎日リマインドします）`);
+  } finally { busy(false); }
+}
+function toggleHo() { $('hoBox').classList.toggle('hidden', !$('hoChk').checked); }
+
+async function ack(id, cb) {
+  busy(true);
+  try { defers.delete(id); render(await call('ackHandover', { id })); }
+  catch (e) { cb.checked = false; }
+  finally { busy(false); }
+}
+async function clockIn() {
+  busy(true); show('出勤を記録しています…');
+  try {
+    render(await call('clockIn'));
+    show(me.handovers.length ? `出勤しました。申し送りが ${me.handovers.length}件 あります` : '出勤しました');
+  } finally { busy(false); }
+}
+async function clockOut() {
+  // 申し送りは打刻画面で「確認した／未完」をチェックしてから退勤
+  const left = me.handovers.filter(h => !defers.has(h.id));
+  if (left.length) {
+    alert(`未確認の申し送りが ${left.length}件 あります。\n画面上部の申し送りで「確認した」か「未完（翌日に持ち越す）」にチェックしてください。`);
+    $('handBox').scrollIntoView({ behavior: 'smooth' });
+    return;
+  }
+  if ($('hoChk').checked) {
+    if (!$('hoTo').value) { alert('引き継ぎの宛先を選んでください'); return; }
+    if (!$('hoText').value.trim()) { alert('引き継ぎの内容を入力してください'); return; }
+  }
+  const handover = $('hoChk').checked ? { to: $('hoTo').value, text: $('hoText').value } : null;
+  const done = [...document.querySelectorAll('#checks input:checked')].map(x => me.checklist[x.value]);
+  const deferred = [...defers];
+  busy(true); show('退勤を記録しています…');
+  try {
+    const r = await call('clockOut', { done, memo: $('memo').value, handover, defers: deferred });
+    preOpen = false;
+    render(r);
+    defers.clear();
+    $('memo').value = '';
+    show('退勤しました。お疲れさまでした' + (handover ? '（引き継ぎを送信しました）' : '') +
+      (deferred.length ? `\n未完の申し送り ${deferred.length}件 は次回の出勤時にも表示されます` : ''));
+  } finally { busy(false); }
+}
+
+/* ---- シフト希望 ---- */
+// 希望の表示名（保存する値はそのまま）
+const REQ_LABEL = { '公休': '公休希望', '有休': '有給希望', '午前有休': '午前有給希望', '午後有休': '午後有給希望',
+  '出勤': '出勤', '出勤可': '出勤希望', '休み': '休み希望' };
+const isPart = () => me.type === 'パート';
+const baseDays = () => isPart() ? me.baseWork : me.baseOff;
+
+async function loadReq() {
+  const ym = me.requestMonth;
+  const [y, m] = ym.split('-').map(Number);
+  $('reqTitle').textContent = `${y}年${m}月 の希望（締切 ${m === 1 ? 12 : m - 1}月${me.deadline}日）`;
+  $('reqNote').classList.toggle('hidden', isPart());
+  $('reqHelp').textContent = '';
+  const list = await call('getRequest', { ym });
+  req = {}; list.forEach(r => req[r.date] = r.kind);
+  drawCal();
+}
+function drawCal() {
+  const ym = me.requestMonth;
+  const [y, m] = ym.split('-').map(Number);
+  const first = new Date(y, m - 1, 1).getDay(), n = new Date(y, m, 0).getDate();
+  let h = '日月火水木金土'.split('').map(w => `<div class="w">${w}</div>`).join('');
+  for (let i = 0; i < first; i++) h += '<span></span>';
+  for (let d = 1; d <= n; d++) {
+    const ds = `${ym}-${String(d).padStart(2, '0')}`;
+    const isBase = baseDays().includes(ds), sp = me.special[ds];
+    let cls = 'day', label = '';
+    if (req[ds] === '出勤' || req[ds] === '出勤可') { cls += ' work'; label = REQ_LABEL[req[ds]]; }
+    else if (req[ds]) { cls += ' set'; label = REQ_LABEL[req[ds]]; }
+    else if (isBase && isPart()) { cls += ' work'; label = '出勤(基本)'; }
+    else if (isBase) { cls += ' base'; label = '公休(基本)'; }
+    h += `<div class="${cls}" onclick="pickReq('${ds}')">${d}${sp ? `<em>${sp.length > 4 ? '祝' : sp}</em>` : ''}<small>${label}</small></div>`;
+  }
+  $('cal').innerHTML = h;
+}
+/** 日付をタップ → 選択肢を表示 */
+function pickReq(ds) {
+  const isBase = baseDays().includes(ds);
+  let opts;
+  if (isPart()) {
+    opts = isBase ? [['', '出勤(基本)のまま'], ['休み', '休み希望']] : [['出勤可', '出勤希望'], ['', '希望なし']];
+  } else {
+    opts = isBase ? [['', '公休(基本)のまま'], ['出勤', '出勤（代わりに出る）']]
+      : [['公休', '公休希望'], ['有休', '有給希望'], ['', '希望なし']]; // 午前・午後有給はイレギュラーのため管理画面で設定
+  }
+  const [, m, d] = ds.split('-').map(Number);
+  $('rqTitle').textContent = `${m}/${d}（${'日月火水木金土'[new Date(ds + 'T00:00:00').getDay()]}）${me.special[ds] ? ' ' + me.special[ds] : ''}`;
+  $('rqOpts').innerHTML = '';
+  const cur = req[ds] || '';
+  opts.forEach(([v, label]) => {
+    const b = document.createElement('button');
+    b.className = v === cur ? '' : 'sec';
+    b.textContent = label + (v === cur ? '（選択中）' : '');
+    b.onclick = () => { if (v) req[ds] = v; else delete req[ds]; $('rqPicker').classList.add('hidden'); drawCal(); };
+    $('rqOpts').appendChild(b);
+  });
+  $('rqPicker').classList.remove('hidden');
+}
+async function saveReq() {
+  const items = Object.entries(req).map(([date, kind]) => ({ date, kind }));
+  busy(true);
+  try { await call('saveRequest', { ym: me.requestMonth, items }); show(`${mlabel(me.requestMonth)}の希望を提出しました（${items.length}件）`); }
+  finally { busy(false); }
+}
+
+/* ---- 管理 ---- */
+async function loadAdmin() {
+  $('resBox').classList.add('hidden');
+  busy(true);
+  try { drawAdmin(await call('adminOverview', { ym: $('ym').value })); } finally { busy(false); }
+}
+async function build() {
+  if (ov.status !== 'なし' && !confirm('いまのシフト表を、休み希望から作り直します。手で直した分は消えます。よろしいですか？')) return;
+  busy(true);
+  try { drawAdmin(await call('adminBuild', { ym: ov.ym })); show('シフト案を作成しました。「確定前確認事項」と表を確認してください'); } finally { busy(false); }
+}
+async function approve() {
+  if (!confirm(`${mlabel(ov.ym)}のシフトを確定します。\n\n・ハーモス取込用CSVを作成\n・Googleカレンダーに登録\n\nよろしいですか？`)) return;
+  busy(true);
+  try {
+    const r = await call('adminApprove', { ym: ov.ym });
+    drawAdmin(r.overview); show('シフトを確定しました\n' + r.msgs.join('\n') + '\n\n次は ④ CSVをハーモスに取り込み、⑤ 取り込み結果を確認してください');
+  } finally { busy(false); }
+}
+/** ④ CSVをダウンロードし、Claude Code への依頼文をコピー */
+async function askClaude() {
+  busy(true);
+  try {
+    const c = await call('adminCsv', { ym: ov.ym });
+    const bin = atob(c.base64), bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([bytes], { type: 'text/csv' }));
+    a.download = c.name; document.body.appendChild(a); a.click(); a.remove();
+    const [y, m] = ov.ym.split('-').map(Number);
+    const text = `/hrmos-import ${ov.ym}\n${y}年${m}月のシフトCSV（ダウンロードフォルダの ${c.name}）をハーモスに取り込んで、取り込み後に業務管理システムの手順⑤で照合してください。`;
+    $('claudeCmd').value = text; $('claudeCmd').classList.remove('hidden');
+    let copied = false;
+    try { await navigator.clipboard.writeText(text); copied = true; } catch (e) {}
+    if (!copied) { $('claudeCmd').select(); try { copied = document.execCommand('copy'); } catch (e) {} }
+    show(`${c.name} をダウンロードしました。\n` + (copied ? '依頼文をコピーしました。Claude Code に貼り付けてください。' : '下の依頼文を選択してコピーし、Claude Code に貼り付けてください。'));
+  } finally { busy(false); }
+}
+async function unapprove() {
+  if (!confirm(`${mlabel(ov.ym)}の確定を取り消します。\n\n・Googleカレンダーに登録した予定を削除\n・シフトを「案（未確定）」に戻す\n\n※ハーモスに取り込み済みの内容は元に戻りません。よろしいですか？`)) return;
+  busy(true);
+  try {
+    const r = await call('adminUnapprove', { ym: ov.ym });
+    drawAdmin(r.overview); show('確定を取り消しました\n' + r.msgs.join('\n'));
+  } finally { busy(false); }
+}
+function showRes(title, list) {
+  $('resBox').classList.remove('hidden');
+  $('resTitle').textContent = `${title}：${list.length ? '差異 ' + list.length + '件' : '差異なし ✓'}`;
+  $('res').innerHTML = '';
+  list.forEach(p => { const li = document.createElement('li'); li.textContent = p; $('res').appendChild(li); });
+  $('resBox').scrollIntoView({ behavior: 'smooth' });
+}
+async function hrmosCheck() {
+  busy(true);
+  try { showRes(`${mlabel(ov.ym)} ハーモスの取り込み結果`, await call('adminHrmosCheck', { ym: ov.ym })); } finally { busy(false); }
+}
+async function reconcile() {
+  busy(true);
+  try { showRes(`${mlabel(ov.ym)} 実績確認（予定と実績の差異・昨日まで）`, await call('adminReconcile', { ym: ov.ym })); } finally { busy(false); }
+}
+function cell(empId, date) {
+  const e = ov.emps.find(x => x.id === empId);
+  const cur = (ov.grid[empId] || {})[date] || '';
+  const opts = e.type === 'パート' ? [[17, '出勤'], ['', '休み（行なし）']]
+    : [[1, '出勤'], [2, '公休'], [5, '有休'], [6, '午前有休'], [7, '午後有休']];
+  const [, m, d] = date.split('-').map(Number);
+  const notes = [];
+  if ((ov.base[empId] || []).includes(date)) notes.push(e.type === 'パート' ? '基本出勤日' : '基本公休日');
+  const rq = (ov.reqs[empId] || {})[date]; if (rq) notes.push(`希望：${REQ_LABEL[rq] || rq}`);
+  const dd = ov.days.find(x => x.date === date);
+  if (dd.special) notes.push(dd.special);
+  if (dd.events.length) notes.push('行事：' + dd.events.join('・'));
+  $('pkTitle').textContent = `${m}/${d}（${'日月火水木金土'[dd.w]}） ${e.name}`;
+  $('pkNote').textContent = notes.join(' ／ ');
+  $('pkOpts').innerHTML = '';
+  opts.forEach(([v, label]) => {
+    const b = document.createElement('button');
+    b.className = String(v) === String(cur) ? '' : 'sec';
+    b.textContent = label + (String(v) === String(cur) ? '（現在）' : '');
+    b.onclick = () => {
+      $('picker').classList.add('hidden');
+      if (String(v) === String(cur)) return;
+      // 返事を待たずに表を更新（保存と確定前確認事項の再計算は裏で行う）
+      ov.grid[empId] = ov.grid[empId] || {};
+      if (v) ov.grid[empId][date] = v; else delete ov.grid[empId][date];
+      if (ov.status === '確定') ov.status = '案';
+      drawAdmin(ov);
+      saveCell({ ym: ov.ym, empId, date, segId: v });
+    };
+    $('pkOpts').appendChild(b);
+  });
+  $('picker').classList.remove('hidden');
+}
+// マス修正の保存：連続して直しても順番に送り、最後の結果で確定前確認事項を更新
+let cellQueue = Promise.resolve(), cellPending = 0;
+function saveCell(p) {
+  cellPending++;
+  $('saving').classList.remove('hidden');
+  cellQueue = cellQueue.then(() => call('adminSetCell', p)).then(o => {
+    if (--cellPending === 0) { drawAdmin(o); $('saving').classList.add('hidden'); }
+  }).catch(() => { cellPending = 0; $('saving').classList.add('hidden'); loadAdmin(); });
+}
+function drawAdmin(o) {
+  ov = o;
+  $('sheetLink').href = o.sheetUrl;
+  $('btnUnapprove').classList.toggle('hidden', o.status !== '確定');
+  $('unapproveNote').classList.toggle('hidden', o.status !== '確定');
+  $('status').textContent = { 'なし': '未作成', '案': '案（未確定）', '確定': '確定済み' }[o.status]; $('status').className = 'badge b-' + o.status;
+  $('subm').innerHTML = '';
+  o.emps.forEach(e => {
+    const s = document.createElement('span'); s.className = e.submitted ? '' : 'no';
+    s.textContent = (e.submitted ? '✓ ' : '未 ') + e.name; $('subm').appendChild(s);
+  });
+  $('probBox').classList.toggle('hidden', !o.problems.length);
+  $('prob').innerHTML = '';
+  o.problems.forEach(p => { const li = document.createElement('li'); li.textContent = p; $('prob').appendChild(li); });
+
+  const wk = '日月火水木金土';
+  let h = '<tr><th class="nm"></th>' + o.days.map(d =>
+    `<th class="${d.w === 0 || d.special ? 'sun' : d.w === 6 ? 'sat' : ''} ${d.events.length ? 'ev' : ''}" title="${[d.special].concat(d.events).filter(Boolean).join('・')}">${d.d}<br>${d.special ? '祝' : wk[d.w]}</th>`).join('') + '</tr>';
+  o.emps.forEach(e => {
+    h += `<tr><th class="nm">${e.name}<br><small class="sub">${e.baseWeekdays ? (e.type === 'パート' ? '基本出勤:' : '基本公休:') + e.baseWeekdays : ''}</small></th>` + o.days.map(d => {
+      const s = (o.grid[e.id] || {})[d.date];
+      const isBase = (o.base[e.id] || []).includes(d.date), rq = (o.reqs[e.id] || {})[d.date];
+      const cls = `s${s || ''}${isBase ? ' bs' : ''}${rq ? ' rq' : ''}`;
+      return `<td class="${cls}" title="${[isBase ? (e.type === 'パート' ? '基本出勤日' : '基本公休日') : '', rq ? '希望:' + rq : ''].filter(Boolean).join(' ')}" onclick="cell(${e.id},'${d.date}')">${s ? LABEL[s] : ''}</td>`;
+    }).join('') + '</tr>';
+  });
+  h += '<tr><th class="nm">出勤数</th>' + o.days.map(d => {
+    const n = o.emps.filter(e => [1, 6, 7, 17].includes((o.grid[e.id] || {})[d.date])).length;
+    return `<th>${n}</th>`;
+  }).join('') + '</tr>';
+  $('grid').innerHTML = o.status === 'なし' ? '<tr><td style="padding:12px;cursor:auto">まだシフト案がありません。手順①「希望からシフト案を作成」を押してください。</td></tr>' : h;
+}
+
+/* ---- 起動 ---- */
+let saved = null;
+try { saved = JSON.parse(localStorage.getItem('auth') || 'null'); } catch (e) {}
+if (saved) { // 名前一覧を待たずにログインを始める
+  $('login').classList.add('hidden'); show('読み込み中…');
+  auth = saved;
+  call('login').then(s => {
+    render(s); $('app').classList.remove('hidden'); show(''); view('clock');
+  }).catch(() => { $('login').classList.remove('hidden'); });
+}
+rawCall('names', null).then(list => {
+  names = list;
+  $('eid').innerHTML = '<option value="">名前を選択</option>' +
+    list.map(n => `<option value="${n.id}">${n.name}</option>`).join('');
+  if (saved) { $('eid').value = saved.id; $('pw').value = saved.pw; }
+  hint();
+}).catch(e => show(e.message, true));
+</script>
+</body>
+</html>

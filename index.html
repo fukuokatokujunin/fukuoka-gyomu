@@ -115,6 +115,9 @@
   details.fold > summary::before { content:'🔻 '; font-size:18px; }
   details.fold[open] > summary::before { content:'🔺 '; }
   .pcwarn { margin-top:10px; padding:10px; border-radius:10px; background:#fef2f2; color:#b91c1c; font-weight:bold; }
+  .donebox { margin:8px 0; padding:8px 10px; border-radius:10px; background:#f1f5f9; }
+  .donebox .titem { color:var(--sub); }
+  .undo { flex:none; display:flex; flex-direction:column; align-items:center; font-size:11px; color:#2563eb; font-weight:bold; }
   .hidden { display:none !important; }
 </style>
 </head>
@@ -143,7 +146,8 @@
     <section id="v-clock">
       <aside class="card annual" id="annualBox">
         <div class="head"><h3>寺内スケジュール <span class="sub" id="annualCount"></span></h3>
-          <button class="ghost" onclick="reloadAnnual()">更新</button></div>
+          <span><button class="ghost" onclick="toggleDone('annual')">完了済み</button><button class="ghost" onclick="reloadAnnual()">更新</button></span></div>
+        <div class="donebox hidden" id="annualDoneBox"><b>完了済み（7日間）</b><div id="annualDone"></div></div>
         <p class="sub" style="margin:4px 0 0">毎年の作業の約1か月先まで。★は早めの準備（発注・締切など）。済んだらチェック</p>
         <div id="annual"></div>
       </aside>
@@ -195,7 +199,8 @@
 
       <aside class="card task hidden" id="taskBox">
         <div class="head"><h3>✅ タスク <span class="sub" id="taskCount"></span></h3>
-          <button class="ghost" onclick="reloadTasks()">更新</button></div>
+          <span><button class="ghost" onclick="toggleDone('tasks')">完了済み</button><button class="ghost" onclick="reloadTasks()">更新</button></span></div>
+        <div class="donebox hidden" id="tasksDoneBox"><b>完了済み（7日間）</b><div id="tasksDone"></div></div>
         <p class="sub" style="margin:4px 0 0">Slackで「@タスク」を付けて送ると、ここに表示されます。終わったらチェック</p>
         <div id="tasks"></div>
       </aside>
@@ -207,6 +212,12 @@
           <input type="date" id="tkDate" class="tkdate">
           <button onclick="doneRepeat()">この日を次回期日にして完了</button>
           <button class="ghost" onclick="closeTk()">キャンセル</button>
+        </div>
+      </div>
+      <div class="overlay hidden" id="askBox">
+        <div class="modal center">
+          <p id="askMsg" style="font-size:17px;font-weight:bold;margin:8px 0 16px"></p>
+          <div class="row"><button id="askYes">はい</button><button class="ghost" id="askNo">いいえ</button></div>
         </div>
       </div>
     </section>
@@ -480,6 +491,55 @@ function foldRows(box, near, far, label, key) {
   box.appendChild(d);
 }
 
+// 「はい」「いいえ」の確認。はい＝true
+function ask(msg) {
+  return new Promise(done => {
+    $('askMsg').textContent = msg; $('askBox').classList.remove('hidden');
+    const end = v => { $('askBox').classList.add('hidden'); done(v); };
+    $('askYes').onclick = () => end(true); $('askNo').onclick = () => end(false);
+  });
+}
+
+/* ---- 完了済み（7日間。チェックで未完に戻す） ---- */
+const DONE = {
+  tasks: { list: 'doneTasks', undo: 'undoTask', after: r => { drawTasks(r.tasks); drawDone('tasks', r.done); } },
+  annual: { list: 'annualDone', undo: 'undoAnnual', after: r => { drawAnnual(r.annual); drawDone('annual', r.done); } },
+};
+async function toggleDone(kind) {
+  const box = $(kind + 'DoneBox');
+  if (!box.classList.contains('hidden')) { box.classList.add('hidden'); return; }
+  box.classList.remove('hidden');
+  $(kind + 'Done').innerHTML = '<p class="sub">読み込み中…</p>';
+  try { drawDone(kind, await call(DONE[kind].list)); } catch (e) { $(kind + 'Done').innerHTML = ''; }
+}
+function refreshDone(kind) {
+  if ($(kind + 'DoneBox').classList.contains('hidden')) return;
+  rawCall(DONE[kind].list, auth).then(l => drawDone(kind, l)).catch(() => {});
+}
+function drawDone(kind, list) {
+  const box = $(kind + 'Done');
+  box.innerHTML = list.length ? '' : '<p class="sub">完了済みはありません</p>';
+  list.forEach(a => {
+    const row = document.createElement('label'); row.className = 'titem';
+    const u = document.createElement('span'); u.className = 'undo';
+    const cb = document.createElement('input'); cb.type = 'checkbox';
+    u.append('戻す', cb);
+    cb.onchange = async () => {
+      if (!cb.checked) return;
+      if (!await ask('未完了に戻しますか？')) { cb.checked = false; return; }
+      busy(true);
+      try { DONE[kind].after(await call(DONE[kind].undo, { id: a.id })); show('未完了に戻しました'); }
+      catch (e) { cb.checked = false; }
+      finally { busy(false); }
+    };
+    const body = document.createElement('div'); body.style.flex = '1';
+    const t = document.createElement('div'); t.className = 't'; t.textContent = (a.repeat ? '🔁 ' : '') + a.text;
+    const m = document.createElement('div'); m.className = 'sub';
+    m.textContent = `${a.doneAt} 完了` + (a.by ? `（${a.by}）` : '');
+    body.append(t, m); row.append(u, body); box.appendChild(row);
+  });
+}
+
 /* ---- 寺内全体スケジュール（年間予定） ---- */
 function drawAnnual(list) {
   me.annual = list;
@@ -529,8 +589,9 @@ async function reloadAnnual() {
   try { drawAnnual(await call('annual')); } finally { busy(false); }
 }
 async function doneAnnual(a, cb) {
+  if (!await ask('完了にしますか？')) { cb.checked = false; return; }
   busy(true);
-  try { drawAnnual(await call('doneAnnual', { id: a.id, date: a.date })); show('済みにしました（来年また表示されます）'); }
+  try { drawAnnual(await call('doneAnnual', { id: a.id, date: a.date })); refreshDone('annual'); show('済みにしました（来年また表示されます）'); }
   catch (e) { cb.checked = false; }
   finally { busy(false); }
 }
@@ -583,6 +644,7 @@ setInterval(refreshPc, 5 * 60 * 1000);
 document.addEventListener('visibilitychange', refreshPc);
 let tkCur = null; // 次回期日を選んでいる繰り返しタスク
 async function doneTask(t, cb) {
+  if (!await ask('完了にしますか？')) { cb.checked = false; return; }
   if (t.repeat) {
     tkCur = { t, cb };
     const tm = new Date(); tm.setDate(tm.getDate() + 1);
@@ -592,7 +654,7 @@ async function doneTask(t, cb) {
     return;
   }
   busy(true);
-  try { drawTasks(await call('doneTask', { id: t.id })); show('タスクを完了しました'); }
+  try { drawTasks(await call('doneTask', { id: t.id })); refreshDone('tasks'); show('タスクを完了しました'); }
   catch (e) { cb.checked = false; }
   finally { busy(false); }
 }
@@ -604,6 +666,7 @@ async function doneRepeat() {
   busy(true);
   try {
     drawTasks(await call('doneTask', { id: t.id, next }));
+    refreshDone('tasks');
     tkCur = null; $('tkPicker').classList.add('hidden');
     const [, m, d] = next.split('-').map(Number);
     show(`完了しました。次回期日は ${m}/${d} です（1か月前・2週前・1週前、以降毎日リマインドします）`);

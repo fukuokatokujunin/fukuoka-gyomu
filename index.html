@@ -87,9 +87,21 @@
   .titem .t { white-space:pre-wrap; word-break:break-word; }
   .due { display:inline-block; margin-left:6px; padding:1px 6px; border-radius:6px; background:#f3f4f6; font-size:12px; font-weight:700; }
   .due.soon { background:#fef3c7; color:var(--warn); } .due.over { background:#fee2e2; color:var(--ng); }
+  /* 寺内全体スケジュール：PCは打刻画面の左、スマホは一番下 */
+  .annual h3 { margin:0; font-size:16px; }
+  .annual .head { display:flex; justify-content:space-between; align-items:center; }
+  .annual .titem.early { background:#fffbeb; margin:0 -8px; padding:10px 8px; border-radius:8px; }
+  .annual .titem.evt { color:var(--sub); }
+  .annual .kind { display:inline-block; margin-right:6px; padding:0 6px; border-radius:6px; background:#eef2ff; color:#3730a3; font-size:12px; }
+  .annual .evmark { width:24px; flex:none; text-align:center; }
+  #v-clock { display:flex; flex-direction:column; }
+  #annualBox { order:3; }
   @media (min-width:900px) {
     main.split { max-width:1000px; }
-    #v-clock.working { display:grid; grid-template-columns:minmax(0,1fr) 380px; gap:16px; align-items:start; }
+    main.split.three { max-width:1400px; }
+    #v-clock { display:grid; grid-template-columns:340px minmax(0,1fr); gap:16px; align-items:start; }
+    #v-clock.working { grid-template-columns:340px minmax(0,1fr) 360px; }
+    #annualBox { order:0; position:sticky; top:16px; max-height:calc(100vh - 32px); overflow-y:auto; }
     #v-clock.working #taskBox { position:sticky; top:16px; }
   }
   .hidden { display:none !important; }
@@ -118,6 +130,12 @@
   <div id="app" class="hidden">
     <!-- 打刻（トップ） -->
     <section id="v-clock">
+      <aside class="card annual" id="annualBox">
+        <div class="head"><h3>🏯 寺内スケジュール <span class="sub" id="annualCount"></span></h3>
+          <button class="ghost" onclick="reloadAnnual()">更新</button></div>
+        <p class="sub" style="margin:4px 0 0">毎年の作業の約1か月先まで。★は早めの準備（発注・締切など）。済んだらチェック</p>
+        <div id="annual"></div>
+      </aside>
      <div>
       <div class="notice" id="deadline"></div>
 
@@ -325,7 +343,8 @@ function logout() { try { localStorage.removeItem('auth'); } catch (e) {} locati
 function view(v) {
   cur = v;
   ['clock', 'req', 'admin'].forEach(x => $('v-' + x).classList.toggle('hidden', v !== x));
-  $('main').classList.toggle('split', v === 'clock' && me.working);
+  $('main').classList.toggle('split', v === 'clock');
+  $('main').classList.toggle('three', v === 'clock' && me.working);
   $('btnReq').classList.toggle('hidden', v === 'req');
   $('btnAdmin').classList.toggle('hidden', v === 'admin' || !me.admin);
   $('main').classList.toggle('wide', v === 'admin');
@@ -391,9 +410,50 @@ function render(s) {
 
   // タスク（勤務中のみ表示）
   $('v-clock').classList.toggle('working', s.working);
-  $('main').classList.toggle('split', cur === 'clock' && s.working);
+  $('main').classList.toggle('split', cur === 'clock');
+  $('main').classList.toggle('three', cur === 'clock' && s.working);
   $('taskBox').classList.toggle('hidden', !s.working);
   drawTasks(s.tasks);
+  drawAnnual(s.annual);
+}
+
+/* ---- 寺内全体スケジュール（年間予定） ---- */
+function drawAnnual(list) {
+  me.annual = list;
+  const n = list.filter(a => !a.event).length;
+  $('annualCount').textContent = n ? `${n}件` : '';
+  $('annual').innerHTML = list.length ? '' : '<p class="sub">直近の予定はありません</p>';
+  list.forEach(a => {
+    const row = document.createElement('label');
+    row.className = 'titem' + (a.early ? ' early' : '') + (a.event ? ' evt' : '');
+    if (a.event) {
+      const mk = document.createElement('span'); mk.className = 'evmark'; mk.textContent = '📅'; row.appendChild(mk);
+    } else {
+      const cb = document.createElement('input'); cb.type = 'checkbox';
+      cb.onchange = () => { if (cb.checked) doneAnnual(a, cb); };
+      row.appendChild(cb);
+    }
+    const body = document.createElement('div'); body.style.flex = '1';
+    const txt = document.createElement('div'); txt.className = 't';
+    const k = document.createElement('span'); k.className = 'kind'; k.textContent = a.kind;
+    txt.append(k, (a.early ? '★ ' : '') + a.text);
+    const [, m, d] = a.date.split('-').map(Number);
+    const b = document.createElement('span');
+    b.className = 'due' + (a.left < 0 ? ' over' : a.left <= 7 ? ' soon' : '');
+    b.textContent = `${m}/${d}` + (a.left < 0 ? `（${-a.left}日過ぎています）` : a.left === 0 ? '（今日）' : `（あと${a.left}日）`);
+    const meta = document.createElement('div'); meta.className = 'sub'; meta.appendChild(b);
+    body.append(txt, meta); row.appendChild(body); $('annual').appendChild(row);
+  });
+}
+async function reloadAnnual() {
+  busy(true);
+  try { drawAnnual(await call('annual')); } finally { busy(false); }
+}
+async function doneAnnual(a, cb) {
+  busy(true);
+  try { drawAnnual(await call('doneAnnual', { id: a.id, date: a.date })); show('済みにしました（来年また表示されます）'); }
+  catch (e) { cb.checked = false; }
+  finally { busy(false); }
 }
 
 /* ---- タスク ---- */

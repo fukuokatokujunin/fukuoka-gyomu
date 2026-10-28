@@ -202,10 +202,10 @@
      </div>
 
       <aside class="card task hidden" id="taskBox">
-        <div class="head"><h3>✅ タスク <span class="sub" id="taskCount"></span></h3>
+        <div class="head"><h3>✅ 個別業務 <span class="sub" id="taskCount"></span></h3>
           <span><button class="hbtn" onclick="toggleDone('tasks')">完了済み</button><button class="hbtn" onclick="reloadTasks()">更新</button></span></div>
         <div class="donebox hidden" id="tasksDoneBox"><b>完了済み（7日間）</b><div id="tasksDone"></div></div>
-        <p class="sub" style="margin:4px 0 0">Slackで「@タスク」を付けて送ると、ここに表示されます。終わったらチェック</p>
+        <p class="sub" style="margin:4px 0 0">Slackで「@個別業務」を付けて送ると、ここに表示されます。終わったらチェック</p>
         <div id="tasks"></div>
       </aside>
       <div class="overlay hidden" id="tkPicker" onclick="if (event.target === this) closeTk()">
@@ -605,7 +605,7 @@ const ymd = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')
 function drawTasks(list) {
   me.tasks = list;
   $('taskCount').textContent = list.length ? `${list.length}件` : '';
-  $('tasks').innerHTML = list.length ? '' : '<p class="sub">未完了のタスクはありません</p>';
+  $('tasks').innerHTML = list.length ? '' : '<p class="sub">未完了の個別業務はありません</p>';
   const today = ymd(new Date());
   const near = [], far = [];
   list.forEach(t => {
@@ -628,7 +628,7 @@ function drawTasks(list) {
     body.append(txt, meta); row.append(cb, body);
     (left !== null && left > 3 ? far : near).push(row); // 期日なし・超過・3日以内は常に表示
   });
-  foldRows($('tasks'), near, far, '4日以降先のタスク', 'tasks');
+  foldRows($('tasks'), near, far, '4日以降先の個別業務', 'tasks');
 }
 async function reloadTasks() {
   busy(true);
@@ -658,7 +658,7 @@ async function doneTask(t, cb) {
     return;
   }
   busy(true);
-  try { drawTasks(await call('doneTask', { id: t.id })); refreshDone('tasks'); show('タスクを完了しました'); }
+  try { drawTasks(await call('doneTask', { id: t.id })); refreshDone('tasks'); show('個別業務を完了しました'); }
   catch (e) { cb.checked = false; }
   finally { busy(false); }
 }

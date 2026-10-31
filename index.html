@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261031174411">
+<meta name="build" content="20261031174434">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -573,6 +573,7 @@ function show(t, err) {
   const d = document.createElement('div');
   d.className = 'msg ' + (err ? 'err' : 'ok'); d.textContent = t;
   $('msg').appendChild(d); window.scrollTo(0, 0);
+  if (!err) setTimeout(() => d.remove(), 5000); // 完了などのお知らせは5秒で消す（エラーは残す）
 }
 function busy(on) { document.querySelectorAll('button,select').forEach(b => b.disabled = on); if (!on) lockStamp(); }
 // 前回の表示のまま最新を読み込み中は、打刻だけ押せないようにする（勤務状態が古い可能性があるため）

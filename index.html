@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261031141110">
+<meta name="build" content="20261031150829">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -232,6 +232,7 @@
           <label for="tkDate" class="tklabel">📅 次回の期日（タップして日付を選ぶ）</label>
           <input type="date" id="tkDate" class="tkdate">
           <button onclick="doneRepeat()">この日を次回期日にして完了</button>
+          <button class="ghost" onclick="doneRepeat('END')">完了にして繰り返さない</button>
           <button class="ghost" onclick="closeTk()">キャンセル</button>
         </div>
       </div>
@@ -706,8 +707,8 @@ async function doneTask(t, cb) {
   finally { busy(false); }
 }
 function closeTk() { if (tkCur) tkCur.cb.checked = false; tkCur = null; $('tkPicker').classList.add('hidden'); }
-async function doneRepeat() {
-  const next = $('tkDate').value;
+async function doneRepeat(end) {
+  const next = end || $('tkDate').value;
   if (!next) { alert('次回の期日を選んでください'); return; }
   const { t } = tkCur;
   busy(true);
@@ -715,6 +716,7 @@ async function doneRepeat() {
     drawTasks(await call('doneTask', { id: t.id, next }));
     refreshDone('tasks');
     tkCur = null; $('tkPicker').classList.add('hidden');
+    if (end) { show('完了しました（今後は繰り返しません）'); return; }
     const [, m, d] = next.split('-').map(Number);
     show(`完了しました。次回期日は ${m}/${d} です`);
   } finally { busy(false); }

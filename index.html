@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261031170223">
+<meta name="build" content="20261031171226">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -245,6 +245,14 @@
 </head>
 <body>
 <div id="ptr"></div>
+<!-- 確認ダイアログ：どの画面からも使うので画面（section）の外に置く -->
+      <div class="overlay hidden" id="askBox">
+        <div class="modal center">
+          <p id="askMsg" style="font-size:17px;font-weight:bold;margin:8px 0 16px"></p>
+          <div class="row"><button id="askYes">はい</button><button class="ghost" id="askNo">いいえ</button></div>
+        </div>
+      </div>
+
 <header>
   <button id="btnLogout" class="hidden" onclick="logout()">ログアウト</button>
   <strong>福岡徳純院</strong>
@@ -363,12 +371,6 @@
           <button onclick="doneRepeat()">この日を次回期日にして完了</button>
           <button class="ghost" onclick="doneRepeat('END')">完了にして繰り返さない</button>
           <button class="ghost" onclick="closeTk()">キャンセル</button>
-        </div>
-      </div>
-      <div class="overlay hidden" id="askBox">
-        <div class="modal center">
-          <p id="askMsg" style="font-size:17px;font-weight:bold;margin:8px 0 16px"></p>
-          <div class="row"><button id="askYes">はい</button><button class="ghost" id="askNo">いいえ</button></div>
         </div>
       </div>
     </section>

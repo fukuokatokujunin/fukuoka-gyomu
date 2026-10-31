@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261031140534">
+<meta name="build" content="20261031141110">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -121,7 +121,7 @@
     #v-clock { display:grid; grid-template-columns:340px minmax(0,1fr); gap:16px; align-items:start; }
     #v-clock.working { grid-template-columns:340px minmax(0,1fr) 360px; }
     #annualBox { order:0; position:sticky; top:16px; max-height:calc(100vh - 32px); overflow-y:auto; }
-    #v-clock.working #taskBox { position:sticky; top:16px; }
+    #v-clock.working #taskBox { position:sticky; top:16px; max-height:calc(100vh - 32px); overflow-y:auto; }
   }
   .tklabel { display:block; font-weight:bold; margin-top:6px; }
   .tkdate { display:block; width:100%; box-sizing:border-box; min-height:48px; font-size:18px; border:2px solid #2563eb; border-radius:10px; padding:8px 12px; background:#eff6ff; -webkit-appearance:none; appearance:none; }

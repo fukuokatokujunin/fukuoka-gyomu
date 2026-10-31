@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261031163239">
+<meta name="build" content="20261031163501">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -215,6 +215,11 @@
   .notice .info::before { content:'INFO'; display:inline-block; margin-right:10px; padding:1px 7px; background:#222629; color:#fff; font-size:10px; letter-spacing:.2em; text-shadow:none; vertical-align:1px; border:1px solid rgba(255,255,255,.6); }
   .annual .trash { width:24px; height:24px; padding:0; opacity:1; background:#222629 no-repeat center / 12px
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='white' stroke-width='1.2'%3E%3Cpath d='M2 3h8M4.5 3V1.5h3V3M3 3l.6 7.5h4.8L9 3M5 5v4M7 5v4'/%3E%3C/svg%3E"); }
+  /* スマホでカレンダーが見切れないように（7列を必ず画面幅に収める） */
+  .cal { grid-template-columns:repeat(7, minmax(0,1fr)); gap:3px; }
+  .day { min-width:0; overflow:hidden; letter-spacing:0; font-size:14px; }
+  .day small, .day em { letter-spacing:0; white-space:nowrap; max-width:100%; overflow:hidden; text-overflow:clip; }
+  @media (max-width:480px) { main { padding:20px 10px; } .card { padding:20px 12px; } }
   details.fold > summary { display:flex; align-items:center; gap:10px; }
   details.fold > summary::before, details.fold[open] > summary::before { content:''; flex:none; width:22px; height:22px; font-size:0; background:#222629 no-repeat center / 10px
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' fill='none' stroke='white' stroke-width='1.5'%3E%3Cpath d='M1 3l4 4 4-4'/%3E%3C/svg%3E"); transition:transform .3s; }

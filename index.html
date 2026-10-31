@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261031094641">
+<meta name="build" content="20261031095436">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -396,7 +396,9 @@ function show(t, err) {
   d.className = 'msg ' + (err ? 'err' : 'ok'); d.textContent = t;
   $('msg').appendChild(d); window.scrollTo(0, 0);
 }
-function busy(on) { document.querySelectorAll('button,select').forEach(b => b.disabled = on); }
+function busy(on) { document.querySelectorAll('button,select').forEach(b => b.disabled = on); if (!on) lockStamp(); }
+// 前回の表示のまま最新を読み込み中は、打刻だけ押せないようにする（勤務状態が古い可能性があるため）
+function lockStamp() { ['btnIn', 'btnPre'].forEach(id => { if ($(id)) $(id).disabled = stale; }); document.querySelectorAll('#outBox button.out').forEach(b => b.disabled = stale); }
 
 function hint() {
   const n = names.find(x => String(x.id) === $('eid').value);
@@ -891,7 +893,9 @@ async function loadReq() {
   $('reqTitle').textContent = `${y}年${m}月 の希望（締切 ${m === 1 ? 12 : m - 1}月${me.deadline}日）`;
   $('reqNote').classList.toggle('hidden', isPart());
   $('reqHelp').textContent = '';
-  const list = await call('getRequest', { ym });
+  $('cal').innerHTML = '<p class="sub">読み込み中…</p>';
+  const [list, base] = await Promise.all([call('getRequest', { ym }), call('requestBase')]);
+  Object.assign(me, base); // 基本公休日・祝日など（ログインを軽くするためここで読む）
   req = {}; list.forEach(r => req[r.date] = r.kind);
   drawCal();
 }
@@ -1096,12 +1100,12 @@ if (saved) { // 名前一覧を待たずにログインを始める
       if (sa) snap.s.annual = sa;
       me = { annual: snap.s.annual }; render(snap.s); $('app').classList.remove('hidden'); view('clock');
     } catch (e) {}
-    stale = true; busy(true); show('最新の情報を読み込み中…');
+    stale = true; lockStamp(); show('最新の情報を読み込み中…');
   } else show('読み込み中…');
   call('login').then(s => {
-    stale = false; busy(false);
+    stale = false; lockStamp();
     render(s); $('app').classList.remove('hidden'); show(''); view('clock');
-  }).catch(() => { stale = false; busy(false); $('app').classList.add('hidden'); $('login').classList.remove('hidden'); });
+  }).catch(() => { stale = false; lockStamp(); $('app').classList.add('hidden'); $('login').classList.remove('hidden'); });
 }
 rawCall('names', null).then(list => {
   names = list;

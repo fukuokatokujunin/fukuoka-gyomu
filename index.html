@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261031093338">
+<meta name="build" content="20261031094641">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -654,7 +654,7 @@ async function doneAnnual(a, cb) {
 const ymd = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 /*
  * 個別業務のリマインド（画面上だけ。Slackには送らない）。本人の個別業務のみ。
- * 期日の1か月前・2週前・1週前に1回ずつ、1週前以降は毎日（期日超過も）。「確認した」はこの端末に記録する。
+ * 期日の1か月前・2週前・1週前に1回ずつ、1週前以降は毎日（期日超過も）。「確認した」はサーバー（タスクシートのリマインド列）に記録する。
  */
 function remStage(due, today) {
   const [y, m, d] = due.split('-').map(Number);
@@ -665,11 +665,10 @@ function remStage(due, today) {
   if (month.getMonth() !== (m + 10) % 12) month.setDate(0); // 3/31 の1か月前 → 2月末
   return new Date(today + 'T00:00:00') >= month ? { key: '1M', left } : null;
 }
-function remAcked() { try { return JSON.parse(localStorage.getItem('remAck') || '{}'); } catch (e) { return {}; } }
 function drawReminders(list) {
-  const today = ymd(new Date()), ack = remAcked();
+  const today = ymd(new Date());
   const due = (me.noTasks ? [] : list).filter(t => t.due).map(t => ({ t, st: remStage(t.due, today) }))
-    .filter(x => x.st && !(ack[x.t.id + '@' + x.t.due] || []).includes(x.st.key));
+    .filter(x => x.st && !String(x.t.rem || '').split(',').includes(x.st.key));
   $('remBox').classList.toggle('hidden', !due.length);
   $('rems').innerHTML = '';
   due.forEach(({ t, st }) => {
@@ -680,13 +679,9 @@ function drawReminders(list) {
     body.innerHTML = `<div class="t"></div><div class="sub">期日 ${m}/${d}（${when}）</div>`;
     body.firstChild.textContent = (t.repeat ? '🔁 ' : '') + t.text;
     const b = document.createElement('button'); b.className = 'hbtn'; b.textContent = '確認した';
-    b.onclick = () => {
-      const a = remAcked(), k = t.id + '@' + t.due;
-      a[k] = (a[k] || []).concat(st.key);
-      // 1週前以降の毎日分は、その前の段階も確認済みにする
-      if (st.key !== '1M' && st.key !== '2W') a[k].push('1M', '2W'); else if (st.key === '2W') a[k].push('1M');
-      try { localStorage.setItem('remAck', JSON.stringify(a)); } catch (e) {}
-      drawReminders(me.tasks || []);
+    b.onclick = async () => {
+      row.remove(); if (!$('rems').children.length) $('remBox').classList.add('hidden'); // 先に消して裏で記録
+      try { drawTasks(await call('ackReminder', { id: t.id, key: st.key })); } catch (e) { drawTasks(me.tasks || []); }
     };
     row.append(body, b); $('rems').appendChild(row);
   });

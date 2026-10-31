@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261031164159">
+<meta name="build" content="20261031164223">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -241,6 +241,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Shippori+Mincho:wght@400;500;600&display=swap" rel="stylesheet">
 </head>
 <body>
+<div id="ptr"></div>
 <header>
   <button id="btnLogout" class="hidden" onclick="logout()">ログアウト</button>
   <strong>福岡徳純院</strong>
@@ -1255,9 +1256,6 @@ rawCall('names', null).then(list => {
   if (saved) { $('eid').value = saved.id; $('pw').value = saved.pw; }
   hint();
 }).catch(e => show(e.message, true));
-</script>
-<div id="ptr"></div>
-<script>
 // スマホ：画面の一番上で下に長く引っぱって離すと読み込み直す（ログインは端末に保存済みなのでそのまま）
 (() => {
   const el = document.getElementById('ptr'), NEED = 110;

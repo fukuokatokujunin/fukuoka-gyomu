@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261031173838">
+<meta name="build" content="20261031174411">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -98,6 +98,7 @@
   /* タスク：PCは勤務中画面の右、スマホは下 */
   .task h3 { margin:0; font-size:16px; }
   .task .head { display:flex; justify-content:space-between; align-items:center; }
+  #dueBar { position:fixed; left:50%; bottom:66px; transform:translateX(-50%); z-index:9; width:auto; margin:0; border-radius:0; background:#a8322a; color:#fff; padding:12px 24px; letter-spacing:.15em; font-weight:500; box-shadow:0 10px 30px rgba(0,0,0,.25); }
   #newPop { position:fixed; left:50%; bottom:16px; transform:translateX(-50%); z-index:9; width:auto; margin:0;
     background:#dc2626; color:#fff; border-radius:999px; padding:12px 22px; font-weight:bold; box-shadow:0 4px 14px rgba(0,0,0,.25); animation:pop 1.6s ease-in-out infinite; }
   @keyframes pop { 50% { transform:translateX(-50%) scale(1.06); } }
@@ -353,6 +354,7 @@
           <button class="ghost" onclick="$('dueBox').classList.add('hidden')">閉じる</button>
         </div>
       </div>
+      <button class="hidden" id="dueBar" onclick="showDue()"></button>
       <button class="hidden" id="newPop" onclick="openNew()"></button>
       <div class="overlay hidden" id="newBox" onclick="if (event.target === this) this.classList.add('hidden')">
         <div class="modal">
@@ -501,11 +503,18 @@ function openPre(on) {
 }
 
 /* 退勤前：今日までが期日で、済み・延長していない個別業務／寺内スケジュールを知らせる */
-function showDue() {
+let dueMode = false; // 退勤前に期日の項目を片付けている最中（全部済むまで知らせ続ける）
+function dueItems() {
   const today = ymd(new Date());
   const tasks = (showTasks() ? me.tasks || [] : []).filter(t => t.due && t.due <= today).map(t => ({ kind: '個別業務', text: t.text, date: t.due, sel: `#tasks [data-id="${t.id}"]` }));
   const ann = (me.annual || []).filter(a => !a.event && a.left <= 0).map(a => ({ kind: '寺内スケジュール', text: a.text, date: a.date, sel: `#annual [data-aid="${a.id}"]` }));
-  const list = tasks.concat(ann);
+  return tasks.concat(ann);
+}
+function showDue() {
+  const today = ymd(new Date());
+  const list = dueItems();
+  dueMode = list.length > 0;
+  drawDueBar(list);
   if (!list.length) return;
   $('dueList').innerHTML = '';
   list.forEach(x => {
@@ -518,6 +527,17 @@ function showDue() {
     div.append(meta, txt, b); $('dueList').appendChild(div);
   });
   $('dueBox').classList.remove('hidden');
+}
+// 完了・延長のたびに残りを数え直し、残っていればポップアップを出し直す
+function refreshDue() {
+  if (!dueMode) return;
+  const list = dueItems();
+  if (!list.length) { dueMode = false; drawDueBar(list); $('dueBox').classList.add('hidden'); show('期日の項目はすべて対応しました'); return; }
+  showDue();
+}
+function drawDueBar(list) {
+  $('dueBar').classList.toggle('hidden', !list.length);
+  $('dueBar').textContent = `期日の項目 残り ${list.length}件`;
 }
 function jumpTo(sel) {
   const row = document.querySelector(sel);
@@ -796,6 +816,7 @@ function drawAnnual(list) {
     (a.left >= 7 ? far : near).push(row);
   });
   foldRows($('annual'), near, far, '1週間以上先の予定', 'annual');
+  if (typeof dueMode !== 'undefined' && dueMode) setTimeout(refreshDue, 0);
 }
 async function removeAnnual(a) {
   if (!confirm(`「${a.text.slice(0, 40)}」を今後表示しないようにしますか？\n（年間予定シートの「有効」をFALSEにします。シートで戻せます）`)) return;
@@ -846,6 +867,7 @@ function drawTasks(list) {
   });
   foldRows($('tasks'), near, far, '4日以降先の個別業務', 'tasks');
   drawNew(list);
+  if (typeof dueMode !== 'undefined' && dueMode) setTimeout(refreshDue, 0);
 }
 
 /* INFO（管理画面で追加したお知らせ）。締切のお知らせの下に1件ずつ並べる */
@@ -1063,6 +1085,8 @@ async function clockOut() {
     $('handBox').scrollIntoView({ behavior: 'smooth' });
     return;
   }
+  // 期日が来た個別業務・寺内スケジュールは、完了か延長をしてから退勤
+  if (dueItems().length) { showDue(); return; }
   // 引き継ぎはチェックリストとは別。内容を書いたときだけ送る
   const hoText = $('hoText').value.trim();
   if (hoText && !$('hoTo').value) { alert('引き継ぎの宛先を選んでください'); return; }

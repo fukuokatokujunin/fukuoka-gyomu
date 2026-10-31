@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261031174434">
+<meta name="build" content="20261031181720">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -29,6 +29,7 @@
   header #btnLogout { grid-column:1; justify-self:start; width:auto; margin:0; padding:6px 10px; font-size:13px; border-radius:8px; background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.5); color:#fff; }
   header strong { grid-column:2; grid-row:1; text-align:center; white-space:nowrap; }
   header .tools { grid-column:3; grid-row:1; display:flex; gap:6px; align-items:center; justify-content:flex-end; flex-wrap:wrap; }
+  header .tools { flex-wrap:nowrap; min-width:0; }
   header .tools button { width:auto; margin:0; padding:6px 10px; font-size:13px; border-radius:8px; background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.3); }
   header .who { font-size:13px; opacity:.85; }
   main { max-width:520px; margin:0 auto; padding:16px; }
@@ -227,6 +228,7 @@
   /* 注意書き（シフト希望）：白地に赤文字。影なしでくっきり */
   header strong { font-size:32px; letter-spacing:.3em; line-height:1.2; }
   @media (max-width:480px) { header strong { font-size:26px; letter-spacing:.15em; } }
+  header #btnLogout, header .tools button { letter-spacing:.1em; white-space:nowrap; }
   #infos .notice { justify-content:flex-start; margin-top:-8px; }
   .notice.caution { background:rgba(255,255,255,.95); color:#a8322a; text-shadow:none; font-weight:500; border:0; border-left:3px solid #a8322a; }
   .notice.caution { justify-content:flex-start; }
@@ -705,8 +707,8 @@ function checkUpdate() {
 document.addEventListener('visibilitychange', checkUpdate);
 window.addEventListener('pageshow', checkUpdate); // ホーム画面アプリを開いた時も確認
 setInterval(checkUpdate, 30 * 60 * 1000);
-// タスクは勤務中のみ。勤怠対象外の人は常に表示
-function showTasks() { return !!me && !me.noTasks && (me.working || me.noAttend); }
+// 個別業務は勤務中かどうかに関係なく常に表示（2026-10-31 変更。落合さんなど対象外の人は出さない）
+function showTasks() { return !!me && !me.noTasks; }
 
 // 近いものは常に表示し、先のものは折りたたむ（開閉状態は端末に覚える）
 function foldRows(box, near, far, label, key) {

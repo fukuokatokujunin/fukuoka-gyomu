@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261031150829">
+<meta name="build" content="20261031154347">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -98,6 +98,12 @@
   /* タスク：PCは勤務中画面の右、スマホは下 */
   .task h3 { margin:0; font-size:16px; }
   .task .head { display:flex; justify-content:space-between; align-items:center; }
+  #newPop { position:fixed; left:50%; bottom:16px; transform:translateX(-50%); z-index:9; width:auto; margin:0;
+    background:#dc2626; color:#fff; border-radius:999px; padding:12px 22px; font-weight:bold; box-shadow:0 4px 14px rgba(0,0,0,.25); animation:pop 1.6s ease-in-out infinite; }
+  @keyframes pop { 50% { transform:translateX(-50%) scale(1.06); } }
+  .newitem { border-top:1px solid var(--line); padding:10px 0; }
+  .newitem .t { font-weight:bold; white-space:pre-wrap; }
+  .titem.flash { background:#fef3c7; transition:background 1s; }
   .titem { display:flex; gap:10px; align-items:flex-start; padding:10px 0; border-top:1px solid var(--line); }
   .titem input { width:24px; height:24px; margin:2px 0 0; flex:none; }
   .titem .t { white-space:pre-wrap; word-break:break-word; }
@@ -225,6 +231,14 @@
         <p class="sub" style="margin:4px 0 0">Slackで「@個別」を付けて送ると、ここに表示されます。終わったらチェック</p>
         <div id="tasks"></div>
       </aside>
+      <button class="hidden" id="newPop" onclick="openNew()"></button>
+      <div class="overlay hidden" id="newBox" onclick="if (event.target === this) this.classList.add('hidden')">
+        <div class="modal">
+          <strong>🆕 新着の個別業務</strong>
+          <div id="newList"></div>
+          <button class="ghost" onclick="$('newBox').classList.add('hidden')">閉じる</button>
+        </div>
+      </div>
       <div class="overlay hidden" id="tkPicker" onclick="if (event.target === this) closeTk()">
         <div class="modal">
           <strong>🔁 次回の期日を選んで完了</strong>
@@ -492,6 +506,7 @@ function render(s) {
   $('main').classList.toggle('split', cur === 'clock');
   $('main').classList.toggle('three', cur === 'clock' && showTasks());
   $('taskBox').classList.toggle('hidden', !showTasks());
+  drawNew(me.tasks || []);
   drawTasks(s.tasks);
   if (annual) drawAnnual(annual);
   else {
@@ -669,10 +684,45 @@ function drawTasks(list) {
       b.textContent = `期日 ${m}/${d}` + (left < 0 ? `（${-left}日超過）` : left === 0 ? '（今日）' : '');
       meta.appendChild(b);
     }
-    body.append(txt, meta); row.append(cb, body);
+    body.append(txt, meta); row.append(cb, body); row.dataset.id = t.id;
     (left !== null && left > 3 ? far : near).push(row); // 期日なし・超過・3日以内は常に表示
   });
   foldRows($('tasks'), near, far, '4日以降先の個別業務', 'tasks');
+  drawNew(list);
+}
+
+/* 新着（他人から届いた個別業務）：画面下にポップアップ → 押すと内容 →「確認」で個別業務欄へ */
+function drawNew(list) {
+  const news = showTasks() ? list.filter(t => t.isNew) : [];
+  $('newPop').classList.toggle('hidden', !news.length);
+  $('newPop').textContent = `🆕 新着の個別業務 ${news.length}件`;
+  if (!news.length) $('newBox').classList.add('hidden');
+  else if (!$('newBox').classList.contains('hidden')) openNew();
+}
+function openNew() {
+  $('newList').innerHTML = '';
+  (me.tasks || []).filter(t => t.isNew).forEach(t => {
+    const div = document.createElement('div'); div.className = 'newitem';
+    const txt = document.createElement('div'); txt.className = 't'; txt.textContent = (t.repeat ? '🔁 ' : '') + t.text;
+    const meta = document.createElement('div'); meta.className = 'sub';
+    const [, m, d] = (t.due || '--').split('-').map(Number);
+    meta.textContent = (t.from ? `${t.from}さんより` : '') + (t.due ? `　期日 ${m}/${d}` : '　期日なし');
+    const b = document.createElement('button'); b.textContent = '確認'; b.onclick = () => seeNew(t.id);
+    div.append(txt, meta, b); $('newList').appendChild(div);
+  });
+  $('newBox').classList.remove('hidden');
+}
+async function seeNew(id) {
+  me.tasks = (me.tasks || []).map(t => t.id === id ? Object.assign({}, t, { isNew: false }) : t);
+  $('newBox').classList.add('hidden');
+  drawTasks(me.tasks); // 先に画面を更新して裏で記録
+  const row = document.querySelector(`#tasks [data-id="${id}"]`);
+  if (row) {
+    const fold = row.closest('details'); if (fold) fold.open = true;
+    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    row.classList.add('flash'); setTimeout(() => row.classList.remove('flash'), 2500);
+  }
+  try { await call('seenTask', { id }); } catch (e) {} // 結果は同じなので描き直さない（ハイライトを残す）
 }
 async function reloadTasks() {
   busy(true);

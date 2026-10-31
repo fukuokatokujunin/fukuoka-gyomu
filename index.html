@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261028181929">
+<meta name="build" content="20261031092531">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -714,7 +714,7 @@ async function doneRepeat() {
     refreshDone('tasks');
     tkCur = null; $('tkPicker').classList.add('hidden');
     const [, m, d] = next.split('-').map(Number);
-    show(`完了しました。次回期日は ${m}/${d} です（1か月前・2週前・1週前、以降毎日リマインドします）`);
+    show(`完了しました。次回期日は ${m}/${d} です`);
   } finally { busy(false); }
 }
 

@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261031162945">
+<meta name="build" content="20261031163239">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -212,6 +212,9 @@
   button.pp { background:#222629; color:#fff; border:0; padding:2px 10px 2px 8px; font-size:11px; letter-spacing:.15em; }
   button.pp::before { content:''; display:inline-block; width:9px; height:9px; margin-right:6px; vertical-align:0; background:no-repeat center / contain
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' fill='none' stroke='white' stroke-width='1.4'%3E%3Cpath d='M0 5h9M6 2l3 3-3 3'/%3E%3C/svg%3E"); }
+  .notice .info::before { content:'INFO'; display:inline-block; margin-right:10px; padding:1px 7px; background:#222629; color:#fff; font-size:10px; letter-spacing:.2em; text-shadow:none; vertical-align:1px; border:1px solid rgba(255,255,255,.6); }
+  .annual .trash { width:24px; height:24px; padding:0; opacity:1; background:#222629 no-repeat center / 12px
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='white' stroke-width='1.2'%3E%3Cpath d='M2 3h8M4.5 3V1.5h3V3M3 3l.6 7.5h4.8L9 3M5 5v4M7 5v4'/%3E%3C/svg%3E"); }
   details.fold > summary { display:flex; align-items:center; gap:10px; }
   details.fold > summary::before, details.fold[open] > summary::before { content:''; flex:none; width:22px; height:22px; font-size:0; background:#222629 no-repeat center / 10px
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' fill='none' stroke='white' stroke-width='1.5'%3E%3Cpath d='M1 3l4 4 4-4'/%3E%3C/svg%3E"); transition:transform .3s; }
@@ -536,7 +539,7 @@ function render(s) {
   const dlMonth = m === 1 ? 12 : m - 1;
   $('deadline').innerHTML = '';
   const t = document.createElement('span');
-  t.textContent = `📢 ${m}月の休み希望は ${dlMonth}月${s.deadline}日 までに提出してください`;
+  t.className = 'info'; t.textContent = `${m}月の休み希望は ${dlMonth}月${s.deadline}日 までに提出してください`;
   const a = document.createElement('a'); a.textContent = '提出 ›'; a.onclick = () => view('req');
   $('deadline').append(t, a);
 
@@ -607,10 +610,11 @@ function checkUpdate() {
   if (!BUILD || document.hidden || tkCur || scan || (typeof preOpen !== 'undefined' && preOpen)) return; // 入力中は避ける
   fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' }).then(r => r.text()).then(t => {
     const m = t.match(/<meta name="build" content="(\d+)">/);
-    if (m && m[1] !== BUILD) location.reload();
+    if (m && m[1] !== BUILD) location.replace(location.pathname + '?b=' + m[1]); // 普通の再読込だと古い画面が出ることがあるので版番号を付けて読み直す
   }).catch(() => {});
 }
 document.addEventListener('visibilitychange', checkUpdate);
+window.addEventListener('pageshow', checkUpdate); // ホーム画面アプリを開いた時も確認
 setInterval(checkUpdate, 30 * 60 * 1000);
 // タスクは勤務中のみ。勤怠対象外の人は常に表示
 function showTasks() { return !!me && !me.noTasks && (me.working || me.noAttend); }
@@ -714,7 +718,7 @@ function drawAnnual(list) {
     }
     body.append(txt, meta); row.appendChild(body);
     if (!a.event) {
-      const del = document.createElement('button'); del.className = 'ghost trash'; del.textContent = '🗑'; del.title = '今後表示しない';
+      const del = document.createElement('button'); del.className = 'ghost trash'; del.textContent = ''; del.title = '今後表示しない';
       del.onclick = ev => { ev.preventDefault(); removeAnnual(a); };
       const wrap = document.createElement('div'); wrap.className = 'trashwrap';
       const cap = document.createElement('small'); cap.textContent = '以降不要';

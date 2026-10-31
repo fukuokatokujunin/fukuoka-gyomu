@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261031163533">
+<meta name="build" content="20261031163832">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -223,6 +223,10 @@
   /* 背景写真の上に置く「打刻画面へ戻る」：白文字＋影でくっきり */
   button.ghost.back { color:#fff; font-weight:500; font-size:15px; letter-spacing:.15em; padding:8px 2px; border-bottom:1px solid rgba(255,255,255,.8); border-radius:0;
     text-shadow:0 0 2px rgba(0,0,0,.9), 0 1px 6px rgba(0,0,0,.7), 0 0 14px rgba(0,0,0,.5); }
+  /* 注意書き（シフト希望）：白地に赤文字。影なしでくっきり */
+  .notice.caution { background:rgba(255,255,255,.95); color:#a8322a; text-shadow:none; font-weight:500; border:0; border-left:3px solid #a8322a; }
+  .notice.caution::before { content:'NOTICE'; flex:none; padding:1px 7px; background:#a8322a; color:#fff; font-size:10px; letter-spacing:.2em; }
+  .notice.caution { justify-content:flex-start; }
   details.fold > summary { display:flex; align-items:center; gap:10px; }
   details.fold > summary::before, details.fold[open] > summary::before { content:''; flex:none; width:22px; height:22px; font-size:0; background:#222629 no-repeat center / 10px
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' fill='none' stroke='white' stroke-width='1.5'%3E%3Cpath d='M1 3l4 4 4-4'/%3E%3C/svg%3E"); transition:transform .3s; }
@@ -356,7 +360,7 @@
       <button class="ghost back" onclick="view('clock')">← 打刻画面へ戻る</button>
       <div class="card">
         <strong id="reqTitle"></strong>
-        <div class="notice" id="reqNote" style="background:#fffbeb;border-color:#fde68a;color:#92400e">⚠ 休みは交代要員を確保した上で申請してください</div>
+        <div class="notice caution" id="reqNote">休みは交代要員を確保した上で申請してください</div>
         <p class="sub" id="reqHelp"></p>
         <div class="cal" id="cal"></div>
         <button onclick="saveReq()">提出する</button>

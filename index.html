@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261031164819">
+<meta name="build" content="20261031165222">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -224,6 +224,8 @@
   button.ghost.back { color:#fff; font-weight:500; font-size:15px; letter-spacing:.15em; padding:8px 2px; border-bottom:1px solid rgba(255,255,255,.8); border-radius:0;
     text-shadow:0 0 2px rgba(0,0,0,.9), 0 1px 6px rgba(0,0,0,.7), 0 0 14px rgba(0,0,0,.5); }
   /* 注意書き（シフト希望）：白地に赤文字。影なしでくっきり */
+  header strong { font-size:32px; letter-spacing:.3em; line-height:1.2; }
+  @media (max-width:480px) { header strong { font-size:26px; letter-spacing:.15em; } }
   #infos .notice { justify-content:flex-start; margin-top:-8px; }
   .notice.caution { background:rgba(255,255,255,.95); color:#a8322a; text-shadow:none; font-weight:500; border:0; border-left:3px solid #a8322a; }
   .notice.caution::before { content:'NOTICE'; flex:none; padding:1px 7px; background:#a8322a; color:#fff; font-size:10px; letter-spacing:.2em; }

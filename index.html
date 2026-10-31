@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261031164637">
+<meta name="build" content="20261031164819">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -224,6 +224,7 @@
   button.ghost.back { color:#fff; font-weight:500; font-size:15px; letter-spacing:.15em; padding:8px 2px; border-bottom:1px solid rgba(255,255,255,.8); border-radius:0;
     text-shadow:0 0 2px rgba(0,0,0,.9), 0 1px 6px rgba(0,0,0,.7), 0 0 14px rgba(0,0,0,.5); }
   /* 注意書き（シフト希望）：白地に赤文字。影なしでくっきり */
+  #infos .notice { justify-content:flex-start; margin-top:-8px; }
   .notice.caution { background:rgba(255,255,255,.95); color:#a8322a; text-shadow:none; font-weight:500; border:0; border-left:3px solid #a8322a; }
   .notice.caution::before { content:'NOTICE'; flex:none; padding:1px 7px; background:#a8322a; color:#fff; font-size:10px; letter-spacing:.2em; }
   .notice.caution { justify-content:flex-start; }
@@ -274,6 +275,7 @@
       </aside>
      <div>
       <div class="notice" id="deadline"></div>
+      <div id="infos"></div>
 
       <div class="card hand hidden" id="handBox">
         <h3>申し送り</h3>
@@ -401,6 +403,14 @@
         <div class="chips" id="subm"></div>
         <a id="sheetLink" target="_blank" class="btnlink">📄 データベース（スプレッドシート）を開く</a>
         <span class="sub">従業員の基本公休曜日・基本出勤日、パスワード再設定、チェック項目、設定の編集はこちら</span>
+      </div>
+
+      <div class="card">
+        <strong>お知らせ（INFO）</strong>
+        <span class="sub">打刻画面の上に、休み希望のお知らせの下へ1件ずつ並んで表示されます（全員に表示）。</span>
+        <textarea id="infoText" rows="2" placeholder="例：11/3は全員で宝満山参拝です"></textarea>
+        <button class="sec" onclick="addInfo()">お知らせを追加</button>
+        <div id="infoAdmin"></div>
       </div>
 
       <div class="card">
@@ -596,6 +606,7 @@ function render(s) {
   t.className = 'info'; t.textContent = `${m}月の休み希望は ${dlMonth}月${s.deadline}日 までに提出してください`;
   const a = document.createElement('a'); a.textContent = '提出 ›'; a.onclick = () => view('req');
   $('deadline').append(t, a);
+  drawInfos(s.infos || []);
 
   // 申し送り
   $('handBox').classList.toggle('hidden', !s.handovers.length);
@@ -832,6 +843,38 @@ function drawTasks(list) {
   });
   foldRows($('tasks'), near, far, '4日以降先の個別業務', 'tasks');
   drawNew(list);
+}
+
+/* INFO（管理画面で追加したお知らせ）。締切のお知らせの下に1件ずつ並べる */
+function drawInfos(list) {
+  me.infos = list;
+  $('infos').innerHTML = '';
+  list.forEach(x => {
+    const n = document.createElement('div'); n.className = 'notice';
+    const t = document.createElement('span'); t.className = 'info'; t.textContent = x.text; t.style.whiteSpace = 'pre-wrap';
+    n.appendChild(t); $('infos').appendChild(n);
+  });
+  if (!$('infoAdmin')) return;
+  $('infoAdmin').innerHTML = list.length ? '' : '<p class="sub">お知らせはありません</p>';
+  list.forEach(x => {
+    const row = document.createElement('div'); row.className = 'titem';
+    const body = document.createElement('div'); body.style.flex = '1';
+    body.innerHTML = '<div class="t"></div><div class="sub"></div>';
+    body.firstChild.textContent = x.text; body.lastChild.textContent = `${x.at} 追加`;
+    const del = document.createElement('button'); del.className = 'pp'; del.textContent = '削除';
+    del.onclick = async () => {
+      if (!await ask('このお知らせを削除しますか？')) return;
+      busy(true); try { drawInfos(await call('adminDelInfo', { id: x.id })); show('削除しました'); } finally { busy(false); }
+    };
+    row.append(body, del); $('infoAdmin').appendChild(row);
+  });
+}
+async function addInfo() {
+  const text = $('infoText').value.trim();
+  if (!text) { alert('お知らせの内容を入れてください'); return; }
+  busy(true);
+  try { drawInfos(await call('adminAddInfo', { text })); $('infoText').value = ''; show('お知らせを追加しました'); }
+  finally { busy(false); }
 }
 
 /* 期日の延長（個別業務・寺内スケジュール共通）。今回の分だけ */

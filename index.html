@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261031162152">
+<meta name="build" content="20261031162924">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -201,6 +201,21 @@
   .donebox { border-radius:0; background:#f4f4f4; }
   details.fold > summary { font-weight:400; letter-spacing:.1em; }
   .msg, .badge, .pcwarn, .day, a.btnlink { border-radius:0; }
+  /* アイコン（黒地ベース）：チェック・繰り返し・延長・折りたたみ */
+  .titem input[type=checkbox], .hitem input[type=checkbox], .hitem input[type=radio], label.chk input[type=checkbox] {
+    -webkit-appearance:none; appearance:none; width:22px; height:22px; border:1.5px solid #222629; border-radius:0; background:#fff; position:relative; cursor:pointer; transition:background .2s; }
+  .titem input[type=checkbox]:checked, .hitem input[type=checkbox]:checked, .hitem input[type=radio]:checked, label.chk input[type=checkbox]:checked { background:#222629; }
+  .titem input[type=checkbox]:checked::after, .hitem input[type=checkbox]:checked::after, .hitem input[type=radio]:checked::after, label.chk input[type=checkbox]:checked::after {
+    content:''; position:absolute; left:6px; top:2px; width:6px; height:11px; border:solid #fff; border-width:0 2px 2px 0; transform:rotate(45deg); }
+  .rep::before { content:''; display:inline-block; width:18px; height:18px; margin:0 8px 0 0; vertical-align:-3px; background:#222629 no-repeat center / 12px
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2.2' stroke-linecap='square'%3E%3Cpath d='M4 11V9a3 3 0 0 1 3-3h12M16 3l3 3-3 3M20 13v2a3 3 0 0 1-3 3H5M8 21l-3-3 3-3'/%3E%3C/svg%3E"); }
+  button.pp { background:#222629; color:#fff; border:0; padding:2px 10px 2px 8px; font-size:11px; letter-spacing:.15em; }
+  button.pp::before { content:''; display:inline-block; width:9px; height:9px; margin-right:6px; vertical-align:0; background:no-repeat center / contain
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' fill='none' stroke='white' stroke-width='1.4'%3E%3Cpath d='M0 5h9M6 2l3 3-3 3'/%3E%3C/svg%3E"); }
+  details.fold > summary { display:flex; align-items:center; gap:10px; }
+  details.fold > summary::before, details.fold[open] > summary::before { content:''; flex:none; width:22px; height:22px; font-size:0; background:#222629 no-repeat center / 10px
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' fill='none' stroke='white' stroke-width='1.5'%3E%3Cpath d='M1 3l4 4 4-4'/%3E%3C/svg%3E"); transition:transform .3s; }
+  details.fold[open] > summary::before { transform:rotate(180deg); }
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Shippori+Mincho:wght@400;500;600&display=swap" rel="stylesheet">
@@ -252,7 +267,6 @@
         <button id="btnIn" class="in" onclick="clockIn()">出勤</button>
         <button id="btnPre" class="out hidden" onclick="openPre(true)">退勤前チェック</button>
         <div class="pcwarn hidden" id="pcWarn">⚠ 出勤の打刻をしてください（スマホのアプリから）</div>
-        <p class="sub" id="qrHint">📷 出勤・退勤を押すとカメラが起動します。事務所の<b>打刻用QRコード</b>を写すと打刻されます</p>
       </div>
 
       <div class="overlay hidden" id="scanBox">
@@ -290,7 +304,7 @@
       </aside>
       <div class="overlay hidden" id="ppBox" onclick="if (event.target === this) this.classList.add('hidden')">
         <div class="modal">
-          <strong>⏩ 期日を延長</strong>
+          <strong>期日を延長</strong>
           <div class="sub" id="ppText" style="margin:4px 0 6px"></div>
           <label for="ppDate" class="tklabel">📅 延長後の期日</label>
           <input type="date" id="ppDate" class="tkdate">
@@ -309,7 +323,7 @@
       </div>
       <div class="overlay hidden" id="tkPicker" onclick="if (event.target === this) closeTk()">
         <div class="modal">
-          <strong>🔁 次回の期日を選んで完了</strong>
+          <strong><span class="rep"></span>次回の期日を選んで完了</strong>
           <div class="sub" id="tkText" style="margin:4px 0 6px"></div>
           <label for="tkDate" class="tklabel">📅 次回の期日（タップして日付を選ぶ）</label>
           <input type="date" id="tkDate" class="tkdate">
@@ -556,7 +570,6 @@ function render(s) {
   // PCはカメラでQRを読めないので打刻ボタンは出さず、状態と打刻時刻だけ表示
   $('btnIn').classList.toggle('hidden', s.working || IS_PC);
   $('btnPre').classList.toggle('hidden', !s.working || preOpen || IS_PC);
-  $('qrHint').classList.toggle('hidden', IS_PC);
   $('pcWarn').classList.toggle('hidden', !IS_PC || s.noAttend || s.working || !!s.lastTime);
   $('outBox').classList.toggle('hidden', !s.working || !preOpen || IS_PC);
   $('checks').innerHTML = '';
@@ -656,7 +669,7 @@ function drawDone(kind, list) {
       finally { busy(false); }
     };
     const body = document.createElement('div'); body.style.flex = '1';
-    const t = document.createElement('div'); t.className = 't'; t.textContent = (a.repeat ? '🔁 ' : '') + a.text;
+    const t = document.createElement('div'); t.className = 't' + (a.repeat ? ' rep' : ''); t.textContent = a.text;
     const m = document.createElement('div'); m.className = 'sub';
     m.textContent = `${a.doneAt} 完了` + (a.by ? `（${a.by}）` : '');
     body.append(t, m); row.append(u, body); box.appendChild(row);
@@ -743,7 +756,7 @@ function drawTasks(list) {
     const cb = document.createElement('input'); cb.type = 'checkbox';
     cb.onchange = () => { if (cb.checked) doneTask(t, cb); };
     const body = document.createElement('div'); body.style.flex = '1';
-    const txt = document.createElement('div'); txt.className = 't'; txt.textContent = (t.repeat ? '🔁 ' : '') + t.text;
+    const txt = document.createElement('div'); txt.className = 't' + (t.repeat ? ' rep' : ''); txt.textContent = t.text;
     const meta = document.createElement('div'); meta.className = 'sub';
     meta.textContent = t.from ? `${t.from}さんより` : '';
     if (t.due) {
@@ -764,7 +777,7 @@ function drawTasks(list) {
 
 /* 期日の延長（個別業務・寺内スケジュール共通）。今回の分だけ */
 function ppButton(fn) {
-  const b = document.createElement('button'); b.className = 'pp'; b.textContent = '⏩ 延長';
+  const b = document.createElement('button'); b.className = 'pp'; b.textContent = '延長';
   b.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); fn(); }; // 行はlabelなのでチェックが入らないように
   return b;
 }
@@ -803,7 +816,7 @@ function openNew() {
   $('newList').innerHTML = '';
   (me.tasks || []).filter(t => t.isNew).forEach(t => {
     const div = document.createElement('div'); div.className = 'newitem';
-    const txt = document.createElement('div'); txt.className = 't'; txt.textContent = (t.repeat ? '🔁 ' : '') + t.text;
+    const txt = document.createElement('div'); txt.className = 't' + (t.repeat ? ' rep' : ''); txt.textContent = t.text;
     const meta = document.createElement('div'); meta.className = 'sub';
     const [, m, d] = (t.due || '--').split('-').map(Number);
     meta.textContent = (t.from ? `${t.from}さんより` : '') + (t.due ? `　期日 ${m}/${d}` : '　期日なし');

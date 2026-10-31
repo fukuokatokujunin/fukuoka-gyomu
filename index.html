@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261031164223">
+<meta name="build" content="20261031164637">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -334,6 +334,14 @@
           <button class="ghost" onclick="$('ppBox').classList.add('hidden')">キャンセル</button>
         </div>
       </div>
+      <div class="overlay hidden" id="dueBox" onclick="if (event.target === this) this.classList.add('hidden')">
+        <div class="modal" style="max-height:85vh;overflow-y:auto">
+          <strong>期日が来ている項目があります</strong>
+          <p class="sub" style="margin:6px 0">退勤前に「完了」にするか「延長」してください</p>
+          <div id="dueList"></div>
+          <button class="ghost" onclick="$('dueBox').classList.add('hidden')">閉じる</button>
+        </div>
+      </div>
       <button class="hidden" id="newPop" onclick="openNew()"></button>
       <div class="overlay hidden" id="newBox" onclick="if (event.target === this) this.classList.add('hidden')">
         <div class="modal">
@@ -476,6 +484,34 @@ function openPre(on) {
   $('btnPre').classList.toggle('hidden', on);
   $('outBox').classList.toggle('hidden', !on);
   if (on) $('outBox').scrollIntoView({ behavior: 'smooth' });
+  if (on) showDue();
+}
+
+/* 退勤前：今日までが期日で、済み・延長していない個別業務／寺内スケジュールを知らせる */
+function showDue() {
+  const today = ymd(new Date());
+  const tasks = (showTasks() ? me.tasks || [] : []).filter(t => t.due && t.due <= today).map(t => ({ kind: '個別業務', text: t.text, date: t.due, sel: `#tasks [data-id="${t.id}"]` }));
+  const ann = (me.annual || []).filter(a => !a.event && a.left <= 0).map(a => ({ kind: '寺内スケジュール', text: a.text, date: a.date, sel: `#annual [data-aid="${a.id}"]` }));
+  const list = tasks.concat(ann);
+  if (!list.length) return;
+  $('dueList').innerHTML = '';
+  list.forEach(x => {
+    const div = document.createElement('div'); div.className = 'newitem';
+    const [, m, d] = x.date.split('-').map(Number);
+    const meta = document.createElement('div'); meta.className = 'sub'; meta.textContent = `${x.kind}　期日 ${m}/${d}` + (x.date < today ? '（過ぎています）' : '（今日）');
+    const txt = document.createElement('div'); txt.className = 't'; txt.textContent = x.text;
+    const b = document.createElement('button'); b.textContent = 'この項目へ移動';
+    b.onclick = () => { $('dueBox').classList.add('hidden'); jumpTo(x.sel); };
+    div.append(meta, txt, b); $('dueList').appendChild(div);
+  });
+  $('dueBox').classList.remove('hidden');
+}
+function jumpTo(sel) {
+  const row = document.querySelector(sel);
+  if (!row) return;
+  const fold = row.closest('details'); if (fold) fold.open = true;
+  row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  row.classList.add('flash'); setTimeout(() => row.classList.remove('flash'), 2500);
 }
 const defers = new Set(); // 「未完」にチェックした申し送りID（退勤時に送信）
 const $ = id => document.getElementById(id);
@@ -742,6 +778,7 @@ function drawAnnual(list) {
       const cap = document.createElement('small'); cap.textContent = '以降不要';
       wrap.append(cap, del); row.appendChild(wrap);
     }
+    if (!a.event) row.dataset.aid = a.id;
     (a.left >= 7 ? far : near).push(row);
   });
   foldRows($('annual'), near, far, '1週間以上先の予定', 'annual');

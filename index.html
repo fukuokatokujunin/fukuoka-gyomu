@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261031161255">
+<meta name="build" content="20261031161550">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -151,7 +151,13 @@
   :root { --bg:#e9eaea; --card:#fff; --ink:#222629; --sub:#7d8285; --pri:#222629; --acc:#8a7b5c; --ok:#3f6b55; --ng:#9b3a2e; --warn:#9a7a35; --line:#dcdedf; }
   body { font-family:"Noto Sans JP",-apple-system,"Hiragino Sans",sans-serif; letter-spacing:.06em; -webkit-font-smoothing:antialiased; }
   h3, .big, header strong, .modal strong, .tklabel { font-family:"Shippori Mincho","Hiragino Mincho ProN","Yu Mincho",serif; }
-  body::before { background: linear-gradient(rgba(233,234,234,.93), rgba(233,234,234,.93)), url('https://fukuokatokujunin.github.io/fukuoka-gyomu/bg.jpg') center / cover no-repeat; }
+  /* 背景：上はチャコールから写真を見せ、下へ向かって薄グレーに溶かす。写真は少し彩度を落として落ち着かせる */
+  body::before { background:
+      radial-gradient(ellipse at 50% 35%, rgba(34,38,41,0) 0%, rgba(34,38,41,.35) 100%),
+      linear-gradient(180deg, rgba(34,38,41,.55) 0%, rgba(233,234,234,.62) 38%, rgba(233,234,234,.8) 75%, rgba(233,234,234,.9) 100%),
+      url('https://fukuokatokujunin.github.io/fukuoka-gyomu/bg.jpg') center 30% / cover no-repeat;
+    filter:saturate(.75) contrast(1.05); }
+  .card { background:rgba(255,255,255,.96); }
   header { background:#222629; padding:18px 24px; box-shadow:none; }
   header strong { font-weight:500; letter-spacing:.35em; font-size:16px; }
   header #btnLogout, header .tools button { border-radius:0; background:transparent; border:0; border-bottom:1px solid rgba(255,255,255,.4); padding:4px 2px; font-size:12px; letter-spacing:.2em; font-weight:400; box-shadow:none; }

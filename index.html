@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261031161550">
+<meta name="build" content="20261031161758">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -182,7 +182,10 @@
   input:focus, textarea:focus, select:focus { outline:none; border-bottom-color:var(--ink); }
   .big { font-weight:400; letter-spacing:.12em; font-size:42px; }
   .notice { background:transparent; border:0; border-top:1px solid var(--ink); border-bottom:1px solid var(--ink); border-radius:0; color:var(--ink); }
-  .notice a { color:var(--ink); text-decoration:underline; text-underline-offset:4px; }
+  .notice a { color:#fff; text-decoration:underline; text-underline-offset:4px; }
+  /* 背景写真の上に直接置くので白文字＋影で読みやすく */
+  .notice { color:#fff; border-color:rgba(255,255,255,.7); font-weight:500; background:rgba(34,38,41,.25);
+    text-shadow:0 0 2px rgba(0,0,0,.9), 0 1px 6px rgba(0,0,0,.7), 0 0 14px rgba(0,0,0,.5); }
   .hand { border:0; border-left:2px solid var(--warn); }
   .hand h3 { color:var(--ink); }
   .titem, .hitem { border-top-color:#ececec; padding:14px 0; }

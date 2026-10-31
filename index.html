@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261031154347">
+<meta name="build" content="20261031155717">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -104,6 +104,7 @@
   .newitem { border-top:1px solid var(--line); padding:10px 0; }
   .newitem .t { font-weight:bold; white-space:pre-wrap; }
   .titem.flash { background:#fef3c7; transition:background 1s; }
+  button.pp { width:auto; margin:0 0 0 6px; padding:1px 8px; font-size:12px; font-weight:bold; background:#fff; color:#1f2a44; border:1px solid #94a3b8; border-radius:6px; }
   .titem { display:flex; gap:10px; align-items:flex-start; padding:10px 0; border-top:1px solid var(--line); }
   .titem input { width:24px; height:24px; margin:2px 0 0; flex:none; }
   .titem .t { white-space:pre-wrap; word-break:break-word; }
@@ -231,6 +232,17 @@
         <p class="sub" style="margin:4px 0 0">Slackで「@個別」を付けて送ると、ここに表示されます。終わったらチェック</p>
         <div id="tasks"></div>
       </aside>
+      <div class="overlay hidden" id="ppBox" onclick="if (event.target === this) this.classList.add('hidden')">
+        <div class="modal">
+          <strong>⏩ 期日を延長</strong>
+          <div class="sub" id="ppText" style="margin:4px 0 6px"></div>
+          <label for="ppDate" class="tklabel">📅 延長後の期日</label>
+          <input type="date" id="ppDate" class="tkdate">
+          <p class="sub" style="margin:6px 0">今回の分だけ延長します（次回は本来の期日で表示されます）</p>
+          <button onclick="doPostpone()">この日に延長</button>
+          <button class="ghost" onclick="$('ppBox').classList.add('hidden')">キャンセル</button>
+        </div>
+      </div>
       <button class="hidden" id="newPop" onclick="openNew()"></button>
       <div class="overlay hidden" id="newBox" onclick="if (event.target === this) this.classList.add('hidden')">
         <div class="modal">
@@ -623,6 +635,8 @@ function drawAnnual(list) {
     b.className = 'due' + (a.left < 0 ? ' over' : a.left <= 7 ? ' soon' : '');
     b.textContent = `${m}/${d}` + (a.left < 0 ? `（${-a.left}日過ぎています）` : a.left === 0 ? '（今日）' : `（あと${a.left}日）`);
     const meta = document.createElement('div'); meta.className = 'sub'; meta.appendChild(b);
+    if (a.moved) { const [, om, od] = a.key.split('-').map(Number); b.textContent += `　延長（本来 ${om}/${od}）`; }
+    if (!a.event) meta.appendChild(ppButton(() => openPostpone('annual', a, a.date)));
     if (a.last) { // 昨年の実施記録（カレンダー）で日付・内容を補正した項目
       const [, lm, ld] = a.last.split('-').map(Number);
       const h = document.createElement('span'); h.style.marginLeft = '6px';
@@ -654,7 +668,7 @@ async function reloadAnnual() {
 async function doneAnnual(a, cb) {
   if (!await ask('完了にしますか？')) { cb.checked = false; return; }
   busy(true);
-  try { drawAnnual(await call('doneAnnual', { id: a.id, date: a.date })); refreshDone('annual'); show('済みにしました（来年また表示されます）'); }
+  try { drawAnnual(await call('doneAnnual', { id: a.id, date: a.key || a.date })); refreshDone('annual'); show('済みにしました（来年また表示されます）'); }
   catch (e) { cb.checked = false; }
   finally { busy(false); }
 }
@@ -684,11 +698,41 @@ function drawTasks(list) {
       b.textContent = `期日 ${m}/${d}` + (left < 0 ? `（${-left}日超過）` : left === 0 ? '（今日）' : '');
       meta.appendChild(b);
     }
+    meta.appendChild(ppButton(() => openPostpone('task', t, t.due)));
     body.append(txt, meta); row.append(cb, body); row.dataset.id = t.id;
     (left !== null && left > 3 ? far : near).push(row); // 期日なし・超過・3日以内は常に表示
   });
   foldRows($('tasks'), near, far, '4日以降先の個別業務', 'tasks');
   drawNew(list);
+}
+
+/* 期日の延長（個別業務・寺内スケジュール共通）。今回の分だけ */
+function ppButton(fn) {
+  const b = document.createElement('button'); b.className = 'pp'; b.textContent = '⏩ 延長';
+  b.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); fn(); }; // 行はlabelなのでチェックが入らないように
+  return b;
+}
+let ppCur = null;
+function openPostpone(kind, item, due) {
+  ppCur = { kind, item };
+  const base = new Date(Math.max(Date.now(), due ? new Date(due + 'T00:00:00').getTime() : 0));
+  base.setDate(base.getDate() + 7);
+  $('ppDate').min = ymd(new Date()); $('ppDate').value = ymd(base); // 仮に1週間後
+  $('ppText').textContent = item.text;
+  $('ppBox').classList.remove('hidden');
+}
+async function doPostpone() {
+  const to = $('ppDate').value;
+  if (!to) { alert('延長後の期日を選んでください'); return; }
+  const { kind, item } = ppCur;
+  busy(true);
+  try {
+    if (kind === 'task') drawTasks(await call('postponeTask', { id: item.id, to }));
+    else drawAnnual(await call('postponeAnnual', { id: item.id, key: item.key || item.date, to }));
+    $('ppBox').classList.add('hidden');
+    const [, m, d] = to.split('-').map(Number);
+    show(`期日を ${m}/${d} に延長しました`);
+  } finally { busy(false); }
 }
 
 /* 新着（他人から届いた個別業務）：画面下にポップアップ → 押すと内容 →「確認」で個別業務欄へ */

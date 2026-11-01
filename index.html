@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261101110552">
+<meta name="build" content="20261101124728">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -347,7 +347,7 @@
      </div>
 
       <aside class="card task hidden" id="taskBox">
-        <div class="head"><h3>個別業務 <span class="sub" id="taskCount"></span></h3>
+        <div class="head"><h3>個別業務 <span class="sub" id="taskCount"></span> <span class="sub hidden" id="tkSaving">保存中…</span></h3>
           <span><button class="hbtn" onclick="toggleDone('tasks')">完了済み</button><button class="hbtn" onclick="reloadTasks()">更新</button></span></div>
         <div class="donebox hidden" id="tasksDoneBox"><b>完了済み（7日間）</b><div id="tasksDone"></div></div>
         <div id="tasks"></div>
@@ -610,7 +610,11 @@ async function doLogin() {
     view('clock');
   } finally { busy(false); }
 }
-function logout() { try { ['auth', 'snap', 'snapAnnual'].forEach(k => localStorage.removeItem(k)); } catch (e) {} location.reload(); }
+function logout() {
+  const out = () => { try { ['auth', 'snap', 'snapAnnual'].forEach(k => localStorage.removeItem(k)); } catch (e) {} location.reload(); };
+  if (taskPending) show('個別業務を保存中です。終わり次第ログアウトします');
+  taskQueue.then(out, out); // 個別業務の保存が終わってから
+}
 
 function view(v) {
   cur = v;
@@ -633,8 +637,12 @@ function view(v) {
 /* ---- 打刻 ---- */
 let annualReq = null; // 起動時に先に始めた寺内スケジュールの読込
 let stale = false;     // 前回の表示内容を出している間（最新を読み込み中）
-function render(s) {
+// 次に開いた時すぐ出す前回の表示内容（前回の表示のまま最新を読み込み中は保存しない）
+function saveSnap(s) {
   if (!stale) try { localStorage.setItem('snap', JSON.stringify({ id: auth && auth.id, s: Object.assign({}, s, { annual: undefined }) })); } catch (e) {}
+}
+function render(s) {
+  saveSnap(s);
   const annual = me && me.annual; // 年間予定はログイン後に別読込（ログインを速くするため）
   me = s;
   $('btnLogout').classList.remove('hidden');
@@ -714,7 +722,7 @@ const IS_PC = !/iPhone|iPad|iPod|Android|Mobile/i.test(navigator.userAgent) &&
 // 公開時に埋め込む版番号（meta build）と、公開中のページの版番号を比べ、違えば読み込み直す
 const BUILD = (document.querySelector('meta[name=build]') || {}).content || '';
 function checkUpdate() {
-  if (!BUILD || document.hidden || tkCur || scan || (typeof preOpen !== 'undefined' && preOpen)) return; // 入力中は避ける
+  if (!BUILD || document.hidden || tkCur || taskPending || scan || (typeof preOpen !== 'undefined' && preOpen)) return; // 入力中・保存中は避ける
   fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' }).then(r => r.text()).then(t => {
     const m = t.match(/<meta name="build" content="(\d+)">/);
     if (m && m[1] !== BUILD) location.replace(location.pathname + '?b=' + m[1]); // 普通の再読込だと古い画面が出ることがあるので版番号を付けて読み直す
@@ -859,6 +867,7 @@ async function doneAnnual(a, cb) {
 const ymd = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 function drawTasks(list) {
   me.tasks = list;
+  saveSnap(me); // 完了・延長したものが次に開いた時に一瞬戻って見えないように
   $('taskCount').textContent = list.length ? `${list.length}件` : '';
   $('tasks').innerHTML = list.length ? '' : '<p class="sub">未完了の個別業務はありません</p>';
   const today = ymd(new Date());
@@ -939,13 +948,20 @@ function openPostpone(kind, item, due) {
 async function doPostpone() {
   const to = $('ppDate').value;
   if (!to) { alert('延長後の期日を選んでください'); return; }
+  if (to < ymd(new Date())) { alert('今日以降の日付を選んでください'); return; }
   const { kind, item } = ppCur;
+  const [, m, d] = to.split('-').map(Number);
+  if (kind === 'task') { // 個別業務は返事を待たずに一覧を直す（保存は裏で）
+    $('ppBox').classList.add('hidden');
+    drawTasks(sortTasks(me.tasks.map(t => t.id === item.id ? Object.assign({}, t, { due: to }) : t)));
+    saveTask('postponeTask', { id: item.id, to });
+    show(`期日を ${m}/${d} に延長しました`);
+    return;
+  }
   busy(true);
   try {
-    if (kind === 'task') drawTasks(await call('postponeTask', { id: item.id, to }));
-    else drawAnnual(await call('postponeAnnual', { id: item.id, key: item.key || item.date, to }));
+    drawAnnual(await call('postponeAnnual', { id: item.id, key: item.key || item.date, to }));
     $('ppBox').classList.add('hidden');
-    const [, m, d] = to.split('-').map(Number);
     show(`期日を ${m}/${d} に延長しました`);
   } finally { busy(false); }
 }
@@ -985,21 +1001,41 @@ async function seeNew(id) {
 }
 async function reloadTasks() {
   busy(true);
-  try { drawTasks(await call('tasks')); } finally { busy(false); }
+  try { await taskQueue; drawTasks(await call('tasks')); } finally { busy(false); }
 }
-// 10分ごとに自動更新（勤務中・打刻画面を表示中・期日選択中でないときだけ。失敗しても表示しない）
+// 10分ごとに自動更新（勤務中・打刻画面を表示中・期日選択中・保存中でないときだけ。失敗しても表示しない）
 setInterval(() => {
-  if (!showTasks() || cur !== 'clock' || tkCur || document.hidden) return;
-  rawCall('tasks', auth).then(list => { if (!tkCur) drawTasks(list); }).catch(() => {});
+  if (!showTasks() || cur !== 'clock' || tkCur || taskPending || document.hidden) return;
+  rawCall('tasks', auth).then(list => { if (!tkCur && !taskPending) drawTasks(list); }).catch(() => {});
 }, 10 * 60 * 1000);
 // PCは打刻をスマホで行うので、開いたままでも状態（勤務中・打刻時刻・警告）を5分ごとと画面に戻ったときに読み直す
 function refreshPc() {
-  if (!IS_PC || !me || cur !== 'clock' || tkCur || document.hidden) return;
-  rawCall('login', auth).then(s => { if (!tkCur) render(s); }).catch(() => {});
+  if (!IS_PC || !me || cur !== 'clock' || tkCur || taskPending || document.hidden) return;
+  rawCall('login', auth).then(s => { if (!tkCur && !taskPending) render(s); }).catch(() => {});
 }
 setInterval(refreshPc, 5 * 60 * 1000);
 document.addEventListener('visibilitychange', refreshPc);
 let tkCur = null; // 次回期日を選んでいる繰り返しタスク
+// 期日の近い順（期日なしは最後）。サーバーと同じ並べ方
+const dueKey = t => t.due || '9999';
+const sortTasks = list => list.slice().sort((a, b) => dueKey(a) < dueKey(b) ? -1 : dueKey(a) > dueKey(b) ? 1 : 0);
+// 個別業務の完了・延長の保存：一覧は返事を待たずに先に直し、保存は裏で順番に送る（続けて操作しても待たない）。
+// 送り終えたら最後の結果で一覧を最新にする。保存できなかった時は知らせて、一覧をシートの内容に戻す
+let taskQueue = Promise.resolve(), taskPending = 0;
+function saveTask(action, p) {
+  taskPending++;
+  $('tkSaving').classList.remove('hidden');
+  const send = () => rawCall(action, auth, p).catch(e => {
+    show(`保存できませんでした：${e.message}`, true);
+    return rawCall('tasks', auth).catch(() => null);
+  });
+  taskQueue = taskQueue.then(send, send).then(list => {
+    if (--taskPending) return;
+    $('tkSaving').classList.add('hidden');
+    if (list && !tkCur) drawTasks(list);
+    refreshDone('tasks');
+  });
+}
 async function doneTask(t, cb) {
   if (!await ask('完了にしますか？')) { cb.checked = false; return; }
   if (t.repeat) {
@@ -1010,25 +1046,25 @@ async function doneTask(t, cb) {
     $('tkPicker').classList.remove('hidden');
     return;
   }
-  busy(true);
-  try { drawTasks(await call('doneTask', { id: t.id })); refreshDone('tasks'); show('個別業務を完了しました'); }
-  catch (e) { cb.checked = false; }
-  finally { busy(false); }
+  drawTasks(me.tasks.filter(x => x.id !== t.id)); // 返事を待たずに一覧から外す（保存は裏で）
+  saveTask('doneTask', { id: t.id });
+  show('個別業務を完了しました');
 }
 function closeTk() { if (tkCur) tkCur.cb.checked = false; tkCur = null; $('tkPicker').classList.add('hidden'); }
-async function doneRepeat(end) {
+function doneRepeat(end) {
+  if (!tkCur) return;
   const next = end || $('tkDate').value;
   if (!next) { alert('次回の期日を選んでください'); return; }
+  if (!end && next <= ymd(new Date())) { alert('次回の期日は明日以降を選んでください'); return; }
   const { t } = tkCur;
-  busy(true);
-  try {
-    drawTasks(await call('doneTask', { id: t.id, next }));
-    refreshDone('tasks');
-    tkCur = null; $('tkPicker').classList.add('hidden');
-    if (end) { show('完了しました（今後は繰り返しません）'); return; }
-    const [, m, d] = next.split('-').map(Number);
-    show(`完了しました。次回期日は ${m}/${d} です`);
-  } finally { busy(false); }
+  tkCur = null; $('tkPicker').classList.add('hidden');
+  // 返事を待たずに一覧を直す（保存は裏で）
+  drawTasks(end ? me.tasks.filter(x => x.id !== t.id)
+    : sortTasks(me.tasks.map(x => x.id === t.id ? Object.assign({}, x, { due: next, isNew: false }) : x)));
+  saveTask('doneTask', { id: t.id, next });
+  if (end) { show('完了しました（今後は繰り返しません）'); return; }
+  const [, m, d] = next.split('-').map(Number);
+  show(`完了しました。次回期日は ${m}/${d} です`);
 }
 
 async function ack(id, cb) {
@@ -1400,7 +1436,8 @@ rawCall('names', null).then(list => {
   addEventListener('touchend', () => {
     if (y0 !== null && dy >= NEED && scrollY <= 0) {
       el.textContent = '更新中…';
-      location.replace(location.pathname + '?r=' + Date.now());
+      const reload = () => location.replace(location.pathname + '?r=' + Date.now());
+      taskQueue.then(reload, reload); // 個別業務の保存が終わってから
     } else { el.style.opacity = 0; el.style.transform = 'translate(-50%,-60px)'; }
     y0 = null; dy = 0;
   });

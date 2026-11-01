@@ -2,20 +2,34 @@
 <html lang="ja"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>PC自動起動用ファイル</title>
+<title>Mac用の設定</title>
 <style>
   body { margin:0; font-family:-apple-system,"Hiragino Sans","Yu Gothic",sans-serif; background:#f6f7fa; color:#1e2533; }
   main { max-width:640px; margin:0 auto; padding:24px 16px; }
   h1 { font-size:22px; color:#1f2a44; }
+  h2 { font-size:17px; margin:0 0 6px; color:#1f2a44; }
   .card { background:#fff; border-radius:12px; padding:18px; margin:14px 0; box-shadow:0 1px 3px rgba(0,0,0,.08); }
-  a.dl { display:block; text-align:center; background:#1f2a44; color:#fff; text-decoration:none; font-weight:bold; font-size:17px; padding:14px; border-radius:10px; margin-top:10px; }
+  a.dl, button { display:block; width:100%; text-align:center; background:#1f2a44; color:#fff; text-decoration:none; font-weight:bold; font-size:17px; padding:14px; border:0; border-radius:10px; margin-top:10px; cursor:pointer; font-family:inherit; }
+  code { display:block; background:#f2f4f8; border-radius:8px; padding:10px; font-size:13px; word-break:break-all; }
   p { line-height:1.7; }
   .sub { color:#5b6b82; font-size:14px; }
 </style></head>
 <body><main>
-  <h1>Macを起動したら自動で開く設定 ― ファイルのダウンロード</h1>
-  <p class="sub">下のボタンを押してダウンロードしてください。設定のしかたは「業務管理システム 導入マニュアル」を見てください。</p>
-  <div class="card"><b>Mac の方</b>
-    <a class="dl" href="pc/fukuoka-gyomu-mac.zip" download="業務管理システム.zip">Mac用をダウンロード</a></div>
-  <p class="sub">ダウンロードした「業務管理システム.zip」をダブルクリックすると、アプリと同じロゴの「業務管理システム.webloc」ができます（Safariでは自動でできます）。<b>「ホーム」フォルダ（自分の名前のフォルダ）にコピーしてから</b>設定してください。「書類」「デスクトップ」「ダウンロード」に置くと、起動時に開きません。</p>
+  <h1>業務管理システム ― Mac用の設定</h1>
+  <p class="sub">設定のしかたは「業務管理システム 導入マニュアル」を見てください。</p>
+  <div class="card"><h2>① Macの起動時に自動で開く設定</h2>
+    <p class="sub">下のボタンでコピー → 「ターミナル」に貼り付けて return キー。</p>
+    <code id="cmd">curl -fsSL https://fukuokatokujunin.github.io/fukuoka-gyomu/pc/mac-autostart.sh | bash</code>
+    <button id="cp">コピーする</button></div>
+  <div class="card"><h2>② デスクトップに置くアイコン</h2>
+    <p class="sub">閉じてしまった時に、ダブルクリックで開くためのアイコンです（アプリと同じロゴ）。ダウンロードした zip をダブルクリックすると「業務管理システム.webloc」ができるので、デスクトップへ移してください。</p>
+    <a class="dl" href="pc/fukuoka-gyomu-mac.zip" download="業務管理システム.zip">アイコンをダウンロード</a></div>
+<script>
+document.getElementById('cp').onclick = function () {
+  var t = document.getElementById('cmd').textContent, b = this;
+  var done = function () { b.textContent = 'コピーしました ✓'; setTimeout(function () { b.textContent = 'コピーする'; }, 2500); };
+  if (navigator.clipboard) navigator.clipboard.writeText(t).then(done, fallback); else fallback();
+  function fallback() { var r = document.createRange(); r.selectNodeContents(document.getElementById('cmd')); var s = getSelection(); s.removeAllRanges(); s.addRange(r); document.execCommand('copy'); done(); }
+};
+</script>
 </main></body></html>

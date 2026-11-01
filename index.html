@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261101124728">
+<meta name="build" content="20261101130411">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -99,8 +99,8 @@
   /* タスク：PCは勤務中画面の右、スマホは下 */
   .task h3 { margin:0; font-size:16px; }
   .task .head { display:flex; justify-content:space-between; align-items:center; }
-  #dueBar { position:fixed; left:50%; bottom:66px; transform:translateX(-50%); z-index:9; width:auto; margin:0; border-radius:0; background:#a8322a; color:#fff; padding:12px 24px; letter-spacing:.15em; font-weight:500; box-shadow:0 10px 30px rgba(0,0,0,.25); }
-  #newPop { position:fixed; left:50%; bottom:16px; transform:translateX(-50%); z-index:9; width:auto; margin:0;
+  #dueBar { position:fixed; left:50%; bottom:66px; transform:translateX(-50%); z-index:9; width:max-content; max-width:calc(100vw - 32px); margin:0; border-radius:0; background:#a8322a; color:#fff; padding:12px 24px; letter-spacing:.15em; font-weight:500; box-shadow:0 10px 30px rgba(0,0,0,.25); }
+  #newPop { position:fixed; left:50%; bottom:16px; transform:translateX(-50%); z-index:9; width:max-content; max-width:calc(100vw - 32px); margin:0;
     background:#dc2626; color:#fff; border-radius:999px; padding:12px 22px; font-weight:bold; box-shadow:0 4px 14px rgba(0,0,0,.25); animation:pop 1.6s ease-in-out infinite; }
   @keyframes pop { 50% { transform:translateX(-50%) scale(1.06); } }
   .newitem { border-top:1px solid var(--line); padding:10px 0; }
@@ -251,6 +251,16 @@
   /* 引っぱって更新（スマホ） */
   #ptr { position:fixed; left:50%; top:0; z-index:20; transform:translate(-50%,-60px); padding:8px 18px; background:#222629; color:#fff;
     font-size:12px; letter-spacing:.2em; pointer-events:none; opacity:0; transition:opacity .2s; }
+  /* 保存中の帯（画面下）。閉じると送っていない分が保存されないので、閉じないよう知らせる */
+  #saveBar { display:none; position:fixed; left:50%; bottom:16px; transform:translateX(-50%); z-index:11; align-items:center; gap:10px;
+    width:max-content; max-width:calc(100vw - 32px); padding:10px 20px; background:#222629; color:#fff; font-size:13px; letter-spacing:.08em;
+    box-shadow:0 10px 30px rgba(0,0,0,.3); pointer-events:none; }
+  #saveBar::before { content:''; flex:none; width:14px; height:14px; border:2px solid rgba(255,255,255,.3); border-top-color:#c9b88f; border-radius:50%; animation:spin .8s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  @media (max-width:360px) { #saveBar { font-size:12px; letter-spacing:0; padding:10px 16px; } } /* 小さい画面でも1行に収める */
+  body.saving #saveBar { display:flex; }
+  body.saving #newPop { bottom:70px; }
+  body.saving #dueBar { bottom:130px; }
   details.fold > summary { display:flex; align-items:center; gap:10px; }
   details.fold > summary::before, details.fold[open] > summary::before { content:''; flex:none; width:22px; height:22px; font-size:0; background:#222629 no-repeat center / 10px
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' fill='none' stroke='white' stroke-width='1.5'%3E%3Cpath d='M1 3l4 4 4-4'/%3E%3C/svg%3E"); transition:transform .3s; }
@@ -261,6 +271,7 @@
 </head>
 <body>
 <div id="ptr"></div>
+<div id="saveBar">保存中…　アプリを閉じないでください</div>
 <!-- 確認ダイアログ：どの画面からも使うので画面（section）の外に置く -->
       <div class="overlay hidden" id="askBox">
         <div class="modal center">
@@ -347,7 +358,7 @@
      </div>
 
       <aside class="card task hidden" id="taskBox">
-        <div class="head"><h3>個別業務 <span class="sub" id="taskCount"></span> <span class="sub hidden" id="tkSaving">保存中…</span></h3>
+        <div class="head"><h3>個別業務 <span class="sub" id="taskCount"></span></h3>
           <span><button class="hbtn" onclick="toggleDone('tasks')">完了済み</button><button class="hbtn" onclick="reloadTasks()">更新</button></span></div>
         <div class="donebox hidden" id="tasksDoneBox"><b>完了済み（7日間）</b><div id="tasksDone"></div></div>
         <div id="tasks"></div>
@@ -612,8 +623,8 @@ async function doLogin() {
 }
 function logout() {
   const out = () => { try { ['auth', 'snap', 'snapAnnual'].forEach(k => localStorage.removeItem(k)); } catch (e) {} location.reload(); };
-  if (taskPending) show('個別業務を保存中です。終わり次第ログアウトします');
-  taskQueue.then(out, out); // 個別業務の保存が終わってから
+  if (savePending) show('保存中です。終わり次第ログアウトします');
+  saveQueue.then(out, out); // 保存が終わってから
 }
 
 function view(v) {
@@ -722,7 +733,7 @@ const IS_PC = !/iPhone|iPad|iPod|Android|Mobile/i.test(navigator.userAgent) &&
 // 公開時に埋め込む版番号（meta build）と、公開中のページの版番号を比べ、違えば読み込み直す
 const BUILD = (document.querySelector('meta[name=build]') || {}).content || '';
 function checkUpdate() {
-  if (!BUILD || document.hidden || tkCur || taskPending || scan || (typeof preOpen !== 'undefined' && preOpen)) return; // 入力中・保存中は避ける
+  if (!BUILD || document.hidden || tkCur || savePending || scan || (typeof preOpen !== 'undefined' && preOpen)) return; // 入力中・保存中は避ける
   fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' }).then(r => r.text()).then(t => {
     const m = t.match(/<meta name="build" content="(\d+)">/);
     if (m && m[1] !== BUILD) location.replace(location.pathname + '?b=' + m[1]); // 普通の再読込だと古い画面が出ることがあるので版番号を付けて読み直す
@@ -845,22 +856,21 @@ function drawAnnual(list) {
   foldRows($('annual'), near, far, '1週間以上先の予定', 'annual');
   if (typeof dueMode !== 'undefined' && dueMode) setTimeout(refreshDue, 0);
 }
-async function removeAnnual(a) {
+function removeAnnual(a) {
   if (!confirm(`「${a.text.slice(0, 40)}」を今後表示しないようにしますか？\n（年間予定シートの「有効」をFALSEにします。シートで戻せます）`)) return;
-  busy(true);
-  try { drawAnnual(await call('removeAnnual', { id: a.id })); show('削除しました（今後は表示されません）'); }
-  finally { busy(false); }
+  drawAnnual(me.annual.filter(x => x.event || x.id !== a.id)); // 返事を待たずに一覧から外す（保存は裏で）
+  saveLater('annual', 'removeAnnual', { id: a.id });
+  show('削除しました（今後は表示されません）');
 }
 async function reloadAnnual() {
   busy(true);
-  try { drawAnnual(await call('annual')); } finally { busy(false); }
+  try { await saveQueue; drawAnnual(await call('annual')); } finally { busy(false); }
 }
 async function doneAnnual(a, cb) {
   if (!await ask('完了にしますか？')) { cb.checked = false; return; }
-  busy(true);
-  try { drawAnnual(await call('doneAnnual', { id: a.id, date: a.key || a.date })); refreshDone('annual'); show('済みにしました（来年また表示されます）'); }
-  catch (e) { cb.checked = false; }
-  finally { busy(false); }
+  drawAnnual(me.annual.filter(x => x.event || x.id !== a.id)); // 返事を待たずに一覧から外す（保存は裏で）
+  saveLater('annual', 'doneAnnual', { id: a.id, date: a.key || a.date });
+  show('済みにしました（来年また表示されます）');
 }
 
 /* ---- タスク ---- */
@@ -945,25 +955,25 @@ function openPostpone(kind, item, due) {
   $('ppText').textContent = item.text;
   $('ppBox').classList.remove('hidden');
 }
-async function doPostpone() {
+function doPostpone() {
   const to = $('ppDate').value;
   if (!to) { alert('延長後の期日を選んでください'); return; }
   if (to < ymd(new Date())) { alert('今日以降の日付を選んでください'); return; }
   const { kind, item } = ppCur;
-  const [, m, d] = to.split('-').map(Number);
-  if (kind === 'task') { // 個別業務は返事を待たずに一覧を直す（保存は裏で）
-    $('ppBox').classList.add('hidden');
+  $('ppBox').classList.add('hidden');
+  // 返事を待たずに一覧を直す（保存は裏で）
+  if (kind === 'task') {
     drawTasks(sortTasks(me.tasks.map(t => t.id === item.id ? Object.assign({}, t, { due: to }) : t)));
-    saveTask('postponeTask', { id: item.id, to });
-    show(`期日を ${m}/${d} に延長しました`);
-    return;
+    saveLater('tasks', 'postponeTask', { id: item.id, to });
+  } else {
+    const key = item.key || item.date, left = daysLeft(to);
+    // 表示の仕方はサーバー（annualSchedule_）と同じ。30＝表示する日数（ANNUAL_WINDOW_DAYS）
+    drawAnnual(sortBy(me.annual.map(a => !a.event && a.id === item.id
+      ? Object.assign({}, a, { date: to, key, left, early: left > 30, moved: key !== to }) : a), a => a.date));
+    saveLater('annual', 'postponeAnnual', { id: item.id, key, to });
   }
-  busy(true);
-  try {
-    drawAnnual(await call('postponeAnnual', { id: item.id, key: item.key || item.date, to }));
-    $('ppBox').classList.add('hidden');
-    show(`期日を ${m}/${d} に延長しました`);
-  } finally { busy(false); }
+  const [, m, d] = to.split('-').map(Number);
+  show(`期日を ${m}/${d} に延長しました`);
 }
 
 /* 新着（他人から届いた個別業務）：画面下にポップアップ → 押すと内容 →「確認」で個別業務欄へ */
@@ -1001,41 +1011,49 @@ async function seeNew(id) {
 }
 async function reloadTasks() {
   busy(true);
-  try { await taskQueue; drawTasks(await call('tasks')); } finally { busy(false); }
+  try { await saveQueue; drawTasks(await call('tasks')); } finally { busy(false); }
 }
 // 10分ごとに自動更新（勤務中・打刻画面を表示中・期日選択中・保存中でないときだけ。失敗しても表示しない）
 setInterval(() => {
-  if (!showTasks() || cur !== 'clock' || tkCur || taskPending || document.hidden) return;
-  rawCall('tasks', auth).then(list => { if (!tkCur && !taskPending) drawTasks(list); }).catch(() => {});
+  if (!showTasks() || cur !== 'clock' || tkCur || savePending || document.hidden) return;
+  rawCall('tasks', auth).then(list => { if (!tkCur && !savePending) drawTasks(list); }).catch(() => {});
 }, 10 * 60 * 1000);
 // PCは打刻をスマホで行うので、開いたままでも状態（勤務中・打刻時刻・警告）を5分ごとと画面に戻ったときに読み直す
 function refreshPc() {
-  if (!IS_PC || !me || cur !== 'clock' || tkCur || taskPending || document.hidden) return;
-  rawCall('login', auth).then(s => { if (!tkCur && !taskPending) render(s); }).catch(() => {});
+  if (!IS_PC || !me || cur !== 'clock' || tkCur || savePending || document.hidden) return;
+  rawCall('login', auth).then(s => { if (!tkCur && !savePending) render(s); }).catch(() => {});
 }
 setInterval(refreshPc, 5 * 60 * 1000);
 document.addEventListener('visibilitychange', refreshPc);
 let tkCur = null; // 次回期日を選んでいる繰り返しタスク
-// 期日の近い順（期日なしは最後）。サーバーと同じ並べ方
-const dueKey = t => t.due || '9999';
-const sortTasks = list => list.slice().sort((a, b) => dueKey(a) < dueKey(b) ? -1 : dueKey(a) > dueKey(b) ? 1 : 0);
-// 個別業務の完了・延長の保存：一覧は返事を待たずに先に直し、保存は裏で順番に送る（続けて操作しても待たない）。
-// 送り終えたら最後の結果で一覧を最新にする。保存できなかった時は知らせて、一覧をシートの内容に戻す
-let taskQueue = Promise.resolve(), taskPending = 0;
-function saveTask(action, p) {
-  taskPending++;
-  $('tkSaving').classList.remove('hidden');
+// 日付の近い順（サーバーと同じ並べ方）。個別業務の期日なしは最後
+const sortBy = (list, key) => list.slice().sort((a, b) => key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0);
+const sortTasks = list => sortBy(list, t => t.due || '9999');
+const daysLeft = date => Math.round((new Date(date + 'T00:00:00') - new Date(ymd(new Date()) + 'T00:00:00')) / 864e5);
+// 個別業務・寺内スケジュールの済み・延長などの保存：一覧は返事を待たずに先に直し、保存は裏で順番に送る（続けて操作しても待たない）。
+// 種類ごとに送り終えたら最後の結果で一覧を最新にする。保存できなかった時は知らせて、一覧をシートの内容に戻す。
+// 保存中は画面下に「アプリを閉じないでください」（閉じると送っていない分が保存されないため）
+const SAVE_KIND = {
+  tasks: { reload: 'tasks', draw: list => { if (!tkCur) drawTasks(list); } },
+  annual: { reload: 'annual', draw: list => drawAnnual(list) },
+};
+let saveQueue = Promise.resolve(), savePending = 0;
+const pendingOf = { tasks: 0, annual: 0 };
+function saveLater(kind, action, p) {
+  savePending++; pendingOf[kind]++;
+  document.body.classList.add('saving');
   const send = () => rawCall(action, auth, p).catch(e => {
     show(`保存できませんでした：${e.message}`, true);
-    return rawCall('tasks', auth).catch(() => null);
+    return rawCall(SAVE_KIND[kind].reload, auth).catch(() => null);
   });
-  taskQueue = taskQueue.then(send, send).then(list => {
-    if (--taskPending) return;
-    $('tkSaving').classList.add('hidden');
-    if (list && !tkCur) drawTasks(list);
-    refreshDone('tasks');
+  saveQueue = saveQueue.then(send, send).then(list => {
+    savePending--;
+    if (!--pendingOf[kind]) { if (list) SAVE_KIND[kind].draw(list); refreshDone(kind); }
+    if (!savePending) document.body.classList.remove('saving');
   });
 }
+// パソコンのブラウザでは、保存中に閉じようとすると確認が出る
+addEventListener('beforeunload', e => { if (savePending) { e.preventDefault(); e.returnValue = ''; } });
 async function doneTask(t, cb) {
   if (!await ask('完了にしますか？')) { cb.checked = false; return; }
   if (t.repeat) {
@@ -1047,7 +1065,7 @@ async function doneTask(t, cb) {
     return;
   }
   drawTasks(me.tasks.filter(x => x.id !== t.id)); // 返事を待たずに一覧から外す（保存は裏で）
-  saveTask('doneTask', { id: t.id });
+  saveLater('tasks', 'doneTask', { id: t.id });
   show('個別業務を完了しました');
 }
 function closeTk() { if (tkCur) tkCur.cb.checked = false; tkCur = null; $('tkPicker').classList.add('hidden'); }
@@ -1061,7 +1079,7 @@ function doneRepeat(end) {
   // 返事を待たずに一覧を直す（保存は裏で）
   drawTasks(end ? me.tasks.filter(x => x.id !== t.id)
     : sortTasks(me.tasks.map(x => x.id === t.id ? Object.assign({}, x, { due: next, isNew: false }) : x)));
-  saveTask('doneTask', { id: t.id, next });
+  saveLater('tasks', 'doneTask', { id: t.id, next });
   if (end) { show('完了しました（今後は繰り返しません）'); return; }
   const [, m, d] = next.split('-').map(Number);
   show(`完了しました。次回期日は ${m}/${d} です`);
@@ -1395,7 +1413,7 @@ if (saved) { // 名前一覧を待たずにログインを始める
   auth = saved;
   // 高速化：前回の表示内容をすぐ出し、最新の内容は裏で読む（ログインと寺内スケジュールは同時に）
   const ar = annualReq = rawCall('annual', auth);
-  ar.then(list => { if (me) drawAnnual(list); }).catch(() => {}); // 前回表示の後でも最新の寺内スケジュールに差し替える
+  ar.then(list => { if (me && !pendingOf.annual) drawAnnual(list); }).catch(() => {}); // 前回表示の後でも最新の寺内スケジュールに差し替える（保存中は保存後の結果で）
   let snap = null;
   try { snap = JSON.parse(localStorage.getItem('snap') || 'null'); } catch (e) {}
   if (snap && String(snap.id) === String(saved.id) && snap.s) {
@@ -1437,7 +1455,7 @@ rawCall('names', null).then(list => {
     if (y0 !== null && dy >= NEED && scrollY <= 0) {
       el.textContent = '更新中…';
       const reload = () => location.replace(location.pathname + '?r=' + Date.now());
-      taskQueue.then(reload, reload); // 個別業務の保存が終わってから
+      saveQueue.then(reload, reload); // 保存が終わってから
     } else { el.style.opacity = 0; el.style.transform = 'translate(-50%,-60px)'; }
     y0 = null; dy = 0;
   });

@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261102143220">
+<meta name="build" content="20261102153108">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -92,7 +92,6 @@
   ol.steps li:last-child { border-bottom:0; }
   ol.steps li b { display:block; }
   ol.steps .sub, .card > .sub { display:block; margin-top:6px; }
-  .carry { display:inline-block; margin-left:6px; padding:1px 6px; border-radius:6px; background:#fee2e2; color:var(--ng); font-size:12px; font-weight:700; }
   .hitem .opts { display:flex; gap:8px; margin-top:8px; }
   .hitem .opts label { flex:1; display:flex; gap:6px; align-items:center; padding:10px; border:1px solid var(--line); border-radius:8px; font-size:15px; }
   .hitem .opts input { width:20px; height:20px; margin:0; flex:none; }
@@ -338,7 +337,7 @@
 
       <div class="card hand hidden" id="handBox">
         <h3>申し送り</h3>
-        <p class="sub" style="margin:0">「確認した」か「未完（翌日に持ち越す）」にチェックしてください</p>
+        <p class="sub" style="margin:0">確認したらチェックしてください。内容は自分の個別業務（期日：翌日）に移ります</p>
         <div id="hands"></div>
       </div>
 
@@ -609,7 +608,6 @@ function jumpTo(sel) {
   row.scrollIntoView({ behavior: 'smooth', block: 'center' });
   row.classList.add('flash'); setTimeout(() => row.classList.remove('flash'), 2500);
 }
-const defers = new Set(); // 「未完」にチェックした申し送りID（退勤時に送信）
 const $ = id => document.getElementById(id);
 const LABEL = { 1:'出', 2:'公', 5:'有', 6:'前', 7:'後', 17:'出' };
 const mlabel = ym => Number(ym.split('-')[1]) + '月';
@@ -714,17 +712,12 @@ function render(s) {
     const row = document.createElement('div'); row.className = 'hitem';
     const body = document.createElement('div'); body.style.flex = '1';
     const meta = document.createElement('div'); meta.className = 'sub'; meta.textContent = `${h.from}さんより（${h.date}）`;
-    if (h.carried) { const c = document.createElement('span'); c.className = 'carry'; c.textContent = `持ち越し（${h.carried} 未完）`; meta.appendChild(c); }
     const txt = document.createElement('div'); txt.className = 't'; txt.textContent = h.text;
     const opts = document.createElement('div'); opts.className = 'opts';
     const l1 = document.createElement('label'), c1 = document.createElement('input');
     c1.type = 'checkbox'; c1.onchange = () => { if (c1.checked) ack(h.id, c1); };
-    l1.append(c1, '確認した');
-    const l2 = document.createElement('label'), c2 = document.createElement('input');
-    c2.type = 'checkbox'; c2.checked = defers.has(h.id);
-    c2.onchange = () => { c2.checked ? defers.add(h.id) : defers.delete(h.id); };
-    l2.append(c2, '未完（翌日に持ち越す）');
-    opts.append(l1, l2);
+    l1.append(c1, '確認した（個別業務に移す）');
+    opts.append(l1);
     body.append(meta, txt, opts); row.append(body); $('hands').appendChild(row);
   });
 
@@ -1125,7 +1118,7 @@ function doneRepeat(end) {
 
 async function ack(id, cb) {
   busy(true);
-  try { defers.delete(id); render(await call('ackHandover', { id })); }
+  try { render(await call('ackHandover', { id })); show(showTasks() ? '個別業務に移しました（期日は明日）' : '確認しました'); }
   catch (e) { cb.checked = false; }
   finally { busy(false); }
 }
@@ -1189,10 +1182,10 @@ async function clockIn() {
   } finally { busy(false); }
 }
 async function clockOut() {
-  // 申し送りは打刻画面で「確認した／未完」をチェックしてから退勤
-  const left = me.handovers.filter(h => !defers.has(h.id));
+  // 申し送りは打刻画面で「確認した」（＝個別業務へ移す）にチェックしてから退勤
+  const left = me.handovers;
   if (left.length) {
-    alert(`未確認の申し送りが ${left.length}件 あります。\n画面上部の申し送りで「確認した」か「未完（翌日に持ち越す）」にチェックしてください。`);
+    alert(`未確認の申し送りが ${left.length}件 あります。\n画面上部の申し送りで「確認した」にチェックしてください。`);
     $('handBox').scrollIntoView({ behavior: 'smooth' });
     return;
   }
@@ -1203,19 +1196,16 @@ async function clockOut() {
   if (hoText && !$('hoTo').value) { alert('引き継ぎの宛先を選んでください'); return; }
   const handover = hoText ? { to: $('hoTo').value, text: hoText } : null;
   const done = [...document.querySelectorAll('#checks input:checked')].map(x => me.checklist[x.value]);
-  const deferred = [...defers];
   let qr;
   try { qr = await scanQr('退勤：QRコードを写してください'); } catch (e) { show(e.message, true); return; }
   if (!qr) return;
   busy(true); show('退勤を記録しています…');
   try {
-    const r = await call('clockOut', { qr, done, memo: $('memo').value, handover, defers: deferred });
+    const r = await call('clockOut', { qr, done, memo: $('memo').value, handover });
     preOpen = false;
     render(r);
-    defers.clear();
     $('memo').value = '';
-    show('退勤しました。お疲れさまでした' + (handover ? '（引き継ぎを送信しました）' : '') +
-      (deferred.length ? `\n未完の申し送り ${deferred.length}件 は次回の出勤時にも表示されます` : ''));
+    show('退勤しました。お疲れさまでした' + (handover ? '（引き継ぎを送信しました）' : ''));
   } finally { busy(false); }
 }
 

@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261102165005">
+<meta name="build" content="20261102172832">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -275,7 +275,8 @@
   #askBox.low { align-items:flex-end; background:transparent; padding-bottom:28px; }
   #askBox.low .modal { box-shadow:0 -6px 30px rgba(0,0,0,.35); } /* 「はい／いいえ」の確認は、着手の一覧などほかの窓より前に出す */
   .rule { margin-top:4px; font-size:12px; color:var(--sub); letter-spacing:.04em; }
-  .tagline { margin:-4px 0 6px; font-size:12px; color:var(--sub); letter-spacing:.04em; }
+  .rule.rep::before { width:15px; height:15px; margin-right:6px; background-size:10px; vertical-align:-2px; } /* 周期の行の繰り返しアイコン（小さめ） */
+  .tklabel .rep::before { vertical-align:-3px; }
   /* 管理画面（2026-11-02 簡素化）：上段に月・状態・提出状況、タブで分け、次にやることだけ大きく */
   .adhead { display:flex; flex-wrap:wrap; align-items:center; gap:8px 14px; padding:18px 20px; }
   .adhead select { width:auto; margin:0; font-size:17px; }
@@ -340,7 +341,6 @@
       <aside class="card annual" id="annualBox">
         <div class="head"><h3>寺内スケジュール <span class="sub" id="annualCount"></span></h3>
           <span><button class="hbtn" onclick="toggleDone('annual')">完了済み</button><button class="hbtn" onclick="reloadAnnual()">更新</button></span></div>
-        <p class="tagline">みんなで期日を見て、赤くならないように協力。手をつけたら「未着手」を押して着手</p>
         <div class="donebox hidden" id="annualDoneBox"><b>完了済み（7日間）</b><div id="annualDone"></div></div>
         <div id="annual"></div>
       </aside>
@@ -392,7 +392,6 @@
       <aside class="card task hidden" id="taskBox">
         <div class="head"><h3>個別業務 <span class="sub" id="taskCount"></span></h3>
           <span><button class="hbtn" onclick="toggleDone('tasks')">完了済み</button><button class="hbtn" onclick="reloadTasks()">更新</button></span></div>
-        <p class="tagline">あなたへのお願い（1人から1人、または複数の人へ）</p>
         <div class="donebox hidden" id="tasksDoneBox"><b>完了済み（7日間）</b><div id="tasksDone"></div></div>
         <div id="tasks"></div>
       </aside>
@@ -446,7 +445,7 @@
           <div class="sub" id="tkText" style="margin:4px 0 6px"></div>
           <label for="tkDate" class="tklabel">📅 次回の期日（タップして日付を選ぶ）</label>
           <input type="date" id="tkDate" class="tkdate" onchange="guessKind()">
-          <label for="tkKind" class="tklabel">🔁 これからの繰り返し</label>
+          <label for="tkKind" class="tklabel"><span class="rep"></span>これからの繰り返し</label>
           <select id="tkKind" class="tkdate" onchange="this.dataset.touched = '1'">
             <option value="D">毎日</option><option value="WD">平日（月〜金）</option><option value="W">毎週（次回と同じ曜日）</option>
             <option value="M">毎月（次回と同じ日）</option><option value="MN">毎月（次回と同じ「第○ ○曜日」）</option><option value="Y">毎年（次回と同じ月日）</option>
@@ -1028,7 +1027,7 @@ function drawTasks(list) {
       meta.appendChild(b);
     }
     meta.appendChild(ppButton(() => openPostpone('task', t, t.due)));
-    if (t.ruleLabel) { const r = document.createElement('div'); r.className = 'rule'; r.textContent = '🔁 ' + t.ruleLabel; meta.appendChild(r); }
+    if (t.ruleLabel) { const r = document.createElement('div'); r.className = 'rule rep'; r.textContent = t.ruleLabel; meta.appendChild(r); }
     body.append(txt, meta); row.append(cb, body); row.dataset.id = t.id;
     if (t.repeat) { // 繰り返しをやめるときはゴミ箱
       const del = document.createElement('button'); del.className = 'ghost trash'; del.title = '繰り返しをやめる';

@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261102160120">
+<meta name="build" content="20261102163829">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -117,9 +117,9 @@
   .annual .titem.early { background:#fffbeb; margin:0 -8px; padding:10px 8px; border-radius:8px; }
   .annual .titem.evt { color:var(--sub); }
   .annual .kind { display:inline-block; margin-right:6px; padding:0 6px; border-radius:6px; background:#eef2ff; color:#3730a3; font-size:12px; }
-  .annual .trashwrap { flex:none; display:flex; flex-direction:column; align-items:center; align-self:flex-end; } /* 行の最下段にそろえる */
-  .annual .trashwrap small { font-size:10px; color:var(--sub); white-space:nowrap; }
-  .annual .trash { padding:0 4px; font-size:16px; opacity:.6; }
+  .task .trashwrap, .annual .trashwrap { flex:none; display:flex; flex-direction:column; align-items:center; align-self:flex-end; } /* 行の最下段にそろえる */
+  .task .trashwrap small, .annual .trashwrap small { font-size:10px; color:var(--sub); white-space:nowrap; }
+  .task .trash, .annual .trash { padding:0 4px; font-size:16px; opacity:.6; }
   .annual .evmark { width:24px; flex:none; text-align:center; }
   #v-clock { display:flex; flex-direction:column; }
   #annualBox { order:3; }
@@ -214,7 +214,7 @@
   button.pp::before { content:''; display:inline-block; width:9px; height:9px; margin-right:6px; vertical-align:0; background:no-repeat center / contain
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' fill='none' stroke='white' stroke-width='1.4'%3E%3Cpath d='M0 5h9M6 2l3 3-3 3'/%3E%3C/svg%3E"); }
   .notice .info::before { content:'INFO'; display:inline-block; margin-right:10px; padding:1px 7px; background:#222629; color:#fff; font-size:10px; letter-spacing:.2em; text-shadow:none; vertical-align:1px; border:1px solid rgba(255,255,255,.6); }
-  .annual .trash { width:24px; height:24px; padding:0; opacity:1; background:#222629 no-repeat center / 12px
+  .task .trash, .annual .trash { width:24px; height:24px; padding:0; opacity:1; background:#222629 no-repeat center / 12px
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='white' stroke-width='1.2'%3E%3Cpath d='M2 3h8M4.5 3V1.5h3V3M3 3l.6 7.5h4.8L9 3M5 5v4M7 5v4'/%3E%3C/svg%3E"); }
   /* スマホでカレンダーが見切れないように（7列を必ず画面幅に収める） */
   .cal { grid-template-columns:repeat(7, minmax(0,1fr)); gap:3px; }
@@ -270,8 +270,11 @@
   .due.over { color:var(--ng); font-weight:700; border-width:1.5px; }
   button.pp.st { background:#fff; color:#222629; border:1px solid #222629; }
   button.pp.st::before { display:none; }
-  button.pp.st.on { background:var(--ok); color:#fff; border-color:var(--ok); }
   button.prog { width:auto; margin:0 0 0 6px; padding:2px 10px; background:var(--ok); color:#fff; font-size:11px; letter-spacing:.15em; font-weight:500; }
+  #askBox { z-index:12; }
+  #askBox.low { align-items:flex-end; background:transparent; padding-bottom:28px; }
+  #askBox.low .modal { box-shadow:0 -6px 30px rgba(0,0,0,.35); } /* 「はい／いいえ」の確認は、着手の一覧などほかの窓より前に出す */
+  .rule { margin-top:4px; font-size:12px; color:var(--sub); letter-spacing:.04em; }
   .tagline { margin:-4px 0 6px; font-size:12px; color:var(--sub); letter-spacing:.04em; }
   /* 管理画面（2026-11-02 簡素化）：上段に月・状態・提出状況、タブで分け、次にやることだけ大きく */
   .adhead { display:flex; flex-wrap:wrap; align-items:center; gap:8px 14px; padding:18px 20px; }
@@ -337,7 +340,7 @@
       <aside class="card annual" id="annualBox">
         <div class="head"><h3>寺内スケジュール <span class="sub" id="annualCount"></span></h3>
           <span><button class="hbtn" onclick="toggleDone('annual')">完了済み</button><button class="hbtn" onclick="reloadAnnual()">更新</button></span></div>
-        <p class="tagline">みんなで期日を見て、赤くならないように協力。手をつけたら「着手」</p>
+        <p class="tagline">みんなで期日を見て、赤くならないように協力。手をつけたら「未着手」を押して着手</p>
         <div class="donebox hidden" id="annualDoneBox"><b>完了済み（7日間）</b><div id="annualDone"></div></div>
         <div id="annual"></div>
       </aside>
@@ -398,7 +401,7 @@
           <strong>着手している人</strong>
           <div class="sub" id="stText" style="margin:4px 0 10px"></div>
           <div id="stList"></div>
-          <p class="sub" style="margin:10px 0 0">自分の名前を押すと、着手を取り消します</p>
+          <p class="sub" style="margin:10px 0 0">自分の名前を押すと、着手を取り消せます</p>
           <button class="ghost" onclick="closeStart()">閉じる</button>
         </div>
       </div>
@@ -897,12 +900,6 @@ function drawAnnual(list) {
     if (!a.event) {
       meta.appendChild(ppButton(() => openPostpone('annual', a, a.date)));
       meta.appendChild(stButton(a));
-      if ((a.starters || []).length) {
-        // 誰かが着手していれば「進行中」。押すと着手している人の一覧（見るだけ。自分は加わらない）
-        const tag = document.createElement('button'); tag.className = 'prog'; tag.textContent = '進行中';
-        tag.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); stCur = a.id; drawStart(); $('stBox').classList.remove('hidden'); };
-        meta.appendChild(tag);
-      }
     }
     if (a.last) { // 昨年の実施記録（カレンダー）で日付・内容を補正した項目
       const [, lm, ld] = a.last.split('-').map(Number);
@@ -926,12 +923,14 @@ function drawAnnual(list) {
   if (stCur && !$('stBox').classList.contains('hidden')) drawStart();
 }
 
-/* 着手（寺内スケジュール）：押すと自分を加えて、着手している人の一覧を出す。自分の名前を押すと取り消す */
+/* 着手（寺内スケジュール）：ボタンは1つ。誰も着手していなければ「未着手」（押すと「着手しますか？」→はいで加わる）、
+   誰かが着手していれば「進行中」（押すと一覧を出し、まだ加わっていなければ「参加しますか？」。一覧で自分の名前を押すと取り消し） */
 let stCur = null;
 const myStart = a => (a.starters || []).some(p => String(p.id) === String(auth.id));
 function stButton(a) {
-  const b = document.createElement('button'); b.className = 'pp st' + (myStart(a) ? ' on' : '');
-  b.textContent = myStart(a) ? '着手中' : '着手';
+  const going = (a.starters || []).length > 0;
+  const b = document.createElement('button'); b.className = going ? 'prog' : 'pp st';
+  b.textContent = going ? '進行中' : '未着手';
   b.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); openStart(a); }; // 行はlabelなのでチェックが入らないように
   return b;
 }
@@ -940,10 +939,17 @@ function setStart(a, on) {
   drawAnnual(me.annual.map(x => !x.event && x.id === a.id ? Object.assign({}, x, { starters }) : x)); // 返事を待たずに表示（保存は裏で）
   saveLater('annual', 'startAnnual', { id: a.id, key: a.key || a.date, on });
 }
-function openStart(a) {
-  stCur = a.id;
-  $('stBox').classList.remove('hidden');
-  if (!myStart(a)) { setStart(a, true); show('着手にしました'); } else drawStart();
+async function openStart(a) {
+  if (!(a.starters || []).length) {
+    if (await ask('着手しますか？')) { setStart(a, true); show('着手にしました'); }
+    return;
+  }
+  stCur = a.id; drawStart(); $('stBox').classList.remove('hidden');
+  if (myStart(a)) return;
+  $('askBox').classList.add('low'); // 一覧が見えるように、確認は画面の下に出す
+  const yes = await ask('参加しますか？');
+  $('askBox').classList.remove('low');
+  if (yes) { setStart(a, true); show('参加しました'); }
 }
 function drawStart() {
   const a = me.annual.find(x => !x.event && x.id === stCur);
@@ -1016,7 +1022,15 @@ function drawTasks(list) {
       meta.appendChild(b);
     }
     meta.appendChild(ppButton(() => openPostpone('task', t, t.due)));
+    if (t.ruleLabel) { const r = document.createElement('div'); r.className = 'rule'; r.textContent = '🔁 ' + t.ruleLabel; meta.appendChild(r); }
     body.append(txt, meta); row.append(cb, body); row.dataset.id = t.id;
+    if (t.repeat) { // 繰り返しをやめるときはゴミ箱
+      const del = document.createElement('button'); del.className = 'ghost trash'; del.title = '繰り返しをやめる';
+      del.onclick = ev => { ev.preventDefault(); removeTask(t); };
+      const wrap = document.createElement('div'); wrap.className = 'trashwrap';
+      const cap = document.createElement('small'); cap.textContent = '削除';
+      wrap.append(cap, del); row.appendChild(wrap);
+    }
     (left !== null && left > 3 ? far : near).push(row); // 期日なし・超過・3日以内は常に表示
   });
   foldRows($('tasks'), near, far, '4日以降先の個別業務', 'tasks');
@@ -1172,6 +1186,14 @@ function saveLater(kind, action, p) {
 addEventListener('beforeunload', e => { if (savePending) { e.preventDefault(); e.returnValue = ''; } });
 async function doneTask(t, cb) {
   if (!await ask('完了にしますか？')) { cb.checked = false; return; }
+  if (t.repeat && t.rule) { // 周期が決まっている繰り返し：次回の期日は自動（サーバーと同じ計算で先に表示）
+    const today = ymd(new Date()), next = nextByRule(t.rule, t.due && t.due > today ? t.due : today);
+    drawTasks(sortTasks(me.tasks.map(x => x.id === t.id ? Object.assign({}, x, { due: next, isNew: false }) : x)));
+    saveLater('tasks', 'doneTask', { id: t.id });
+    const [, m, d] = next.split('-').map(Number);
+    show(`完了しました。次回の期日は ${m}/${d} です`);
+    return;
+  }
   if (t.repeat) {
     tkCur = { t, cb };
     const tm = new Date(); tm.setDate(tm.getDate() + 1);
@@ -1183,6 +1205,29 @@ async function doneTask(t, cb) {
   drawTasks(me.tasks.filter(x => x.id !== t.id)); // 返事を待たずに一覧から外す（保存は裏で）
   saveLater('tasks', 'doneTask', { id: t.id });
   show('個別業務を完了しました');
+}
+/* 繰り返しの周期（Task.gs と同じ。D 毎日／WD 平日／W:1,4 毎週／M:15 毎月○日／MN:2:3 第○○曜／Y:11-15 毎年） */
+function ruleMatch(rule, d) {
+  const [k, a, b] = String(rule).split(':');
+  const w = d.getDay(), day = d.getDate(), last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  if (k === 'D') return true;
+  if (k === 'WD') return w >= 1 && w <= 5;
+  if (k === 'W') return a.split(',').map(Number).includes(w);
+  if (k === 'M') return day === Math.min(Number(a), last);
+  if (k === 'MN') return w === Number(b) && (a === 'L' ? day + 7 > last : Math.ceil(day / 7) === Number(a));
+  if (k === 'Y') { const [m, dd] = a.split('-').map(Number); return d.getMonth() + 1 === m && day === Math.min(dd, last); }
+  return false;
+}
+function nextByRule(rule, after) {
+  const d = new Date(after + 'T00:00:00');
+  for (let i = 0; i < 800; i++) { d.setDate(d.getDate() + 1); if (ruleMatch(rule, d)) return ymd(d); }
+  return after;
+}
+async function removeTask(t) {
+  if (!await ask('この繰り返しの個別業務を削除しますか？（今後は出てきません）')) return;
+  drawTasks(me.tasks.filter(x => x.id !== t.id)); // 返事を待たずに一覧から外す（保存は裏で）
+  saveLater('tasks', 'removeTask', { id: t.id });
+  show('削除しました（今後は出てきません）');
 }
 function closeTk() { if (tkCur) tkCur.cb.checked = false; tkCur = null; $('tkPicker').classList.add('hidden'); }
 function doneRepeat(end) {

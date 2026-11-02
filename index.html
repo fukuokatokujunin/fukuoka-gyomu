@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261102163829">
+<meta name="build" content="20261102165005">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -442,10 +442,16 @@
       </div>
       <div class="overlay hidden" id="tkPicker" onclick="if (event.target === this) closeTk()">
         <div class="modal">
-          <strong><span class="rep"></span>次回の期日を選んで完了</strong>
+          <strong><span class="rep"></span>次回の期日と繰り返しを選んで完了</strong>
           <div class="sub" id="tkText" style="margin:4px 0 6px"></div>
           <label for="tkDate" class="tklabel">📅 次回の期日（タップして日付を選ぶ）</label>
-          <input type="date" id="tkDate" class="tkdate">
+          <input type="date" id="tkDate" class="tkdate" onchange="guessKind()">
+          <label for="tkKind" class="tklabel">🔁 これからの繰り返し</label>
+          <select id="tkKind" class="tkdate" onchange="this.dataset.touched = '1'">
+            <option value="D">毎日</option><option value="WD">平日（月〜金）</option><option value="W">毎週（次回と同じ曜日）</option>
+            <option value="M">毎月（次回と同じ日）</option><option value="MN">毎月（次回と同じ「第○ ○曜日」）</option><option value="Y">毎年（次回と同じ月日）</option>
+          </select>
+          <p class="sub" style="margin:4px 0 0">次からは完了するだけで、期日が自動で入ります</p>
           <button onclick="doneRepeat()">この日を次回期日にして完了</button>
           <button class="ghost" onclick="doneRepeat('END')">完了にして繰り返さない</button>
           <button class="ghost" onclick="closeTk()">キャンセル</button>
@@ -1198,6 +1204,7 @@ async function doneTask(t, cb) {
     tkCur = { t, cb };
     const tm = new Date(); tm.setDate(tm.getDate() + 1);
     $('tkDate').min = ymd(tm); $('tkDate').value = ymd(tm); // 空欄だとスマホで入力欄と分からないので翌日を仮に入れる
+    $('tkKind').value = 'M'; delete $('tkKind').dataset.touched; // 周期は次回の期日から推測（選び直せる）
     $('tkText').textContent = t.text;
     $('tkPicker').classList.remove('hidden');
     return;
@@ -1218,6 +1225,21 @@ function ruleMatch(rule, d) {
   if (k === 'Y') { const [m, dd] = a.split('-').map(Number); return d.getMonth() + 1 === m && day === Math.min(dd, last); }
   return false;
 }
+const WEEK = '日月火水木金土';
+function ruleFromKind(kind, base) {
+  const d = new Date(base + 'T00:00:00'), w = d.getDay(), day = d.getDate(), n = Math.ceil(day / 7);
+  return { D: 'D', WD: 'WD', W: 'W:' + w, M: 'M:' + day, MN: 'MN:' + (n <= 4 ? n : 'L') + ':' + w, Y: 'Y:' + (d.getMonth() + 1) + '-' + day }[kind] || '';
+}
+function ruleLabel(rule) {
+  const [k, a, b] = String(rule).split(':');
+  if (k === 'D') return '毎日';
+  if (k === 'WD') return '平日（月〜金）';
+  if (k === 'W') return '毎週 ' + a.split(',').map(i => WEEK[i]).join('・');
+  if (k === 'M') return Number(a) >= 31 ? '毎月 月末' : `毎月${a}日`;
+  if (k === 'MN') return `毎月${a === 'L' ? '最終' : '第' + a}${WEEK[b]}曜日`;
+  if (k === 'Y') { const [m, d] = a.split('-'); return `毎年${m}月${d}日`; }
+  return '';
+}
 function nextByRule(rule, after) {
   const d = new Date(after + 'T00:00:00');
   for (let i = 0; i < 800; i++) { d.setDate(d.getDate() + 1); if (ruleMatch(rule, d)) return ymd(d); }
@@ -1230,20 +1252,30 @@ async function removeTask(t) {
   show('削除しました（今後は出てきません）');
 }
 function closeTk() { if (tkCur) tkCur.cb.checked = false; tkCur = null; $('tkPicker').classList.add('hidden'); }
+/** 次回の期日を選んだら、前回の期日との間隔から周期を推測する（自分で選び直した後は変えない） */
+function guessKind() {
+  if (!tkCur || $('tkKind').dataset.touched) return;
+  const from = tkCur.t.due || ymd(new Date()), to = $('tkDate').value;
+  if (!to) return;
+  const n = Math.round((new Date(to + 'T00:00:00') - new Date(from + 'T00:00:00')) / 864e5);
+  $('tkKind').value = n === 1 ? 'D' : n === 7 ? 'W' : n >= 360 && n <= 370 ? 'Y' : 'M';
+}
 function doneRepeat(end) {
   if (!tkCur) return;
-  const next = end || $('tkDate').value;
+  let next = end || $('tkDate').value;
   if (!next) { alert('次回の期日を選んでください'); return; }
   if (!end && next <= ymd(new Date())) { alert('次回の期日は明日以降を選んでください'); return; }
   const { t } = tkCur;
   tkCur = null; $('tkPicker').classList.add('hidden');
   // 返事を待たずに一覧を直す（保存は裏で）
+  const kind = end ? '' : $('tkKind').value, rule = end ? '' : ruleFromKind(kind, next);
+  if (rule && !ruleMatch(rule, new Date(next + 'T00:00:00'))) next = nextByRule(rule, next); // 「平日」で土日を選んだ時など
   drawTasks(end ? me.tasks.filter(x => x.id !== t.id)
-    : sortTasks(me.tasks.map(x => x.id === t.id ? Object.assign({}, x, { due: next, isNew: false }) : x)));
-  saveLater('tasks', 'doneTask', { id: t.id, next });
+    : sortTasks(me.tasks.map(x => x.id === t.id ? Object.assign({}, x, { due: next, isNew: false, rule, ruleLabel: ruleLabel(rule) }) : x)));
+  saveLater('tasks', 'doneTask', { id: t.id, next: end || $('tkDate').value, kind });
   if (end) { show('完了しました（今後は繰り返しません）'); return; }
   const [, m, d] = next.split('-').map(Number);
-  show(`完了しました。次回期日は ${m}/${d} です`);
+  show(`完了しました。次回期日は ${m}/${d}（${ruleLabel(rule)}）。次からは完了するだけで期日が入ります`);
 }
 
 async function ack(id, cb) {

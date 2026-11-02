@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261103084518">
+<meta name="build" content="20261103085244">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -725,6 +725,8 @@ function saveSnap(s) {
 }
 function render(s) {
   saveSnap(s);
+  if (!stale) { loadedAt = Date.now(); loadedDay = ymd(new Date()); } // 勤務状態を読んだ日時（日をまたいだら読み直す）
+  if (!s.working) preOpen = false; // 勤務外なら退勤前チェックは閉じる
   const annual = me && me.annual; // 年間予定はログイン後に別読込（ログインを速くするため）
   me = s;
   $('btnLogout').classList.remove('hidden');
@@ -1158,6 +1160,24 @@ function refreshPc() {
   if (!IS_PC || !me || cur !== 'clock' || tkCur || savePending || document.hidden) return;
   rawCall('login', auth).then(s => { if (!tkCur && !savePending) render(s); }).catch(() => {});
 }
+/* スマホ：アプリを開いたまま日をまたぐと前日の「勤務中（退勤前チェック）」が残り、出勤できなかった（2026-11-03）。
+   画面に戻った時・1分ごとに、日付が変わっていれば必ず、同じ日でも10分たっていれば勤務状態を読み直す */
+let loadedAt = 0, loadedDay = '';
+function refreshStatus() {
+  if (IS_PC || !me || !auth || stale || document.hidden || tkCur || savePending || scan) return;
+  const dayChanged = loadedDay && loadedDay !== ymd(new Date());
+  if (!dayChanged && (preOpen || Date.now() - loadedAt < 10 * 60 * 1000)) return; // 退勤前チェックの入力中は日付が変わった時だけ
+  loadedAt = Date.now(); // 読込中に重ねて呼ばない
+  rawCall('login', auth).then(s => {
+    if (tkCur || savePending || scan) return;
+    if (dayChanged) { preOpen = false; dueMode = false; $('dueBox').classList.add('hidden'); $('dueBar').classList.add('hidden'); }
+    render(s);
+    if (dayChanged && cur === 'clock') show('日付が変わったので最新の状態にしました');
+  }).catch(() => { loadedAt = 0; });
+}
+setInterval(refreshStatus, 60 * 1000);
+document.addEventListener('visibilitychange', refreshStatus);
+window.addEventListener('pageshow', refreshStatus);
 setInterval(refreshPc, 5 * 60 * 1000);
 document.addEventListener('visibilitychange', refreshPc);
 let tkCur = null; // 次回期日を選んでいる繰り返しタスク

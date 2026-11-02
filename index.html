@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261101170015">
+<meta name="build" content="20261102143220">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -265,6 +265,26 @@
   details.fold > summary::before, details.fold[open] > summary::before { content:''; flex:none; width:22px; height:22px; font-size:0; background:#222629 no-repeat center / 10px
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' fill='none' stroke='white' stroke-width='1.5'%3E%3Cpath d='M1 3l4 4 4-4'/%3E%3C/svg%3E"); transition:transform .3s; }
   details.fold[open] > summary::before { transform:rotate(180deg); }
+  /* 管理画面（2026-11-02 簡素化）：上段に月・状態・提出状況、タブで分け、次にやることだけ大きく */
+  .adhead { display:flex; flex-wrap:wrap; align-items:center; gap:8px 14px; padding:18px 20px; }
+  .adhead select { width:auto; margin:0; font-size:17px; }
+  .adhead .chips { flex:1 1 100%; }
+  .atabs { display:flex; gap:0; margin:-8px 0 22px; border-bottom:1px solid rgba(255,255,255,.6); overflow-x:auto; }
+  .atabs .atab { flex:1; width:auto; margin:0; padding:12px 6px; font-size:14px; letter-spacing:.1em; white-space:nowrap;
+    background:rgba(34,38,41,.35); color:#fff; border-bottom:3px solid transparent; }
+  .atabs .atab.on { background:rgba(255,255,255,.96); color:var(--ink); border-bottom-color:var(--ink); font-weight:500; }
+  ol.stepbar { display:flex; list-style:none; margin:0 0 14px; padding:0; counter-reset:st; }
+  ol.stepbar li { flex:1; position:relative; text-align:center; font-size:12px; color:var(--sub); letter-spacing:0; counter-increment:st; }
+  ol.stepbar li::before { content:counter(st); display:block; width:26px; height:26px; line-height:24px; margin:0 auto 4px; border:1.5px solid #b9bdbf; background:#fff; position:relative; z-index:1; }
+  ol.stepbar li + li::after { content:''; position:absolute; top:13px; right:50%; width:100%; height:1.5px; background:#b9bdbf; }
+  ol.stepbar li.done { color:var(--ok); } ol.stepbar li.done::before { content:'✓'; border-color:var(--ok); color:var(--ok); }
+  ol.stepbar li.now { color:var(--ink); font-weight:700; } ol.stepbar li.now::before { background:var(--ink); border-color:var(--ink); color:#fff; }
+  .nextmsg { margin:0 0 4px; font-size:15px; line-height:1.7; }
+  .subacts { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+  .subacts button { flex:1 1 160px; width:auto; padding:10px; font-size:14px; letter-spacing:.08em; margin:0; }
+  details.help { margin-top:14px; font-size:14px; }
+  details.help summary { cursor:pointer; color:var(--sub); }
+  details.help dt { font-weight:700; margin-top:10px; } details.help dd { margin:2px 0 0; color:var(--sub); line-height:1.7; }
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Shippori+Mincho:wght@400;500;600&display=swap" rel="stylesheet">
@@ -427,85 +447,100 @@
     <!-- 管理 -->
     <section id="v-admin" class="hidden">
       <button class="ghost back" onclick="view('clock')">← TOPに戻る</button>
-      <div class="card">
-        <div class="row" style="align-items:center">
-          <select id="ym" onchange="loadAdmin()"></select>
-          <div style="flex:none">シフト <span id="status" class="badge"></span></div>
-        </div>
-        <div class="sub" style="margin-top:6px">希望の提出状況</div>
+      <!-- 上段：対象月・状態・希望の提出状況（どのタブでも共通） -->
+      <div class="card adhead">
+        <select id="ym" onchange="loadAdmin()"></select>
+        <span id="status" class="badge"></span>
         <div class="chips" id="subm"></div>
-        <a id="sheetLink" target="_blank" class="btnlink">📄 データベース（スプレッドシート）を開く</a>
-        <span class="sub">従業員の基本公休曜日・基本出勤日、パスワード再設定、チェック項目、設定の編集はこちら</span>
+      </div>
+      <div class="atabs">
+        <button class="atab on" data-tab="shift" onclick="adminTab('shift')">シフト作成</button>
+        <button class="atab" data-tab="actual" onclick="adminTab('actual')">実績確認</button>
+        <button class="atab" data-tab="info" onclick="adminTab('info')">お知らせ</button>
+        <button class="atab" data-tab="etc" onclick="adminTab('etc')">QR・設定</button>
       </div>
 
-      <div class="card">
-        <strong>お知らせ（INFO）</strong>
-        <span class="sub">打刻画面の上に、休み希望のお知らせの下へ1件ずつ並んで表示されます（全員に表示）。</span>
-        <textarea id="infoText" rows="2" placeholder="例：11/3は全員で宝満山参拝です"></textarea>
-        <button class="sec" onclick="addInfo()">お知らせを追加</button>
-        <div id="infoAdmin"></div>
+      <!-- シフト作成：進み具合と「次にやること」だけを大きく出す -->
+      <div id="at-shift">
+        <div class="card">
+          <ol class="stepbar" id="stepbar">
+            <li>案を作る</li><li>確認・修正</li><li>確定</li><li>ハーモス取込</li><li>取込確認</li>
+          </ol>
+          <p class="nextmsg" id="nextMsg"></p>
+          <button id="btnBuild" onclick="build()">① 希望からシフト案を作成</button>
+          <button id="btnApprove" onclick="approve()">③ シフトを確定する</button>
+          <button id="btnClaude" onclick="askClaude()">④ ハーモス取込をClaudeに依頼</button>
+          <textarea id="claudeCmd" class="hidden" rows="3" readonly onclick="this.select()"></textarea>
+          <div class="subacts">
+            <button class="sec" id="btnRebuild" onclick="build()">① 希望から作り直す</button>
+            <button class="sec" id="btnCheck" onclick="hrmosCheck()">⑤ 取り込み結果を確認</button>
+            <button class="sec hidden" id="btnUnapprove" onclick="unapprove()">確定を取り消す</button>
+          </div>
+          <details class="help">
+            <summary>各手順の説明</summary>
+            <dl>
+              <dt>① シフト案を作る</dt><dd>各人の基本公休曜日を公休にし、提出された希望（休み・代わりの出勤）で上書きして、下の表にシフト案を作ります。希望が出ていない人は基本公休曜日だけで組みます。</dd>
+              <dt>② 案を確認・修正する</dt><dd>「確定前確認事項」と下の表を見て、直したいマスをタップします。</dd>
+              <dt>③ シフトを確定する</dt><dd>ハーモス取込用のCSVファイルを作成し、休み／有休／パート出勤日をGoogleカレンダーに登録します。</dd>
+              <dt id="unapproveNote">確定を取り消す</dt><dd>Googleカレンダーに登録した予定を削除し、シフトを「案（未確定）」に戻します。※すでにハーモスにCSVを取り込んでいる場合、ハーモス側の内容は元に戻りません。</dd>
+              <dt>④ ハーモスに取り込む</dt><dd>押すとCSVファイルがダウンロードされ、Claudeへの依頼文がコピーされます。依頼文を Claude Code に貼り付けると、ClaudeがChromeでハーモスに取り込み、⑤の確認まで行います。※ハーモスはシステムから直接シフトを登録できないため、CSVで取り込みます（手作業で取り込んでもかまいません）。</dd>
+              <dt>⑤ 取り込み結果を確認する</dt><dd>確定シフトとハーモス上のシフトを1日ずつ照らし合わせ、食い違う日を一覧表示します。</dd>
+            </dl>
+          </details>
+        </div>
+        <div class="card hand" id="probBox">
+          <h3>確定前確認事項</h3>
+          <ul class="prob" id="prob"></ul>
+        </div>
+        <div class="card">
+          <strong>シフト表</strong> <span class="sub hidden" id="saving">保存中…</span>
+          <span class="sub" style="display:block;margin:4px 0 8px">マスをタップすると勤務区分を選べます。
+            <span class="lg"><i class="lgb"></i>基本公休日（パートは基本出勤日）</span>
+            <span class="lg"><i class="lgr"></i>本人の希望あり</span>
+            <span class="lg" style="color:var(--ng)">祝</span>＝祝日・正月・お盆（基本公休なし）</span>
+          <div class="scroll"><table class="grid" id="grid"></table></div>
+        </div>
       </div>
 
-      <div class="card">
-        <strong>打刻用QRコード</strong>
-        <span class="sub">事務所に掲示するQRコードです。読み取った画面からだけ出勤・退勤できます。</span>
-        <button class="sec" onclick="stampQrSheet(false)">QRコードを表示・印刷</button>
-        <button class="ghost" onclick="stampQrSheet(true)">QRコードを作り直す（古いQRは使えなくなります）</button>
+      <div id="at-actual" class="hidden">
+        <div class="card">
+          <strong>勤務の実績を確認する（月の途中・月末）</strong>
+          <button onclick="reconcile()">実績確認（予定と実績の差異）</button>
+          <span class="sub">シフトの予定と、ハーモスの実際の打刻を昨日分まで照らし合わせ、「出勤予定なのに打刻なし」「休み予定なのに打刻あり」の日を一覧表示します。シフトは自動では直しません。</span>
+        </div>
       </div>
 
-      <div class="card">
-        <strong>シフト作成の手順</strong>
-        <ol class="steps">
-          <li>
-            <b>シフト案を作る</b>
-            <button class="sec" onclick="build()">希望からシフト案を作成</button>
-            <span class="sub">各人の基本公休曜日を公休にし、提出された希望（休み・代わりの出勤）で上書きして、下の表にシフト案を作ります。希望が出ていない人は基本公休曜日だけで組みます。</span>
-          </li>
-          <li>
-            <b>案を確認・修正する</b>
-            <span class="sub">「確定前確認事項」と下の表を見て、直したいマスをタップします。</span>
-          </li>
-          <li>
-            <b>シフトを確定する</b>
-            <button onclick="approve()">シフトを確定する</button>
-            <span class="sub">確定すると次の2つを行います：<br>・ハーモス取込用のCSVファイルを作成<br>・休み／有休／パート出勤日をGoogleカレンダーに登録</span>
-            <button class="sec hidden" id="btnUnapprove" onclick="unapprove()">確定を取り消す（カレンダー登録を元に戻す）</button>
-            <span class="sub hidden" id="unapproveNote">確定前の状態に戻します。Googleカレンダーに登録した予定を削除し、シフトを「案（未確定）」に戻します。<br>※すでにハーモスにCSVを取り込んでいる場合、ハーモス側の内容は元に戻りません。</span>
-          </li>
-          <li>
-            <b>ハーモスに取り込む</b>
-            <button class="sec" onclick="askClaude()">ハーモス取込をClaudeに依頼</button>
-            <span class="sub">押すとCSVファイルがダウンロードされ、Claudeへの依頼文がコピーされます。依頼文を Claude Code に貼り付けると、ClaudeがChromeでハーモスに取り込み、⑤の確認まで行います。<br>※ハーモスはシステムから直接シフトを登録できないため、CSVで取り込みます（手作業で取り込んでもかまいません）。</span>
-            <textarea id="claudeCmd" class="hidden" rows="3" readonly onclick="this.select()"></textarea>
-          </li>
-          <li>
-            <b>取り込み結果を確認する</b>
-            <button class="sec" onclick="hrmosCheck()">ハーモスの取り込み結果を確認</button>
-            <span class="sub">確定シフトとハーモス上のシフトを1日ずつ照らし合わせ、食い違う日を一覧表示します。</span>
-          </li>
-        </ol>
+      <div id="at-info" class="hidden">
+        <div class="card">
+          <strong>お知らせ（INFO）</strong>
+          <span class="sub">打刻画面の上に、休み希望のお知らせの下へ1件ずつ並んで表示されます（全員に表示）。</span>
+          <textarea id="infoText" rows="2" placeholder="例：11/3は全員で宝満山参拝です"></textarea>
+          <button class="sec" onclick="addInfo()">お知らせを追加</button>
+          <div id="infoAdmin"></div>
+        </div>
       </div>
 
-      <div class="card">
-        <strong>勤務の実績を確認する（月の途中・月末）</strong>
-        <button class="sec" onclick="reconcile()">実績確認（予定と実績の差異）</button>
-        <span class="sub">シフトの予定と、ハーモスの実際の打刻を昨日分まで照らし合わせ、「出勤予定なのに打刻なし」「休み予定なのに打刻あり」の日を一覧表示します。シフトは自動では直しません。</span>
+      <div id="at-etc" class="hidden">
+        <div class="card">
+          <strong>打刻用QRコード</strong>
+          <span class="sub">事務所に掲示するQRコードです。読み取った画面からだけ出勤・退勤できます。</span>
+          <button class="sec" onclick="stampQrSheet(false)">QRコードを表示・印刷</button>
+          <button class="ghost" onclick="stampQrSheet(true)">QRコードを作り直す（古いQRは使えなくなります）</button>
+        </div>
+        <div class="card">
+          <strong>データベース</strong>
+          <a id="sheetLink" target="_blank" class="btnlink">📄 データベース（スプレッドシート）を開く</a>
+          <span class="sub">従業員の基本公休曜日・基本出勤日、パスワード再設定、チェック項目、設定の編集はこちら</span>
+        </div>
       </div>
-      <div class="card hidden" id="resBox">
-        <strong id="resTitle"></strong>
-        <ul class="prob" id="res"></ul>
-      </div>
-      <div class="card" id="probBox">
-        <strong>確定前確認事項</strong>
-        <ul class="prob" id="prob"></ul>
-      </div>
-      <div class="card">
-        <strong>シフト表</strong> <span class="sub hidden" id="saving">保存中…</span>
-        <span class="sub" style="display:block;margin:4px 0 8px">マスをタップすると勤務区分を選べます。
-          <span class="lg"><i class="lgb"></i>基本公休日（パートは基本出勤日）</span>
-          <span class="lg"><i class="lgr"></i>本人の希望あり</span>
-          <span class="lg" style="color:var(--ng)">祝</span>＝祝日・正月・お盆（基本公休なし）</span>
-        <div class="scroll"><table class="grid" id="grid"></table></div>
+
+      <!-- 照合結果（⑤・実績確認）：どのタブからでも同じ窓で出す -->
+      <div class="overlay hidden" id="resBox" onclick="if (event.target === this) this.classList.add('hidden')">
+        <div class="modal" style="max-width:560px;max-height:85vh;overflow-y:auto">
+          <strong id="resTitle"></strong>
+          <ul class="prob" id="res"></ul>
+          <button class="ghost" onclick="$('resBox').classList.add('hidden')">閉じる</button>
+        </div>
       </div>
       <div class="overlay hidden" id="picker" onclick="if (event.target === this) this.classList.add('hidden')">
         <div class="modal">
@@ -641,6 +676,9 @@ function view(v) {
     if (!$('ym').options.length) {
       [me.nextMonth, me.thisMonth].forEach(m => $('ym').add(new Option(m.replace('-', '年') + '月', m)));
     }
+    let t = 'shift';
+    try { t = localStorage.getItem('adminTab') || t; } catch (e) {}
+    adminTab($('at-' + t) ? t : 'shift');
     loadAdmin();
   }
 }
@@ -1316,11 +1354,16 @@ async function unapprove() {
   } finally { busy(false); }
 }
 function showRes(title, list) {
-  $('resBox').classList.remove('hidden');
   $('resTitle').textContent = `${title}：${list.length ? '差異 ' + list.length + '件' : '差異なし ✓'}`;
   $('res').innerHTML = '';
   list.forEach(p => { const li = document.createElement('li'); li.textContent = p; $('res').appendChild(li); });
-  $('resBox').scrollIntoView({ behavior: 'smooth' });
+  $('resBox').classList.remove('hidden');
+}
+// 管理画面のタブ（開いていたタブは端末に記憶）
+function adminTab(t) {
+  document.querySelectorAll('.atab').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
+  ['shift', 'actual', 'info', 'etc'].forEach(x => $('at-' + x).classList.toggle('hidden', x !== t));
+  try { localStorage.setItem('adminTab', t); } catch (e) {}
 }
 async function hrmosCheck() {
   busy(true);
@@ -1375,8 +1418,24 @@ function saveCell(p) {
 function drawAdmin(o) {
   ov = o;
   $('sheetLink').href = o.sheetUrl;
-  $('btnUnapprove').classList.toggle('hidden', o.status !== '確定');
-  $('unapproveNote').classList.toggle('hidden', o.status !== '確定');
+  // 状態ごとに「次にやること」のボタンだけ大きく出し、ほかの操作は下に小さく並べる
+  const st = o.status, fixed = st === '確定';
+  const now = { 'なし': 0, '案': 1, '確定': 3 }[st];
+  [...$('stepbar').children].forEach((li, i) => { li.className = i < now ? 'done' : i === now ? 'now' : ''; });
+  $('nextMsg').textContent = {
+    'なし': '提出状況を確認して、①シフト案を作成してください。',
+    '案': `下の表を確認し、直したいマスをタップしてください。問題がなければ③確定します。${o.problems.length ? `（確定前確認事項 ${o.problems.length}件）` : ''}`,
+    '確定': '確定済みです。④ハーモスに取り込み、⑤取り込み結果を確認してください。マスを直すと「案」に戻るので、もう一度確定してください。',
+  }[st];
+  $('btnBuild').classList.toggle('hidden', st !== 'なし');
+  $('btnRebuild').classList.toggle('hidden', st === 'なし');
+  $('btnApprove').className = fixed ? 'sec' : ''; // 確定後は「確定し直す」として下段へ
+  $('btnApprove').classList.toggle('hidden', st === 'なし');
+  $('btnApprove').textContent = fixed ? '③ 確定し直す' : '③ シフトを確定する';
+  if (fixed) $('btnUnapprove').before($('btnApprove')); else $('btnClaude').before($('btnApprove'));
+  $('btnClaude').classList.toggle('hidden', !fixed);
+  $('btnCheck').classList.toggle('hidden', st === 'なし');
+  $('btnUnapprove').classList.toggle('hidden', !fixed);
   $('status').textContent = { 'なし': '未作成', '案': '案（未確定）', '確定': '確定済み' }[o.status]; $('status').className = 'badge b-' + o.status;
   $('subm').innerHTML = '';
   o.emps.forEach(e => {
@@ -1402,7 +1461,7 @@ function drawAdmin(o) {
     const n = o.emps.filter(e => [1, 6, 7, 17].includes((o.grid[e.id] || {})[d.date])).length;
     return `<th>${n}</th>`;
   }).join('') + '</tr>';
-  $('grid').innerHTML = o.status === 'なし' ? '<tr><td style="padding:12px;cursor:auto">まだシフト案がありません。手順①「希望からシフト案を作成」を押してください。</td></tr>' : h;
+  $('grid').innerHTML = o.status === 'なし' ? '<tr><td style="padding:12px;cursor:auto">まだシフト案がありません。上の「① 希望からシフト案を作成」を押してください。</td></tr>' : h;
 }
 
 /* ---- 起動 ---- */

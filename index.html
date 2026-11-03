@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261103123358">
+<meta name="build" content="20261103133710">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -298,6 +298,11 @@
   .ver { text-align:center; color:rgba(255,255,255,.85); text-shadow:0 1px 3px rgba(0,0,0,.6); font-size:11px; letter-spacing:.2em; margin:18px 0 6px; }
   #imgBox img { max-width:100%; max-height:88vh; display:block; margin:auto; background:#fff; }
   #alarmBox .modal { border-top:4px solid var(--warn); }
+  .rqd { padding:10px 0; border-bottom:1px solid var(--line); } .rqd:last-child { border-bottom:0; } .rqd.closed { opacity:.6; }
+  .rqd .t { font-size:15px; } .rqd .sub { font-size:12px; margin-top:2px; }
+  .rqd .who { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+  .rqd .who span { font-size:12px; padding:2px 8px; border:1px solid var(--line); background:#fff; letter-spacing:.05em; }
+  .rqd .who span.s-未確認 { border-color:var(--ng); color:var(--ng); } .rqd .who span.s-完了 { border-color:var(--ok); color:var(--ok); }
   button.prog { width:auto; margin:0 0 0 6px; padding:2px 10px; background:var(--ok); color:#fff; font-size:11px; letter-spacing:.15em; font-weight:500; }
   #askBox { z-index:12; }
   button.in.missed { background:var(--warn); letter-spacing:.15em; } /* 出勤打刻漏れ */
@@ -438,7 +443,8 @@
 
       <aside class="card task hidden" id="taskBox">
         <div class="head"><h3>個別業務 <span class="sub" id="taskCount"></span></h3>
-          <span><button class="hbtn" onclick="toggleDone('tasks')">完了済み</button><button class="hbtn" onclick="reloadTasks()">更新</button></span></div>
+          <span><button class="hbtn" onclick="toggleRequested()">依頼した</button><button class="hbtn" onclick="toggleDone('tasks')">完了済み</button><button class="hbtn" onclick="reloadTasks()">更新</button></span></div>
+        <div class="donebox hidden" id="reqdBox"><b>依頼した個別業務</b><span class="sub" style="display:block;margin:2px 0 4px;font-size:12px">他の人に頼んだ分の進み具合（見るだけ。全員済んだ分は14日間表示）</span><div id="reqd"></div></div>
         <div class="donebox hidden" id="tasksDoneBox"><b>完了済み（7日間）</b><div id="tasksDone"></div></div>
         <div id="tasks"></div>
       </aside>
@@ -953,6 +959,32 @@ const DONE = {
   tasks: { list: 'doneTasks', undo: 'undoTask', after: r => { drawTasks(r.tasks); drawDone('tasks', r.done); } },
   annual: { list: 'annualDone', undo: 'undoAnnual', after: r => { drawAnnual(r.annual); drawDone('annual', r.done); } },
 };
+/* 依頼した個別業務（Ver1.2）：自分が他の人に頼んだ分と、担当者ごとの状態（未確認・確認済み・完了など）。見るだけ */
+async function toggleRequested() {
+  const box = $('reqdBox');
+  if (!box.classList.contains('hidden')) { box.classList.add('hidden'); return; }
+  box.classList.remove('hidden');
+  $('reqd').innerHTML = '<p class="sub">読み込み中…</p>';
+  try { drawRequested(await call('requestedTasks')); } catch (e) { $('reqd').innerHTML = ''; }
+}
+function drawRequested(list) {
+  $('reqd').innerHTML = list.length ? '' : '<p class="sub">他の人に頼んだ個別業務はありません</p>';
+  list.forEach(g => {
+    const d = document.createElement('div'); d.className = 'rqd' + (g.open ? '' : ' closed');
+    const t = document.createElement('div'); t.className = 't' + (g.repeat ? ' rep' : ''); t.textContent = g.text;
+    const done = g.people.filter(p => p.state === '完了').length;
+    const sub = document.createElement('div'); sub.className = 'sub';
+    sub.textContent = [g.due ? '期日 ' + g.due.slice(5).replace('-', '/').replace(/^0/, '').replace('/0', '/') : '期日なし', g.at + ' 依頼', g.ruleLabel,
+      `完了 ${done}/${g.people.length}`].filter(Boolean).join('　');
+    const who = document.createElement('div'); who.className = 'who';
+    g.people.forEach(p => {
+      const c = document.createElement('span'); c.className = 's-' + p.state;
+      c.textContent = `${p.name}：${p.state}${p.doneAt ? '（' + p.doneAt + '）' : ''}`;
+      who.appendChild(c);
+    });
+    d.append(t, sub, who); $('reqd').appendChild(d);
+  });
+}
 async function toggleDone(kind) {
   const box = $(kind + 'DoneBox');
   if (!box.classList.contains('hidden')) { box.classList.add('hidden'); return; }
@@ -1293,7 +1325,10 @@ async function seeNew(id) {
 }
 async function reloadTasks() {
   busy(true);
-  try { await saveQueue; drawTasks(await call('tasks')); } finally { busy(false); }
+  try {
+    await saveQueue; drawTasks(await call('tasks'));
+    if (!$('reqdBox').classList.contains('hidden')) drawRequested(await call('requestedTasks')); // 依頼した一覧を開いていれば一緒に最新に
+  } finally { busy(false); }
 }
 // 10分ごとに自動更新（勤務中・打刻画面を表示中・期日選択中・保存中でないときだけ。失敗しても表示しない）
 setInterval(() => {

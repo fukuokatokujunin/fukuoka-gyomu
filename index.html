@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261103133710">
+<meta name="build" content="20261103143952">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -298,6 +298,12 @@
   .ver { text-align:center; color:rgba(255,255,255,.85); text-shadow:0 1px 3px rgba(0,0,0,.6); font-size:11px; letter-spacing:.2em; margin:18px 0 6px; }
   #imgBox img { max-width:100%; max-height:88vh; display:block; margin:auto; background:#fff; }
   #alarmBox .modal { border-top:4px solid var(--warn); }
+  .later { display:inline-block; margin-left:6px; font-size:11px; color:var(--sub); }
+  /* 見出しのボタン（完了済み・削除済みなど）が入りきらない時は、見出しの下の段に右寄せで並べる（Ver1.2） */
+  #annualBox .head, #taskBox .head { flex-wrap:wrap; row-gap:8px; }
+  #annualBox .head > h3, #taskBox .head > h3 { white-space:nowrap; }
+  #annualBox .head > span, #taskBox .head > span { margin-left:auto; }
+  #annualBox .head button.hbtn, #taskBox .head button.hbtn { margin-left:12px; letter-spacing:.12em; }
   .rqd { padding:10px 0; border-bottom:1px solid var(--line); } .rqd:last-child { border-bottom:0; } .rqd.closed { opacity:.6; }
   .rqd .t { font-size:15px; } .rqd .sub { font-size:12px; margin-top:2px; }
   .rqd .who { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
@@ -390,8 +396,9 @@
     <section id="v-clock">
       <aside class="card annual" id="annualBox">
         <div class="head"><h3>寺内スケジュール <span class="sub" id="annualCount"></span></h3>
-          <span><button class="hbtn" onclick="toggleDone('annual')">完了済み</button><button class="hbtn" onclick="reloadAnnual()">更新</button></span></div>
+          <span><button class="hbtn" onclick="toggleDone('annual')">完了済み</button><button class="hbtn" onclick="toggleRemoved('annual')">削除済み</button><button class="hbtn" onclick="reloadAnnual()">更新</button></span></div>
         <div class="donebox hidden" id="annualDoneBox"><b>完了済み（7日間）</b><div id="annualDone"></div></div>
+        <div class="donebox hidden" id="annualRmBox"><b>削除済み（以降不要にしたもの・7日間）</b><div id="annualRm"></div></div>
         <div id="annual"></div>
       </aside>
      <div>
@@ -443,9 +450,10 @@
 
       <aside class="card task hidden" id="taskBox">
         <div class="head"><h3>個別業務 <span class="sub" id="taskCount"></span></h3>
-          <span><button class="hbtn" onclick="toggleRequested()">依頼した</button><button class="hbtn" onclick="toggleDone('tasks')">完了済み</button><button class="hbtn" onclick="reloadTasks()">更新</button></span></div>
+          <span><button class="hbtn" onclick="toggleRequested()">依頼した</button><button class="hbtn" onclick="toggleDone('tasks')">完了済み</button><button class="hbtn" onclick="toggleRemoved('tasks')">削除済み</button><button class="hbtn" onclick="reloadTasks()">更新</button></span></div>
         <div class="donebox hidden" id="reqdBox"><b>依頼した個別業務</b><span class="sub" style="display:block;margin:2px 0 4px;font-size:12px">他の人に頼んだ分の進み具合（見るだけ。全員済んだ分は14日間表示）</span><div id="reqd"></div></div>
         <div class="donebox hidden" id="tasksDoneBox"><b>完了済み（7日間）</b><div id="tasksDone"></div></div>
+        <div class="donebox hidden" id="tasksRmBox"><b>削除済み（7日間）</b><div id="tasksRm"></div></div>
         <div id="tasks"></div>
       </aside>
       <div class="overlay hidden" id="stBox" onclick="if (event.target === this) closeStart()">
@@ -992,6 +1000,43 @@ async function toggleDone(kind) {
   $(kind + 'Done').innerHTML = '<p class="sub">読み込み中…</p>';
   try { drawDone(kind, await call(DONE[kind].list)); } catch (e) { $(kind + 'Done').innerHTML = ''; }
 }
+/* ---- 削除済み（以降不要・ゴミ箱で消したもの。7日間は「戻す」で元に戻せる。Ver1.2） ---- */
+const REMOVED = {
+  tasks: { list: 'removedTasks', restore: 'restoreTask', after: r => { drawTasks(r.tasks); drawRemoved('tasks', r.removed); } },
+  annual: { list: 'annualRemoved', restore: 'restoreAnnual', after: r => { drawAnnual(r.annual); drawRemoved('annual', r.removed); } },
+};
+async function toggleRemoved(kind) {
+  const box = $(kind + 'RmBox');
+  if (!box.classList.contains('hidden')) { box.classList.add('hidden'); return; }
+  box.classList.remove('hidden');
+  $(kind + 'Rm').innerHTML = '<p class="sub">読み込み中…</p>';
+  try { await saveQueue; drawRemoved(kind, await call(REMOVED[kind].list)); } catch (e) { $(kind + 'Rm').innerHTML = ''; }
+}
+function refreshRemoved(kind) {
+  if ($(kind + 'RmBox').classList.contains('hidden')) return;
+  rawCall(REMOVED[kind].list, auth).then(list => drawRemoved(kind, list)).catch(() => {});
+}
+function drawRemoved(kind, list) {
+  const box = $(kind + 'Rm');
+  box.innerHTML = list.length ? '' : '<p class="sub">削除したものはありません</p>';
+  list.forEach(a => {
+    const row = document.createElement('div'); row.className = 'titem';
+    const body = document.createElement('div'); body.style.flex = '1';
+    const t = document.createElement('div'); t.className = 't' + (a.repeat ? ' rep' : '');
+    if (a.kind) { const k = document.createElement('span'); k.className = 'kind'; k.textContent = a.kind; t.appendChild(k); }
+    t.append(a.text);
+    const m = document.createElement('div'); m.className = 'sub';
+    m.textContent = `${a.at} ${kind === 'annual' ? '以降不要' : '削除'}` + (a.by ? `（${a.by}）` : '') + (a.date ? `　毎年 ${a.date}` : '');
+    const b = document.createElement('button'); b.className = 'pp st'; b.textContent = '戻す';
+    b.onclick = async () => {
+      if (!await ask(kind === 'annual' ? 'この予定を元に戻しますか？（また表示されます）' : 'この個別業務を元に戻しますか？')) return;
+      busy(true);
+      try { await saveQueue; REMOVED[kind].after(await call(REMOVED[kind].restore, { id: a.id })); show('元に戻しました'); }
+      finally { busy(false); }
+    };
+    body.append(t, m); row.append(body, b); box.appendChild(row);
+  });
+}
 function refreshDone(kind) {
   if ($(kind + 'DoneBox').classList.contains('hidden')) return;
   rawCall(DONE[kind].list, auth).then(l => drawDone(kind, l)).catch(() => {});
@@ -1052,6 +1097,11 @@ function drawAnnual(list) {
     if (!a.event) {
       meta.appendChild(ppButton(() => openPostpone('annual', a, a.date)));
       meta.appendChild(stButton(a));
+    }
+    if ((a.later || []).length) { // 同じ内容のほかの回（済ませると次の回が出る）
+      const n = document.createElement('span'); n.className = 'later';
+      n.textContent = 'このあと ' + a.later.slice(0, 3).map(x => x.slice(5).replace('-', '/').replace(/^0/, '').replace('/0', '/')).join('・') + (a.later.length > 3 ? ' ほか' : '') + ' にも';
+      meta.appendChild(n);
     }
     if (a.last) { // 昨年の実施記録（カレンダー）で日付・内容を補正した項目
       const [, lm, ld] = a.last.split('-').map(Number);
@@ -1155,11 +1205,11 @@ function closeMorning() {
   try { localStorage.setItem('morning', ymd(new Date())); } catch (e) {}
   $('morningBox').classList.add('hidden');
 }
-function removeAnnual(a) {
-  if (!confirm(`「${a.text.slice(0, 40)}」を今後表示しないようにしますか？\n（年間予定シートの「有効」をFALSEにします。シートで戻せます）`)) return;
+async function removeAnnual(a) {
+  if (!await ask(`「${a.text.slice(0, 40)}」を今後表示しないようにしますか？（7日間は「削除済み」から戻せます）`)) return;
   drawAnnual(me.annual.filter(x => x.event || x.id !== a.id)); // 返事を待たずに一覧から外す（保存は裏で）
   saveLater('annual', 'removeAnnual', { id: a.id });
-  show('削除しました（今後は表示されません）');
+  show('以降不要にしました（7日間は「削除済み」から戻せます）');
 }
 async function reloadAnnual() {
   busy(true);
@@ -1383,7 +1433,7 @@ function saveLater(kind, action, p) {
   });
   saveQueue = saveQueue.then(send, send).then(list => {
     savePending--;
-    if (!--pendingOf[kind]) { if (list) SAVE_KIND[kind].draw(list); refreshDone(kind); }
+    if (!--pendingOf[kind]) { if (list) SAVE_KIND[kind].draw(list); refreshDone(kind); refreshRemoved(kind); }
     if (!savePending) document.body.classList.remove('saving');
   });
 }
@@ -1448,10 +1498,10 @@ function nextByRule(rule, after) {
   return after;
 }
 async function removeTask(t) {
-  if (!await ask('この繰り返しの個別業務を削除しますか？（今後は出てきません）')) return;
+  if (!await ask('この繰り返しの個別業務を削除しますか？（7日間は「削除済み」から戻せます）')) return;
   drawTasks(me.tasks.filter(x => x.id !== t.id)); // 返事を待たずに一覧から外す（保存は裏で）
   saveLater('tasks', 'removeTask', { id: t.id });
-  show('削除しました（今後は出てきません）');
+  show('削除しました（7日間は「削除済み」から戻せます）');
 }
 function closeTk() { if (tkCur) tkCur.cb.checked = false; tkCur = null; $('tkPicker').classList.add('hidden'); }
 /** 次回の期日を選んだら、前回の期日との間隔から周期を推測する（自分で選び直した後は変えない） */

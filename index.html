@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261103145636">
+<meta name="build" content="20261103151323">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -272,6 +272,9 @@
   @media (max-width:360px) { #saveBar { font-size:12px; letter-spacing:0; padding:10px 16px; } } /* 小さい画面でも1行に収める */
   body.saving #saveBar { display:flex; }
   body.saving #newPop { bottom:70px; }
+  /* 新着の印（Ver1.2。絵文字🆕をやめ、ほかのアイコンと同じ黒地に白の作りに。黒地の上では白の枠） */
+  .newmark { display:inline-block; font-family:"Noto Sans JP",sans-serif; font-size:10px; font-weight:500; letter-spacing:.15em; line-height:1;
+    padding:4px 4px 4px 6px; margin-right:10px; vertical-align:2px; background:#222629; color:#fff; border:1px solid #fff; }
   body.saving #dueBar { bottom:130px; }
   details.fold > summary { display:flex; align-items:center; gap:10px; }
   details.fold > summary::before, details.fold[open] > summary::before { content:''; flex:none; width:22px; height:22px; font-size:0; background:#222629 no-repeat center / 10px
@@ -300,7 +303,7 @@
   #imgBox img { max-width:100%; max-height:88vh; display:block; margin:auto; background:#fff; }
   #alarmBox .modal { border-top:4px solid var(--warn); }
   .later { display:inline-block; margin-left:6px; font-size:11px; color:var(--sub); }
-  /* 寺内スケジュールの備考（Ver1.2）：時系列のつながり（左の線と点） */
+  /* 寺内スケジュールの進捗（Ver1.2）：時系列のつながり（左の線と点） */
   button.pp.nt { background:#fff; color:#222629; border:1px solid #222629; margin-left:6px; } button.pp.nt::before { display:none; }
   .ntlast { margin-top:4px; font-size:12px; color:var(--sub); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; border-left:2px solid #c9b88f; padding-left:6px; }
   .annual .titem > div { min-width:0; } /* 最新の書き込みの1行が長くても、行の幅を広げない */
@@ -507,7 +510,7 @@
       </div>
       <div class="overlay hidden" id="ntBox" onclick="if (event.target === this) closeNotes()">
         <div class="modal" style="max-height:90vh;overflow-y:auto">
-          <strong>備考（進み具合）</strong>
+          <strong>進捗</strong>
           <div class="sub" id="ntText" style="margin:4px 0 2px"></div>
           <div class="sub" id="ntWho"></div>
           <div class="tl" id="ntList"></div>
@@ -547,11 +550,11 @@
       </div>
       <button class="hidden" id="dueBar" onclick="showDue()"></button>
       <button class="hidden" id="newPop" onclick="openNew()"></button>
-      <div class="overlay hidden" id="newBox" onclick="if (event.target === this) this.classList.add('hidden')">
-        <div class="modal">
-          <strong>🆕 新着の個別業務</strong>
+      <div class="overlay hidden" id="newBox">
+        <div class="modal" style="max-height:85vh;overflow-y:auto">
+          <strong><span class="newmark">NEW</span>新着の個別業務</strong>
+          <p class="sub" style="margin:4px 0 0">個別業務の一覧にはもう入っています。「確認」を押すと、この窓から消えます</p>
           <div id="newList"></div>
-          <button class="ghost" onclick="$('newBox').classList.add('hidden')">閉じる</button>
         </div>
       </div>
       <div class="overlay hidden" id="tkPicker" onclick="if (event.target === this) closeTk()">
@@ -1127,7 +1130,7 @@ function drawAnnual(list) {
       meta.appendChild(ppButton(() => openPostpone('annual', a, a.date)));
       meta.appendChild(stButton(a));
       const nb = document.createElement('button'); nb.className = 'pp nt';
-      nb.textContent = (a.notes || []).length ? `備考 ${a.notes.length}` : '備考';
+      nb.textContent = (a.notes || []).length ? `進捗 ${a.notes.length}` : '進捗';
       nb.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); openNotes(a); }; // 行はlabelなのでチェックが入らないように
       meta.appendChild(nb);
     }
@@ -1231,7 +1234,7 @@ function drawStart() {
 }
 function closeStart() { stCur = null; $('stBox').classList.add('hidden'); }
 
-/* 備考（Ver1.2）：着手した人が進み具合を時系列で書き足す。全員が見られる。自分の書き込みは消せる */
+/* 進捗（Ver1.2。旧称 備考）：着手した人が進み具合を時系列で書き足す。全員が見られる。自分の書き込みは消せる */
 let ntCur = null;
 function openNotes(a) { ntCur = a.id; $('ntInput').value = ''; drawNotes(); $('ntBox').classList.remove('hidden'); }
 function closeNotes() { ntCur = null; $('ntBox').classList.add('hidden'); }
@@ -1259,9 +1262,9 @@ function drawNotes() {
 async function addNote() {
   const a = me.annual.find(x => !x.event && x.id === ntCur), text = $('ntInput').value.trim();
   if (!a) return;
-  if (!text) { alert('備考を入れてください'); return; }
+  if (!text) { alert('進捗を入れてください'); return; }
   busy(true);
-  try { await saveQueue; drawAnnual(await call('addAnnualNote', { id: a.id, key: a.key || a.date, text })); $('ntInput').value = ''; show('備考を書き足しました'); }
+  try { await saveQueue; drawAnnual(await call('addAnnualNote', { id: a.id, key: a.key || a.date, text })); $('ntInput').value = ''; show('進捗を書き足しました'); }
   finally { busy(false); }
 }
 async function delNote(noteId) {
@@ -1423,9 +1426,16 @@ function doPostpone() {
 function drawNew(list) {
   const news = showTasks() ? list.filter(t => t.isNew) : [];
   $('newPop').classList.toggle('hidden', !news.length);
-  $('newPop').textContent = `🆕 新着の個別業務 ${news.length}件`;
-  if (!news.length) $('newBox').classList.add('hidden');
-  else if (!$('newBox').classList.contains('hidden')) openNew();
+  $('newPop').innerHTML = `<span class="newmark">NEW</span>新着の個別業務 ${news.length}件`;
+  if (!news.length) { $('newBox').classList.add('hidden'); return; }
+  // Ver1.2：まだ知らせていない新着が届いたら、すぐ新着の窓を出す（「確認」を押すと消える）。前回の表示のまま読み込み中は出さない
+  let shown = [];
+  try { shown = JSON.parse(sessionStorage.getItem('newShown') || '[]'); } catch (e) {}
+  const fresh = news.filter(t => !shown.includes(t.id));
+  if (fresh.length && !stale) {
+    try { sessionStorage.setItem('newShown', JSON.stringify(shown.concat(fresh.map(t => t.id)).slice(-100))); } catch (e) {}
+    openNew();
+  } else if (!$('newBox').classList.contains('hidden')) openNew();
 }
 function openNew() {
   $('newList').innerHTML = '';
@@ -1442,7 +1452,7 @@ function openNew() {
 }
 async function seeNew(id) {
   me.tasks = (me.tasks || []).map(t => t.id === id ? Object.assign({}, t, { isNew: false }) : t);
-  $('newBox').classList.add('hidden');
+  drawNew(me.tasks); // ほかにも新着が残っていれば窓はそのまま（残りだけ表示）、なくなれば閉じる
   drawTasks(me.tasks); // 先に画面を更新して裏で記録
   const row = document.querySelector(`#tasks [data-id="${id}"]`);
   if (row) {
@@ -1463,11 +1473,23 @@ async function reloadTasks() {
 // （打刻画面を表示中・期日選択中・保存中でないときだけ。失敗しても表示しない）
 let tasksAt = 0;
 function refreshTasks(minGap) {
-  if (!showTasks() || cur !== 'clock' || stale || tkCur || savePending || document.hidden || Date.now() - tasksAt < minGap) return;
+  if (!showTasks() || cur !== 'clock' || stale || tkCur || savePending || document.hidden || Date.now() - tasksAt < minGap) return false;
   tasksAt = Date.now();
   rawCall('tasks', auth).then(list => { if (!tkCur && !savePending) drawTasks(list); }).catch(() => { tasksAt = 0; });
+  return true;
 }
 setInterval(() => refreshTasks(110 * 1000), 2 * 60 * 1000);
+// 新着の合図（Ver1.2）：20秒ごとに軽い問い合わせ（シートは読まない）。頼まれた個別業務が増えていれば、すぐ読み直して新着の窓を出す
+let pulseT = null;
+function pulse() {
+  if (!showTasks() || !auth || stale || document.hidden) return;
+  rawCall('pulse', auth).then(r => {
+    if (pulseT !== null && r.t && r.t !== pulseT && !refreshTasks(0)) return; // 読み直せなかった時（入力中・別の画面など）は次の回にもう一度
+    pulseT = r.t;
+  }).catch(() => {});
+}
+setInterval(pulse, 20 * 1000);
+document.addEventListener('visibilitychange', pulse);
 document.addEventListener('visibilitychange', () => refreshTasks(30 * 1000));
 window.addEventListener('pageshow', () => refreshTasks(30 * 1000));
 window.addEventListener('focus', () => refreshTasks(30 * 1000));

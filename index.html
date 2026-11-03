@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261103160341">
+<meta name="build" content="20261103161907">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -303,6 +303,9 @@
   #imgBox img { max-width:100%; max-height:88vh; display:block; margin:auto; background:#fff; }
   #alarmBox .modal { border-top:4px solid var(--warn); }
   .later { display:inline-block; margin-left:6px; font-size:11px; color:var(--sub); }
+  /* 見出しのボタン：開いている間（依頼した・完了済み・削除済み）と読み込み中（更新）は黒く反転（Ver1.2） */
+  #annualBox .head button.hbtn, #taskBox .head button.hbtn { padding:4px 6px; transition:background .15s, color .15s; }
+  #annualBox .head button.hbtn.on, #taskBox .head button.hbtn.on { background:#222629; color:#fff; border-bottom-color:#222629; opacity:1; }
   /* 寺内スケジュールの進捗（Ver1.2）：時系列のつながり（左の線と点） */
   button.pp.nt { background:#fff; color:#222629; border:1px solid #222629; margin-left:6px; } button.pp.nt::before { display:none; }
   .ntlast { margin-top:4px; font-size:12px; color:var(--sub); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; border-left:2px solid #c9b88f; padding-left:6px; }
@@ -409,7 +412,7 @@
     <section id="v-clock">
       <aside class="card annual" id="annualBox">
         <div class="head"><h3>寺内スケジュール <span class="sub" id="annualCount"></span></h3>
-          <span><button class="hbtn" onclick="toggleDone('annual')">完了済み</button><button class="hbtn" onclick="toggleRemoved('annual')">削除済み</button><button class="hbtn" onclick="reloadAnnual()">更新</button></span></div>
+          <span><button class="hbtn" data-box="annualDoneBox" onclick="toggleDone('annual')">完了済み</button><button class="hbtn" data-box="annualRmBox" onclick="toggleRemoved('annual')">削除済み</button><button class="hbtn" id="annualReload" onclick="reloadAnnual()">更新</button></span></div>
         <div class="donebox hidden" id="annualDoneBox"><b>完了済み（7日間）</b><div id="annualDone"></div></div>
         <div class="donebox hidden" id="annualRmBox"><b>削除済み（以降不要にしたもの・7日間）</b><div id="annualRm"></div></div>
         <div id="annual"></div>
@@ -463,7 +466,7 @@
 
       <aside class="card task hidden" id="taskBox">
         <div class="head"><h3>個別業務 <span class="sub" id="taskCount"></span></h3>
-          <span><button class="hbtn" onclick="toggleRequested()">依頼した</button><button class="hbtn" onclick="toggleDone('tasks')">完了済み</button><button class="hbtn" onclick="toggleRemoved('tasks')">削除済み</button><button class="hbtn" onclick="reloadTasks()">更新</button></span></div>
+          <span><button class="hbtn" data-box="reqdBox" onclick="toggleRequested()">依頼した</button><button class="hbtn" data-box="tasksDoneBox" onclick="toggleDone('tasks')">完了済み</button><button class="hbtn" data-box="tasksRmBox" onclick="toggleRemoved('tasks')">削除済み</button><button class="hbtn" id="tasksReload" onclick="reloadTasks()">更新</button></span></div>
         <div class="donebox hidden" id="reqdBox"><b>依頼した個別業務</b><span class="sub" style="display:block;margin:2px 0 4px;font-size:12px">他の人に頼んだ分の進み具合（見るだけ。全員済んだ分は14日間表示）</span><div id="reqd"></div></div>
         <div class="donebox hidden" id="tasksDoneBox"><b>完了済み（7日間）</b><div id="tasksDone"></div></div>
         <div class="donebox hidden" id="tasksRmBox"><b>削除済み（7日間）</b><div id="tasksRm"></div></div>
@@ -993,6 +996,8 @@ function ask(msg) {
   });
 }
 
+/* 見出しのボタンの反転：対応する一覧（data-box）が開いていれば on */
+function syncHbtns() { document.querySelectorAll('button.hbtn[data-box]').forEach(b => b.classList.toggle('on', !$(b.dataset.box).classList.contains('hidden'))); }
 /* ---- 完了済み（7日間。チェックで未完に戻す） ---- */
 const DONE = {
   tasks: { list: 'doneTasks', undo: 'undoTask', after: r => { drawTasks(r.tasks); drawDone('tasks', r.done); } },
@@ -1001,8 +1006,8 @@ const DONE = {
 /* 依頼した個別業務（Ver1.2）：自分が他の人に頼んだ分と、担当者ごとの状態（未確認・確認済み・完了など）。見るだけ */
 async function toggleRequested() {
   const box = $('reqdBox');
-  if (!box.classList.contains('hidden')) { box.classList.add('hidden'); return; }
-  box.classList.remove('hidden');
+  if (!box.classList.contains('hidden')) { box.classList.add('hidden'); syncHbtns(); return; }
+  box.classList.remove('hidden'); syncHbtns();
   $('reqd').innerHTML = '<p class="sub">読み込み中…</p>';
   try { drawRequested(await call('requestedTasks')); } catch (e) { $('reqd').innerHTML = ''; }
 }
@@ -1026,8 +1031,8 @@ function drawRequested(list) {
 }
 async function toggleDone(kind) {
   const box = $(kind + 'DoneBox');
-  if (!box.classList.contains('hidden')) { box.classList.add('hidden'); return; }
-  box.classList.remove('hidden');
+  if (!box.classList.contains('hidden')) { box.classList.add('hidden'); syncHbtns(); return; }
+  box.classList.remove('hidden'); syncHbtns();
   $(kind + 'Done').innerHTML = '<p class="sub">読み込み中…</p>';
   try { drawDone(kind, await call(DONE[kind].list)); } catch (e) { $(kind + 'Done').innerHTML = ''; }
 }
@@ -1038,8 +1043,8 @@ const REMOVED = {
 };
 async function toggleRemoved(kind) {
   const box = $(kind + 'RmBox');
-  if (!box.classList.contains('hidden')) { box.classList.add('hidden'); return; }
-  box.classList.remove('hidden');
+  if (!box.classList.contains('hidden')) { box.classList.add('hidden'); syncHbtns(); return; }
+  box.classList.remove('hidden'); syncHbtns();
   $(kind + 'Rm').innerHTML = '<p class="sub">読み込み中…</p>';
   try { await saveQueue; drawRemoved(kind, await call(REMOVED[kind].list)); } catch (e) { $(kind + 'Rm').innerHTML = ''; }
 }
@@ -1290,8 +1295,8 @@ async function removeAnnual(a) {
   show('以降不要にしました（7日間は「削除済み」から戻せます）');
 }
 async function reloadAnnual() {
-  busy(true);
-  try { await saveQueue; drawAnnual(await call('annual')); } finally { busy(false); }
+  busy(true); $('annualReload').classList.add('on'); // 読み込み中は反転
+  try { await saveQueue; drawAnnual(await call('annual')); } finally { busy(false); $('annualReload').classList.remove('on'); }
 }
 async function doneAnnual(a, cb) {
   if (!await ask('完了にしますか？')) { cb.checked = false; return; }
@@ -1462,11 +1467,11 @@ async function seeNew(id) {
   try { await call('seenTask', { id }); } catch (e) {} // 結果は同じなので描き直さない（ハイライトを残す）
 }
 async function reloadTasks() {
-  busy(true);
+  busy(true); $('tasksReload').classList.add('on'); // 読み込み中は反転
   try {
     await saveQueue; drawTasks(await call('tasks'));
     if (!$('reqdBox').classList.contains('hidden')) drawRequested(await call('requestedTasks')); // 依頼した一覧を開いていれば一緒に最新に
-  } finally { busy(false); }
+  } finally { busy(false); $('tasksReload').classList.remove('on'); }
 }
 // 個別業務の自動更新（Ver1.2）：新着にすぐ気づけるよう、画面に戻った時（30秒以上たっていれば）と、開いている間は2分ごとに読み直す
 // （打刻画面を表示中・期日選択中・保存中でないときだけ。失敗しても表示しない）

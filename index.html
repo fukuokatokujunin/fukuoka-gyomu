@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261103153101">
+<meta name="build" content="20261103154149">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -1339,8 +1339,8 @@ function drawTasks(list) {
     meta.appendChild(mv);
     if (t.ruleLabel) { const r = document.createElement('div'); r.className = 'rule rep'; r.textContent = t.ruleLabel; meta.appendChild(r); }
     body.append(txt, thumbs(t.images), meta); row.append(cbBox(cb), body); row.dataset.id = t.id;
-    if (t.repeat) { // 繰り返しをやめるときはゴミ箱
-      const del = document.createElement('button'); del.className = 'ghost trash'; del.title = '繰り返しをやめる';
+    { // ゴミ箱：どの個別業務も削除できる（Ver1.2。以前は繰り返しだけ）。7日間は「削除済み」から戻せる
+      const del = document.createElement('button'); del.className = 'ghost trash'; del.title = t.repeat ? '繰り返しをやめる' : '削除';
       del.onclick = ev => { ev.preventDefault(); removeTask(t); };
       const wrap = document.createElement('div'); wrap.className = 'trashwrap';
       const cap = document.createElement('small'); cap.textContent = '削除';
@@ -1623,7 +1623,8 @@ function nextByRule(rule, after) {
   return after;
 }
 async function removeTask(t) {
-  if (!await ask('この繰り返しの個別業務を削除しますか？（7日間は「削除済み」から戻せます）')) return;
+  if (String(t.id).startsWith('tmp-')) { show('保存が終わってから操作してください', true); return; }
+  if (!await ask(`${t.repeat ? 'この繰り返しの個別業務' : 'この個別業務'}を削除しますか？（7日間は「削除済み」から戻せます）`)) return;
   drawTasks(me.tasks.filter(x => x.id !== t.id)); // 返事を待たずに一覧から外す（保存は裏で）
   saveLater('tasks', 'removeTask', { id: t.id });
   show('削除しました（7日間は「削除済み」から戻せます）');

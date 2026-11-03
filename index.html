@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261103143952">
+<meta name="build" content="20261103145636">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -120,6 +120,7 @@
   button.pp { width:auto; margin:0 0 0 6px; padding:1px 8px; font-size:12px; font-weight:bold; background:#fff; color:#1f2a44; border:1px solid #94a3b8; border-radius:6px; }
   .titem { display:flex; gap:10px; align-items:flex-start; padding:10px 0; border-top:1px solid var(--line); }
   .titem input { width:24px; height:24px; margin:2px 0 0; flex:none; }
+  .cbw { flex:none; display:flex; padding:8px; margin:-8px; cursor:pointer; }
   .titem .t { white-space:pre-wrap; word-break:break-word; }
   .due { display:inline-block; margin-left:6px; padding:1px 6px; border-radius:6px; background:#f3f4f6; font-size:12px; font-weight:700; }
   .due.soon { background:#fef3c7; color:var(--warn); } .due.over { background:#fee2e2; color:var(--ng); }
@@ -299,6 +300,15 @@
   #imgBox img { max-width:100%; max-height:88vh; display:block; margin:auto; background:#fff; }
   #alarmBox .modal { border-top:4px solid var(--warn); }
   .later { display:inline-block; margin-left:6px; font-size:11px; color:var(--sub); }
+  /* 寺内スケジュールの備考（Ver1.2）：時系列のつながり（左の線と点） */
+  button.pp.nt { background:#fff; color:#222629; border:1px solid #222629; margin-left:6px; } button.pp.nt::before { display:none; }
+  .ntlast { margin-top:4px; font-size:12px; color:var(--sub); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; border-left:2px solid #c9b88f; padding-left:6px; }
+  .annual .titem > div { min-width:0; } /* 最新の書き込みの1行が長くても、行の幅を広げない */
+  .tl { margin:10px 0 6px; padding-left:14px; max-height:45vh; overflow-y:auto; }
+  .tl .ne { position:relative; border-left:2px solid #c9b88f; padding:0 0 12px 14px; } .tl .ne:last-child { padding-bottom:2px; }
+  .tl .ne::before { content:''; position:absolute; left:-7px; top:4px; width:12px; height:12px; border-radius:50%; background:#222629; box-shadow:0 0 0 2px #fff; }
+  .tl .ne .who { font-size:12px; color:var(--sub); } .tl .ne .tx { white-space:pre-wrap; font-size:14px; line-height:1.6; }
+  .tl .ne .del { margin-left:8px; font-size:11px; color:var(--ng); cursor:pointer; text-decoration:underline; }
   /* 見出しのボタン（完了済み・削除済みなど）が入りきらない時は、見出しの下の段に右寄せで並べる（Ver1.2） */
   #annualBox .head, #taskBox .head { flex-wrap:wrap; row-gap:8px; }
   #annualBox .head > h3, #taskBox .head > h3 { white-space:nowrap; }
@@ -493,6 +503,20 @@
           <select id="taKind" class="tkdate"></select>
           <button onclick="doTaskToAnnual()">寺内スケジュールへ移す</button>
           <button class="ghost" onclick="$('taBox').classList.add('hidden')">キャンセル</button>
+        </div>
+      </div>
+      <div class="overlay hidden" id="ntBox" onclick="if (event.target === this) closeNotes()">
+        <div class="modal" style="max-height:90vh;overflow-y:auto">
+          <strong>備考（進み具合）</strong>
+          <div class="sub" id="ntText" style="margin:4px 0 2px"></div>
+          <div class="sub" id="ntWho"></div>
+          <div class="tl" id="ntList"></div>
+          <div id="ntForm">
+            <textarea id="ntInput" rows="3" maxlength="500" placeholder="進み具合を書き足す（例：見積を依頼しました。11/10に届く予定）"></textarea>
+            <button onclick="addNote()">書き足す</button>
+          </div>
+          <p class="sub" id="ntNotYet" style="margin:6px 0 0">書き足せるのは着手している人だけです（「未着手」から着手してください）</p>
+          <button class="ghost" onclick="closeNotes()">閉じる</button>
         </div>
       </div>
       <div class="overlay hidden" id="morningBox">
@@ -804,6 +828,7 @@ async function doLogin() {
     try { localStorage.setItem('auth', JSON.stringify(auth)); } catch (e) {}
     $('login').classList.add('hidden'); $('app').classList.remove('hidden'); show('');
     view('clock');
+    tasksAt = Date.now(); doGo(); // リンクから開いてログインし直した時も、その所へ移る
   } finally { busy(false); }
 }
 function logout() {
@@ -841,6 +866,10 @@ function saveSnap(s) {
   if (!stale) try { localStorage.setItem('snap', JSON.stringify({ id: auth && auth.id, s: Object.assign({}, s, { annual: undefined }) })); } catch (e) {}
 }
 function render(s) {
+  if (s.session && auth && auth.tk) { // リンクで開いた時：続けて使える印（180日）に差し替える（Ver1.2）
+    auth = { id: auth.id, tk: s.session };
+    try { localStorage.setItem('auth', JSON.stringify(auth)); } catch (e) {}
+  }
   saveSnap(s);
   if (!stale) { loadedAt = Date.now(); loadedDay = ymd(new Date()); } // 勤務状態を読んだ日時（日をまたいだら読み直す）
   if (!s.working) preOpen = false; // 勤務外なら退勤前チェックは閉じる
@@ -1045,8 +1074,8 @@ function drawDone(kind, list) {
   const box = $(kind + 'Done');
   box.innerHTML = list.length ? '' : '<p class="sub">完了済みはありません</p>';
   list.forEach(a => {
-    const row = document.createElement('label'); row.className = 'titem';
-    const u = document.createElement('span'); u.className = 'undo';
+    const row = document.createElement('div'); row.className = 'titem';
+    const u = document.createElement('label'); u.className = 'undo'; // 「戻す」と□だけが反応する（行全体は反応させない）
     const cb = document.createElement('input'); cb.type = 'checkbox';
     u.append('戻す', cb);
     cb.onchange = async () => {
@@ -1075,14 +1104,14 @@ function drawAnnual(list) {
   $('annual').innerHTML = list.length ? '' : '<p class="sub">直近の予定はありません</p>';
   const near = [], far = [];
   list.forEach(a => {
-    const row = document.createElement('label');
+    const row = document.createElement('div'); // 行全体は反応させない（□・ボタンだけ。Ver1.2）
     row.className = 'titem' + (a.early ? ' early' : '') + (a.event ? ' evt' : '') + (!a.event && a.left <= 0 ? ' alert' : '');
     if (a.event) {
       const mk = document.createElement('span'); mk.className = 'evmark'; mk.textContent = '📅'; row.appendChild(mk);
     } else {
       const cb = document.createElement('input'); cb.type = 'checkbox';
       cb.onchange = () => { if (cb.checked) doneAnnual(a, cb); };
-      row.appendChild(cb);
+      row.appendChild(cbBox(cb));
     }
     const body = document.createElement('div'); body.style.flex = '1';
     const txt = document.createElement('div'); txt.className = 't';
@@ -1097,6 +1126,10 @@ function drawAnnual(list) {
     if (!a.event) {
       meta.appendChild(ppButton(() => openPostpone('annual', a, a.date)));
       meta.appendChild(stButton(a));
+      const nb = document.createElement('button'); nb.className = 'pp nt';
+      nb.textContent = (a.notes || []).length ? `備考 ${a.notes.length}` : '備考';
+      nb.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); openNotes(a); }; // 行はlabelなのでチェックが入らないように
+      meta.appendChild(nb);
     }
     if ((a.later || []).length) { // 同じ内容のほかの回（済ませると次の回が出る）
       const n = document.createElement('span'); n.className = 'later';
@@ -1110,6 +1143,8 @@ function drawAnnual(list) {
       meta.appendChild(h);
     }
     body.append(txt, meta); row.appendChild(body);
+    const last = (a.notes || [])[(a.notes || []).length - 1];
+    if (last) { const n = document.createElement('div'); n.className = 'ntlast'; n.textContent = `${last.name}（${last.at}）：${last.text}`; body.appendChild(n); }
     if (!a.event) {
       const del = document.createElement('button'); del.className = 'ghost trash'; del.textContent = ''; del.title = '今後表示しない';
       del.onclick = ev => { ev.preventDefault(); removeAnnual(a); };
@@ -1123,6 +1158,7 @@ function drawAnnual(list) {
   foldRows($('annual'), near, far, '1週間以上先の予定', 'annual');
   if (typeof dueMode !== 'undefined' && dueMode) setTimeout(refreshDue, 0);
   if (stCur && !$('stBox').classList.contains('hidden')) drawStart();
+  if (ntCur && !$('ntBox').classList.contains('hidden')) drawNotes();
 }
 
 /* 着手（寺内スケジュール）：ボタンは1つ。誰も着手していなければ「未着手」（押すと「着手しますか？」→はいで加わる）、
@@ -1195,6 +1231,46 @@ function drawStart() {
 }
 function closeStart() { stCur = null; $('stBox').classList.add('hidden'); }
 
+/* 備考（Ver1.2）：着手した人が進み具合を時系列で書き足す。全員が見られる。自分の書き込みは消せる */
+let ntCur = null;
+function openNotes(a) { ntCur = a.id; $('ntInput').value = ''; drawNotes(); $('ntBox').classList.remove('hidden'); }
+function closeNotes() { ntCur = null; $('ntBox').classList.add('hidden'); }
+function drawNotes() {
+  const a = me.annual.find(x => !x.event && x.id === ntCur);
+  if (!a) { closeNotes(); return; }
+  $('ntText').textContent = a.text;
+  $('ntWho').textContent = (a.starters || []).length ? '着手している人：' + a.starters.map(p => p.name).join('・') : 'まだだれも着手していません';
+  $('ntList').innerHTML = (a.notes || []).length ? '' : '<p class="sub" style="margin:0">まだ書き込みはありません</p>';
+  (a.notes || []).forEach(n => {
+    const d = document.createElement('div'); d.className = 'ne';
+    const w = document.createElement('div'); w.className = 'who'; w.textContent = `${n.name}　${n.at}`;
+    if (String(n.empId) === String(auth.id)) {
+      const x = document.createElement('span'); x.className = 'del'; x.textContent = '消す';
+      x.onclick = () => delNote(n.id); w.appendChild(x);
+    }
+    const t = document.createElement('div'); t.className = 'tx'; t.textContent = n.text;
+    d.append(w, t); $('ntList').appendChild(d);
+  });
+  const mine = myStart(a);
+  $('ntForm').classList.toggle('hidden', !mine);
+  $('ntNotYet').classList.toggle('hidden', mine);
+  $('ntList').scrollTop = $('ntList').scrollHeight; // 新しい書き込みが見えるように
+}
+async function addNote() {
+  const a = me.annual.find(x => !x.event && x.id === ntCur), text = $('ntInput').value.trim();
+  if (!a) return;
+  if (!text) { alert('備考を入れてください'); return; }
+  busy(true);
+  try { await saveQueue; drawAnnual(await call('addAnnualNote', { id: a.id, key: a.key || a.date, text })); $('ntInput').value = ''; show('備考を書き足しました'); }
+  finally { busy(false); }
+}
+async function delNote(noteId) {
+  if (!await ask('この書き込みを消しますか？')) return;
+  busy(true);
+  try { await saveQueue; drawAnnual(await call('delAnnualNote', { noteId })); show('書き込みを消しました'); }
+  finally { busy(false); }
+}
+
 /* PCで1日の最初に開いた時：カレンダー・LINE・メールの確認を促す（端末ごとに1日1回） */
 function morningCheck() {
   if (!IS_PC || stale || !me || me.noAttend) return;
@@ -1225,6 +1301,9 @@ async function doneAnnual(a, cb) {
     notice('個別業務も完了にしてください', `着手した時に、同じ内容をあなたの個別業務にも追加しています。\n個別業務の「${(me.tasks.find(t => t.from === '寺内スケジュール' && t.text === a.text) || {}).text || a.text}」は、別に完了にしてください。`);
 }
 
+/* 完了の□：□のまわりを少し広げて押しやすくする（反応するのは□だけで、内容の文字は反応しない） */
+function cbBox(cb) { const l = document.createElement('label'); l.className = 'cbw'; l.appendChild(cb); return l; }
+
 /* ---- タスク ---- */
 const ymd = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 function drawTasks(list) {
@@ -1236,7 +1315,7 @@ function drawTasks(list) {
   const near = [], far = [];
   list.forEach(t => {
     let left = null;
-    const row = document.createElement('label'); row.className = 'titem';
+    const row = document.createElement('div'); row.className = 'titem'; // 行全体は反応させない（□・ボタンだけ。Ver1.2）
     const cb = document.createElement('input'); cb.type = 'checkbox';
     cb.onchange = () => { if (cb.checked) doneTask(t, cb); };
     if (t.due && t.due <= today) row.classList.add('alert'); // 期日が来たら赤
@@ -1257,7 +1336,7 @@ function drawTasks(list) {
     mv.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); openTaskToAnnual(t); }; // 行はlabelなのでチェックが入らないように
     meta.appendChild(mv);
     if (t.ruleLabel) { const r = document.createElement('div'); r.className = 'rule rep'; r.textContent = t.ruleLabel; meta.appendChild(r); }
-    body.append(txt, thumbs(t.images), meta); row.append(cb, body); row.dataset.id = t.id;
+    body.append(txt, thumbs(t.images), meta); row.append(cbBox(cb), body); row.dataset.id = t.id;
     if (t.repeat) { // 繰り返しをやめるときはゴミ箱
       const del = document.createElement('button'); del.className = 'ghost trash'; del.title = '繰り返しをやめる';
       del.onclick = ev => { ev.preventDefault(); removeTask(t); };
@@ -1380,11 +1459,31 @@ async function reloadTasks() {
     if (!$('reqdBox').classList.contains('hidden')) drawRequested(await call('requestedTasks')); // 依頼した一覧を開いていれば一緒に最新に
   } finally { busy(false); }
 }
-// 10分ごとに自動更新（勤務中・打刻画面を表示中・期日選択中・保存中でないときだけ。失敗しても表示しない）
-setInterval(() => {
-  if (!showTasks() || cur !== 'clock' || tkCur || savePending || document.hidden) return;
-  rawCall('tasks', auth).then(list => { if (!tkCur && !savePending) drawTasks(list); }).catch(() => {});
-}, 10 * 60 * 1000);
+// 個別業務の自動更新（Ver1.2）：新着にすぐ気づけるよう、画面に戻った時（30秒以上たっていれば）と、開いている間は2分ごとに読み直す
+// （打刻画面を表示中・期日選択中・保存中でないときだけ。失敗しても表示しない）
+let tasksAt = 0;
+function refreshTasks(minGap) {
+  if (!showTasks() || cur !== 'clock' || stale || tkCur || savePending || document.hidden || Date.now() - tasksAt < minGap) return;
+  tasksAt = Date.now();
+  rawCall('tasks', auth).then(list => { if (!tkCur && !savePending) drawTasks(list); }).catch(() => { tasksAt = 0; });
+}
+setInterval(() => refreshTasks(110 * 1000), 2 * 60 * 1000);
+document.addEventListener('visibilitychange', () => refreshTasks(30 * 1000));
+window.addEventListener('pageshow', () => refreshTasks(30 * 1000));
+window.addEventListener('focus', () => refreshTasks(30 * 1000));
+/* リンクの go の所へ移る：task:ID＝その個別業務（新着なら確認済みにする）、hand＝申し送り、clock＝打刻 */
+function doGo() {
+  const g = pendingGo; pendingGo = '';
+  if (!g || !me) return;
+  setTimeout(() => {
+    if (g.startsWith('task:')) {
+      const id = g.slice(5), t = (me.tasks || []).find(x => x.id === id);
+      if (!t) { show('この個別業務は、もう完了しているか見つかりません'); return; }
+      if (t.isNew) seeNew(id); else jumpTo(`#tasks [data-id="${id}"]`);
+    } else if (g === 'hand') jumpTo('#handBox');
+    else if (g === 'clock') jumpTo('#clockCard');
+  }, 300);
+}
 // PCは打刻をスマホで行うので、開いたままでも状態（勤務中・打刻時刻・警告）を5分ごとと画面に戻ったときに読み直す
 function refreshPc() {
   if (!IS_PC || !me || cur !== 'clock' || tkCur || savePending || document.hidden) return;
@@ -2052,6 +2151,16 @@ function drawReqView(o) {
 /* ---- 起動 ---- */
 let saved = null;
 try { saved = JSON.parse(localStorage.getItem('auth') || 'null'); } catch (e) {}
+// Slackの通知のリンク（Ver1.2）：?u=従業員ID&e=期限&s=署名 でログイン済みで開き、go の所へ移る。URLからは消す
+const linkQ = new URLSearchParams(location.search);
+let pendingGo = linkQ.get('go') || '';
+if (linkQ.get('u') && linkQ.get('s')) {
+  if (!saved || String(saved.id) !== linkQ.get('u')) { // 同じ人でもうログインしていればそのまま
+    saved = { id: linkQ.get('u'), tk: `${linkQ.get('u')}.${linkQ.get('e')}.${linkQ.get('s')}` };
+    try { localStorage.setItem('auth', JSON.stringify(saved)); } catch (e) {}
+  }
+}
+if (linkQ.has('u') || linkQ.has('go')) history.replaceState(null, '', location.pathname);
 if (saved) { // 名前一覧を待たずにログインを始める
   $('login').classList.add('hidden');
   auth = saved;
@@ -2071,13 +2180,17 @@ if (saved) { // 名前一覧を待たずにログインを始める
   call('login').then(s => {
     stale = false; lockStamp();
     render(s); $('app').classList.remove('hidden'); show(''); view('clock');
-  }).catch(() => { stale = false; lockStamp(); $('app').classList.add('hidden'); $('login').classList.remove('hidden'); });
+    tasksAt = Date.now(); doGo();
+  }).catch(() => {
+    stale = false; lockStamp(); $('app').classList.add('hidden'); $('login').classList.remove('hidden');
+    if (auth && auth.tk) try { localStorage.removeItem('auth'); } catch (e) {} // 期限切れのリンクの印は捨てる（パスワードでログインし直す）
+  });
 }
 rawCall('names', null).then(list => {
   names = list;
   $('eid').innerHTML = '<option value="">名前を選択</option>' +
     list.map(n => `<option value="${n.id}">${n.name}</option>`).join('');
-  if (saved) { $('eid').value = saved.id; $('pw').value = saved.pw; }
+  if (saved) { $('eid').value = saved.id; $('pw').value = saved.pw || ''; }
   hint();
 }).catch(e => show(e.message, true));
 // スマホ：画面の一番上で下に長く引っぱって離すと読み込み直す（ログインは端末に保存済みなのでそのまま）

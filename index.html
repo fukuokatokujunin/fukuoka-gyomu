@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261103094936">
+<meta name="build" content="20261103113821">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -81,6 +81,18 @@
   .day em { font-style:normal; font-size:9px; color:var(--ng); line-height:1; }
   table.grid td.bs { box-shadow:inset 0 -3px 0 #9ca3af; }
   table.grid td.rq { position:relative; }
+  .rqoff { background:#f3f4f6; color:var(--ng); }
+  .rqcal { display:grid; grid-template-columns:repeat(7, minmax(0, 1fr)); border-top:1px solid var(--line); border-left:1px solid var(--line); }
+  .rqcal > div { border-right:1px solid var(--line); border-bottom:1px solid var(--line); min-width:0; }
+  .rqw { text-align:center; font-size:12px; padding:4px 0; background:#f6f7f9; }
+  .rqd { min-height:84px; padding:3px; } .rqd.blank { background:#fafafa; } .rqd.ev { background:#fffbeb; }
+  .rqn { font-size:13px; font-weight:600; line-height:1.3; } .rqn small { display:block; font-size:9px; font-weight:400; color:var(--warn); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .rqc { display:block; margin-top:2px; padding:1px 4px; border-radius:4px; font-size:12px; line-height:1.35; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .rqb { margin-top:3px; font-size:10px; color:var(--sub); line-height:1.3; }
+  @media (max-width: 600px) { .rqd { min-height:64px; padding:2px; } .rqc { font-size:10px; padding:1px 2px; white-space:normal; } .rqb { font-size:9px; } }
+  ul.rqlist { list-style:none; margin:10px 0 0; padding:0; } ul.rqlist li { padding:10px 0; border-bottom:1px solid var(--line); }
+  ul.rqlist li:last-child { border-bottom:0; } ul.rqlist .ok { color:var(--ok); font-size:13px; } ul.rqlist .no { color:var(--ng); font-size:13px; }
+  ul.rqlist .sub { margin-top:2px; font-size:13px; } button.rqreload { width:auto; display:inline-block; margin:0 0 0 8px; padding:4px 12px; font-size:13px; }
   table.grid td.rq::after { content:''; position:absolute; top:3px; right:3px; width:6px; height:6px; border-radius:50%; background:var(--pri); }
   .lg { display:inline-flex; align-items:center; gap:4px; margin-left:8px; }
   .lg i { display:inline-block; width:14px; height:14px; border:1px solid var(--line); }
@@ -490,6 +502,7 @@
       </div>
       <div class="atabs">
         <button class="atab on" data-tab="shift" onclick="adminTab('shift')">シフト作成</button>
+        <button class="atab" data-tab="req" onclick="adminTab('req')">希望確認</button>
         <button class="atab" data-tab="actual" onclick="adminTab('actual')">実績確認</button>
         <button class="atab" data-tab="info" onclick="adminTab('info')">お知らせ</button>
         <button class="atab" data-tab="etc" onclick="adminTab('etc')">QR・設定</button>
@@ -534,6 +547,23 @@
             <span class="lg"><i class="lgr"></i>本人の希望あり</span>
             <span class="lg" style="color:var(--ng)">祝</span>＝祝日・正月・お盆（基本公休なし）</span>
           <div class="scroll"><table class="grid" id="grid"></table></div>
+        </div>
+      </div>
+
+      <!-- 希望確認（2026-11-03）：提出されたシフト希望を見るだけ（編集しない） -->
+      <div id="at-req" class="hidden">
+        <div class="card">
+          <strong>シフト希望の提出内容（確認用）</strong> <button class="ghost rqreload" onclick="loadAdmin()">更新</button>
+          <span class="sub">いま提出されている希望をそのまま表示します。ここでは変更できません（シフトへの反映は「シフト作成」の①で行います）。</span>
+          <ul class="rqlist" id="rqList"></ul>
+        </div>
+        <div class="card">
+          <strong>カレンダー</strong>
+          <span class="sub" style="display:block;margin:4px 0 8px">
+            <span class="lg"><i class="s2"></i>公休希望</span><span class="lg"><i class="s5"></i>有給希望</span>
+            <span class="lg"><i class="s17"></i>出勤希望（正社員は基本公休日に代わりに出勤）</span><span class="lg"><i class="rqoff"></i>休み希望（パート）</span>
+            <span style="display:block;margin-top:4px">灰色の文字は、希望がなく基本どおり休みの正社員（基本公休日）です。</span></span>
+          <div class="rqcal" id="rqCal"></div>
         </div>
       </div>
 
@@ -1557,7 +1587,7 @@ function showRes(title, list) {
 // 管理画面のタブ（開いていたタブは端末に記憶）
 function adminTab(t) {
   document.querySelectorAll('.atab').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
-  ['shift', 'actual', 'info', 'etc'].forEach(x => $('at-' + x).classList.toggle('hidden', x !== t));
+  ['shift', 'req', 'actual', 'info', 'etc'].forEach(x => $('at-' + x).classList.toggle('hidden', x !== t));
   try { localStorage.setItem('adminTab', t); } catch (e) {}
 }
 async function hrmosCheck() {
@@ -1657,6 +1687,44 @@ function drawAdmin(o) {
     return `<th>${n}</th>`;
   }).join('') + '</tr>';
   $('grid').innerHTML = o.status === 'なし' ? '<tr><td style="padding:12px;cursor:auto">まだシフト案がありません。上の「① 希望からシフト案を作成」を押してください。</td></tr>' : h;
+  drawReqView(o);
+}
+// 希望確認タブ：提出状況と日ごとの希望（見るだけ）
+const RQ_SHORT = { '公休': ['公', 's2'], '有休': ['有', 's5'], '午前有休': ['前', 's6'], '午後有休': ['後', 's7'], '出勤': ['出', 's17'], '出勤可': ['出', 's17'], '休み': ['休', 'rqoff'] };
+function drawReqView(o) {
+  const md = ds => { const [, m, d] = ds.split('-').map(Number); return `${m}/${d}`; };
+  $('rqList').innerHTML = '';
+  o.emps.forEach(e => {
+    const rq = o.reqs[e.id] || {}, kinds = {};
+    Object.keys(rq).sort().forEach(ds => { (kinds[rq[ds]] = kinds[rq[ds]] || []).push(md(ds)); });
+    const li = document.createElement('li');
+    const head = document.createElement('div');
+    head.innerHTML = `<b></b> <span class="${e.submitted ? 'ok' : 'no'}"></span>`;
+    head.querySelector('b').textContent = e.name;
+    head.querySelector('span').textContent = e.submitted ? `✓ 提出済み${e.submittedAt ? '（' + e.submittedAt + '）' : ''}` : '未提出';
+    const body = document.createElement('div'); body.className = 'sub';
+    body.textContent = Object.keys(kinds).length
+      ? Object.keys(kinds).map(k => `${REQ_LABEL[k] || k} ${kinds[k].length}件：${kinds[k].join('・')}`).join('　／　')
+      : e.submitted ? '希望なし（基本どおり）' : '基本' + (e.type === 'パート' ? '出勤日' : '公休曜日') + 'だけで組みます';
+    li.append(head, body);
+    $('rqList').appendChild(li);
+  });
+  // カレンダー（日曜はじまり）：日ごとに希望を出した人、灰色で基本公休の人
+  const KIND = { '公休': '公休', '有休': '有給', '午前有休': '午前有給', '午後有休': '午後有給', '出勤': '出勤', '出勤可': '出勤', '休み': '休み' };
+  let h = '日月火水木金土'.split('').map((w, i) => `<div class="rqw${i === 0 ? ' sun' : i === 6 ? ' sat' : ''}">${w}</div>`).join('');
+  h += '<div class="rqd blank"></div>'.repeat(o.days[0].w);
+  o.days.forEach(d => {
+    const chips = [], base = [];
+    o.emps.forEach(e => {
+      const rq = (o.reqs[e.id] || {})[d.date];
+      if (rq) chips.push(`<span class="rqc ${(RQ_SHORT[rq] || [])[1] || ''}">${e.name} ${KIND[rq] || rq}</span>`);
+      else if (e.type !== 'パート' && (o.base[e.id] || []).includes(d.date)) base.push(e.name);
+    });
+    const tip = [d.special].concat(d.events).filter(Boolean).join('・');
+    h += `<div class="rqd${d.events.length ? ' ev' : ''}"><div class="rqn${d.w === 0 || d.special ? ' sun' : d.w === 6 ? ' sat' : ''}">${d.d}` +
+      `${tip ? `<small>${tip}</small>` : ''}</div>${chips.join('')}${base.length ? `<div class="rqb">${base.join('・')}</div>` : ''}</div>`;
+  });
+  $('rqCal').innerHTML = h;
 }
 
 /* ---- 起動 ---- */

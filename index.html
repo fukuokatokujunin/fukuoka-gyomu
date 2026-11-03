@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261103162334">
+<meta name="build" content="20261103164348">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -1008,6 +1008,12 @@ function ask(msg) {
 
 /* 見出しのボタンの反転：対応する一覧（data-box）が開いていれば on */
 function syncHbtns() { document.querySelectorAll('button.hbtn[data-box]').forEach(b => b.classList.toggle('on', !$(b.dataset.box).classList.contains('hidden'))); }
+/* 同じ見出しの一覧は1つだけ開く：id の一覧を開く前に、同じ見出しのほかの一覧（依頼した・完了済み・削除済み）を閉じる */
+function openOnly(id) {
+  document.querySelector(`button.hbtn[data-box="${id}"]`).parentNode.querySelectorAll('button.hbtn[data-box]')
+    .forEach(b => { if (b.dataset.box !== id) $(b.dataset.box).classList.add('hidden'); });
+  $(id).classList.remove('hidden'); syncHbtns();
+}
 /* ---- 完了済み（7日間。チェックで未完に戻す） ---- */
 const DONE = {
   tasks: { list: 'doneTasks', undo: 'undoTask', after: r => { drawTasks(r.tasks); drawDone('tasks', r.done); } },
@@ -1017,7 +1023,7 @@ const DONE = {
 async function toggleRequested() {
   const box = $('reqdBox');
   if (!box.classList.contains('hidden')) { box.classList.add('hidden'); syncHbtns(); return; }
-  box.classList.remove('hidden'); syncHbtns();
+  openOnly('reqdBox');
   $('reqd').innerHTML = '<p class="sub">読み込み中…</p>';
   try { drawRequested(await call('requestedTasks')); } catch (e) { $('reqd').innerHTML = ''; }
 }
@@ -1042,7 +1048,7 @@ function drawRequested(list) {
 async function toggleDone(kind) {
   const box = $(kind + 'DoneBox');
   if (!box.classList.contains('hidden')) { box.classList.add('hidden'); syncHbtns(); return; }
-  box.classList.remove('hidden'); syncHbtns();
+  openOnly(kind + 'DoneBox');
   $(kind + 'Done').innerHTML = '<p class="sub">読み込み中…</p>';
   try { drawDone(kind, await call(DONE[kind].list)); } catch (e) { $(kind + 'Done').innerHTML = ''; }
 }
@@ -1054,7 +1060,7 @@ const REMOVED = {
 async function toggleRemoved(kind) {
   const box = $(kind + 'RmBox');
   if (!box.classList.contains('hidden')) { box.classList.add('hidden'); syncHbtns(); return; }
-  box.classList.remove('hidden'); syncHbtns();
+  openOnly(kind + 'RmBox');
   $(kind + 'Rm').innerHTML = '<p class="sub">読み込み中…</p>';
   try { await saveQueue; drawRemoved(kind, await call(REMOVED[kind].list)); } catch (e) { $(kind + 'Rm').innerHTML = ''; }
 }

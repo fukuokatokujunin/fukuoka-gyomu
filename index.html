@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261103091035">
+<meta name="build" content="20261103093544">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -761,7 +761,7 @@ function render(s) {
 
   $('today').textContent = new Date().toLocaleDateString('ja-JP', { month:'long', day:'numeric', weekday:'short' });
   $('state').textContent = s.working ? '勤務中' : '勤務外';
-  $('last').textContent = s.lastKind === 'in_missed' ? `出勤打刻漏れ（${s.lastTime} に勤務中へ）` : s.lastTime ? `最終打刻 ${s.lastTime}` : '本日の打刻なし';
+  $('last').textContent = s.lastKind === 'in_missed' ? `出勤打刻漏れ：${s.lastTime} に勤務中へ` : s.lastTime ? `最終打刻 ${s.lastTime}` : '本日の打刻なし';
   // 勤怠対象外（雇用主など）は打刻・希望の締切表示なし
   $('clockCard').classList.toggle('hidden', !!s.noAttend);
   $('deadline').classList.toggle('hidden', !!s.noAttend);

@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261103085244">
+<meta name="build" content="20261103091035">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -272,6 +272,7 @@
   button.pp.st::before { display:none; }
   button.prog { width:auto; margin:0 0 0 6px; padding:2px 10px; background:var(--ok); color:#fff; font-size:11px; letter-spacing:.15em; font-weight:500; }
   #askBox { z-index:12; }
+  button.in.missed { background:var(--warn); letter-spacing:.15em; } /* 出勤打刻漏れ */
   #askBox.low { align-items:flex-end; background:transparent; padding-bottom:28px; }
   #askBox.low .modal { box-shadow:0 -6px 30px rgba(0,0,0,.35); } /* 「はい／いいえ」の確認は、着手の一覧などほかの窓より前に出す */
   .rule { margin-top:4px; font-size:12px; color:var(--sub); letter-spacing:.04em; }
@@ -358,7 +359,7 @@
         <div class="sub" id="today"></div>
         <div class="big" id="state"></div>
         <div class="sub" id="last"></div>
-        <button id="btnIn" class="in" onclick="clockIn()">出勤</button>
+        <button id="btnIn" class="in" onclick="clockInOrMissed()">出勤</button>
         <button id="btnPre" class="out hidden" onclick="openPre(true)">退勤前チェック</button>
         <div class="pcwarn hidden" id="pcWarn">⚠ 出勤の打刻をしてください（スマホのアプリから）</div>
       </div>
@@ -760,12 +761,13 @@ function render(s) {
 
   $('today').textContent = new Date().toLocaleDateString('ja-JP', { month:'long', day:'numeric', weekday:'short' });
   $('state').textContent = s.working ? '勤務中' : '勤務外';
-  $('last').textContent = s.lastTime ? `最終打刻 ${s.lastTime}` : '本日の打刻なし';
+  $('last').textContent = s.lastKind === 'in_missed' ? `出勤打刻漏れ（${s.lastTime} に勤務中へ）` : s.lastTime ? `最終打刻 ${s.lastTime}` : '本日の打刻なし';
   // 勤怠対象外（雇用主など）は打刻・希望の締切表示なし
   $('clockCard').classList.toggle('hidden', !!s.noAttend);
   $('deadline').classList.toggle('hidden', !!s.noAttend);
   // PCはカメラでQRを読めないので打刻ボタンは出さず、状態と打刻時刻だけ表示
   $('btnIn').classList.toggle('hidden', s.working || IS_PC);
+  inButton();
   $('btnPre').classList.toggle('hidden', !s.working || preOpen || IS_PC);
   $('pcWarn').classList.toggle('hidden', !IS_PC || s.noAttend || s.working || !!s.lastTime);
   $('outBox').classList.toggle('hidden', !s.working || !preOpen || IS_PC);
@@ -1351,6 +1353,28 @@ async function scanQr(title) {
   });
 }
 
+/* 始業時刻を過ぎても今日の打刻がなければ「出勤」を「出勤打刻漏れ」に変える（2026-11-03）。
+   押すと打刻を残さずに勤務中になる（出勤時刻は管理者がハーモスで直す）。以後は通常どおり退勤前チェック→退勤 */
+function missedNow() {
+  if (!me || IS_PC || me.noAttend || me.working || me.lastTime || !me.workStart) return false;
+  const n = new Date(), hm = String(n.getHours()).padStart(2, '0') + ':' + String(n.getMinutes()).padStart(2, '0');
+  return hm >= me.workStart;
+}
+function inButton() {
+  const missed = missedNow();
+  $('btnIn').textContent = missed ? '出勤打刻漏れ' : '出勤';
+  $('btnIn').classList.toggle('missed', missed);
+}
+setInterval(() => { if (me && !document.hidden) inButton(); }, 60 * 1000); // 始業時刻を過ぎたら切り替える
+function clockInOrMissed() { return missedNow() ? clockMissed() : clockIn(); }
+async function clockMissed() {
+  if (!await ask('出勤の打刻をせずに、勤務中にしますか？（出勤時刻は管理者がハーモスで直します）')) return;
+  busy(true);
+  try {
+    render(await call('clockMissedIn'));
+    show('勤務中にしました（出勤の打刻はしていません）。管理者に知らせました' + (me.handovers.length ? `\n申し送りが ${me.handovers.length}件 あります` : ''));
+  } finally { busy(false); }
+}
 async function clockIn() {
   let qr;
   try { qr = await scanQr('出勤：QRコードを写してください'); } catch (e) { show(e.message, true); return; }

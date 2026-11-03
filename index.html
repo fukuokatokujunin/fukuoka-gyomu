@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261103152501">
+<meta name="build" content="20261103153101">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -553,7 +553,6 @@
       <div class="overlay hidden" id="newBox">
         <div class="modal" style="max-height:85vh;overflow-y:auto">
           <strong><span class="newmark">NEW</span>新着の個別業務</strong>
-          <p class="sub" style="margin:4px 0 0">個別業務の一覧にはもう入っています。「確認」を押すと、この窓から消えます</p>
           <div id="newList"></div>
         </div>
       </div>
@@ -1475,7 +1474,8 @@ let tasksAt = 0;
 function refreshTasks(minGap) {
   if (!showTasks() || cur !== 'clock' || stale || tkCur || savePending || document.hidden || Date.now() - tasksAt < minGap) return false;
   tasksAt = Date.now();
-  rawCall('tasks', auth).then(list => { if (!tkCur && !savePending) drawTasks(list); }).catch(() => { tasksAt = 0; });
+  const gen = editGen;
+  rawCall('tasks', auth).then(list => { if (!tkCur && !savePending && gen === editGen) drawTasks(list); }).catch(() => { tasksAt = 0; });
   return true;
 }
 setInterval(() => refreshTasks(110 * 1000), 2 * 60 * 1000);
@@ -1509,7 +1509,8 @@ function doGo() {
 // PCは打刻をスマホで行うので、開いたままでも状態（勤務中・打刻時刻・警告）を5分ごとと画面に戻ったときに読み直す
 function refreshPc() {
   if (!IS_PC || !me || cur !== 'clock' || tkCur || savePending || document.hidden) return;
-  rawCall('login', auth).then(s => { if (!tkCur && !savePending) render(s); }).catch(() => {});
+  const gen = editGen;
+  rawCall('login', auth).then(s => { if (!tkCur && !savePending && gen === editGen) render(s); }).catch(() => {});
 }
 /* スマホ：アプリを開いたまま日をまたぐと前日の「勤務中（退勤前チェック）」が残り、出勤できなかった（2026-11-03）。
    画面に戻った時・1分ごとに、日付が変わっていれば必ず、同じ日でも10分たっていれば勤務状態を読み直す */
@@ -1519,8 +1520,9 @@ function refreshStatus() {
   const dayChanged = loadedDay && loadedDay !== ymd(new Date());
   if (!dayChanged && (preOpen || Date.now() - loadedAt < 10 * 60 * 1000)) return; // 退勤前チェックの入力中は日付が変わった時だけ
   loadedAt = Date.now(); // 読込中に重ねて呼ばない
+  const gen = editGen;
   rawCall('login', auth).then(s => {
-    if (tkCur || savePending || scan) return;
+    if (tkCur || savePending || scan || gen !== editGen) { loadedAt = 0; return; } // 途中で操作した時は古いので使わず、次の機会に読み直す
     if (dayChanged) { preOpen = false; dueMode = false; $('dueBox').classList.add('hidden'); $('dueBar').classList.add('hidden'); }
     render(s);
     if (dayChanged && cur === 'clock') show('日付が変わったので最新の状態にしました');
@@ -1545,7 +1547,9 @@ const SAVE_KIND = {
 };
 let saveQueue = Promise.resolve(), savePending = 0;
 const pendingOf = { tasks: 0, annual: 0 };
+let editGen = 0; // 画面で操作（完了・削除・延長など）するたびに増やす。裏の読み直しの途中で増えたら、その結果は古いので使わない
 function saveLater(kind, action, p) {
+  editGen++;
   savePending++; pendingOf[kind]++;
   document.body.classList.add('saving');
   const send = () => rawCall(action, auth, p).catch(e => {

@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261103151323">
+<meta name="build" content="20261103152501">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -1479,7 +1479,7 @@ function refreshTasks(minGap) {
   return true;
 }
 setInterval(() => refreshTasks(110 * 1000), 2 * 60 * 1000);
-// 新着の合図（Ver1.2）：20秒ごとに軽い問い合わせ（シートは読まない）。頼まれた個別業務が増えていれば、すぐ読み直して新着の窓を出す
+// 新着の合図（Ver1.2）：10秒ごとに軽い問い合わせ（シートは読まない。2026-11-03 20秒→10秒）。頼まれた個別業務が増えていれば、すぐ読み直して新着の窓を出す
 let pulseT = null;
 function pulse() {
   if (!showTasks() || !auth || stale || document.hidden) return;
@@ -1488,7 +1488,7 @@ function pulse() {
     pulseT = r.t;
   }).catch(() => {});
 }
-setInterval(pulse, 20 * 1000);
+setInterval(pulse, 10 * 1000);
 document.addEventListener('visibilitychange', pulse);
 document.addEventListener('visibilitychange', () => refreshTasks(30 * 1000));
 window.addEventListener('pageshow', () => refreshTasks(30 * 1000));

@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261103113821">
+<meta name="build" content="20261103123358">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -282,6 +282,22 @@
   .due.over { color:var(--ng); font-weight:700; border-width:1.5px; }
   button.pp.st { background:#fff; color:#222629; border:1px solid #222629; }
   button.pp.st::before { display:none; }
+  /* 2026-11-03 寺内⇔個別業務の移動・添付画像・打刻のお知らせ */
+  button.pp.mv { background:#fff; color:#222629; border:1px solid #222629; margin-left:6px; } button.pp.mv::before { display:none; }
+  .modal textarea { width:100%; box-sizing:border-box; }
+  .modal label.chk { padding:8px 2px; font-size:15px; } .modal label.chk input[type=radio] { width:20px; height:20px; flex:none; }
+  label.attach { display:inline-flex; align-items:center; gap:10px; margin-top:10px; padding:4px 14px 4px 4px; border:1px solid #222629; background:#fff;
+    color:#222629; font-size:13px; letter-spacing:.15em; cursor:pointer; }
+  label.attach::before { content:''; flex:none; width:26px; height:26px; background:#222629 no-repeat center / 16px
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='1.8' stroke-linejoin='round'%3E%3Crect x='3' y='5' width='18' height='14'/%3E%3Ccircle cx='9' cy='10' r='1.6'/%3E%3Cpath d='M3 17l5-5 4 4 3-3 6 6'/%3E%3C/svg%3E"); }
+  label.attach small { color:var(--sub); letter-spacing:.05em; }
+  label.attach input { display:none; }
+  .thumbs { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; } .thumbs:empty { display:none; }
+  .thumbs .th { position:relative; width:72px; height:72px; border:1px solid var(--line); background:#f3f4f6 center / cover no-repeat; cursor:zoom-in; }
+  .thumbs .th button { position:absolute; top:-6px; right:-6px; width:22px; height:22px; padding:0; margin:0; border-radius:0; background:#222629; color:#fff; font-size:12px; line-height:22px; }
+  .ver { text-align:center; color:rgba(255,255,255,.85); text-shadow:0 1px 3px rgba(0,0,0,.6); font-size:11px; letter-spacing:.2em; margin:18px 0 6px; }
+  #imgBox img { max-width:100%; max-height:88vh; display:block; margin:auto; background:#fff; }
+  #alarmBox .modal { border-top:4px solid var(--warn); }
   button.prog { width:auto; margin:0 0 0 6px; padding:2px 10px; background:var(--ok); color:#fff; font-size:11px; letter-spacing:.15em; font-weight:500; }
   #askBox { z-index:12; }
   button.in.missed { background:var(--warn); letter-spacing:.15em; } /* 出勤打刻漏れ */
@@ -322,6 +338,22 @@
         <div class="modal center">
           <p id="askMsg" style="font-size:17px;font-weight:bold;margin:8px 0 16px"></p>
           <div class="row"><button id="askYes">はい</button><button class="ghost" id="askNo">いいえ</button></div>
+        </div>
+      </div>
+
+      <div class="overlay hidden" id="imgBox" onclick="this.classList.add('hidden')"><img id="imgBig" alt="添付画像"></div>
+      <div class="overlay hidden" id="infoBox">
+        <div class="modal center">
+          <strong id="infoTitle"></strong>
+          <p id="infoMsg" style="font-size:15px;line-height:1.8;margin:12px 0;white-space:pre-line;text-align:left"></p>
+          <button id="infoOk">確認</button>
+        </div>
+      </div>
+      <div class="overlay hidden" id="alarmBox">
+        <div class="modal center">
+          <strong id="alarmTitle"></strong>
+          <p id="alarmMsg" style="font-size:16px;font-weight:bold;line-height:1.8;margin:14px 0;white-space:pre-line"></p>
+          <button onclick="closeAlarm()">確認</button>
         </div>
       </div>
 
@@ -396,6 +428,8 @@
           <strong>引き継ぎ事項</strong> <span class="sub">（ある場合のみ入力）</span>
           <select id="hoTo"></select>
           <textarea id="hoText" rows="3" placeholder="引き継ぐ内容を入力（なければ空欄のまま）"></textarea>
+          <label class="attach"><input type="file" id="hoFile" accept="image/*" multiple onchange="addHoImages(this)">画像を添付 <small>3枚まで</small></label>
+          <div class="thumbs" id="hoThumbs"></div>
         </div>
         <button class="out" onclick="clockOut()">チェックして退勤</button>
         <p class="sub center">今日もお疲れ様でした！</p>
@@ -415,6 +449,36 @@
           <div id="stList"></div>
           <p class="sub" style="margin:10px 0 0">自分の名前を押すと、着手を取り消せます</p>
           <button class="ghost" onclick="closeStart()">閉じる</button>
+        </div>
+      </div>
+      <div class="overlay hidden" id="tbBox">
+        <div class="modal" style="max-height:90vh;overflow-y:auto">
+          <strong id="tbTitle">着手しますか？</strong>
+          <div class="sub" id="tbWho" style="margin:4px 0 0"></div>
+          <p class="sub" style="margin:4px 0 6px">寺内スケジュールは「進行中」になり、同じ内容があなたの個別業務に入ります。個別業務の内容と期日を確かめてください。</p>
+          <label for="tbText" class="tklabel">内容</label>
+          <textarea id="tbText" rows="3"></textarea>
+          <label for="tbDate" class="tklabel">📅 期日（個別業務）</label>
+          <input type="date" id="tbDate" class="tkdate">
+          <button id="tbOk">はい（個別業務にも追加）</button>
+          <button class="ghost" id="tbNo">いいえ</button>
+        </div>
+      </div>
+      <div class="overlay hidden" id="taBox">
+        <div class="modal" style="max-height:90vh;overflow-y:auto">
+          <strong>寺内スケジュールへ移す</strong>
+          <p class="sub" style="margin:4px 0 6px">みんなで進める寺内スケジュールに移します。あなたの個別業務からは消え、全員の画面に出ます（期限の30日前から。発注・締切・予約などは60日前から）。</p>
+          <label for="taText" class="tklabel">内容</label>
+          <textarea id="taText" rows="3"></textarea>
+          <label for="taDate" class="tklabel">📅 初回期限</label>
+          <input type="date" id="taDate" class="tkdate">
+          <span class="tklabel">繰り返し設定</span>
+          <label class="chk"><input type="radio" name="taRep" value="on">オン（毎年。来年以降は同じ曜日の近い日）</label>
+          <label class="chk"><input type="radio" name="taRep" value="off">オフ（今回のみ）</label>
+          <label for="taKind" class="tklabel">区分</label>
+          <select id="taKind" class="tkdate"></select>
+          <button onclick="doTaskToAnnual()">寺内スケジュールへ移す</button>
+          <button class="ghost" onclick="$('taBox').classList.add('hidden')">キャンセル</button>
         </div>
       </div>
       <div class="overlay hidden" id="morningBox">
@@ -587,6 +651,11 @@
 
       <div id="at-etc" class="hidden">
         <div class="card">
+          <strong>Slackのテスト通知</strong>
+          <span class="sub">fukuoka-bot から全員へテストのメッセージを送ります。PCで音が鳴りアイコンが跳ねるか、スマホに通知が出るかを各自で確かめてもらいます（設定は導入マニュアル）。</span>
+          <button class="sec" onclick="testNotify()">Slackのテスト通知を送る</button>
+        </div>
+        <div class="card">
           <strong>打刻用QRコード</strong>
           <span class="sub">事務所に掲示するQRコードです。読み取った画面からだけ出勤・退勤できます。</span>
           <button class="sec" onclick="stampQrSheet(false)">QRコードを表示・印刷</button>
@@ -617,6 +686,7 @@
       </div>
     </section>
   </div>
+  <p class="ver">業務管理システム <span id="ver"></span></p>
 </main>
 
 <script>
@@ -675,6 +745,8 @@ function jumpTo(sel) {
   row.classList.add('flash'); setTimeout(() => row.classList.remove('flash'), 2500);
 }
 const $ = id => document.getElementById(id);
+const APP_VERSION = 'Ver1.2'; // 改修の区切り（Ver1.2＝2026-11-03 寺内⇔個別業務・打刻のお知らせ・引き継ぎの画像・希望確認）
+document.getElementById('ver').textContent = APP_VERSION;
 const LABEL = { 1:'出', 2:'公', 5:'有', 6:'前', 7:'後', 17:'出' };
 const mlabel = ym => Number(ym.split('-')[1]) + '月';
 
@@ -781,12 +853,13 @@ function render(s) {
     const body = document.createElement('div'); body.style.flex = '1';
     const meta = document.createElement('div'); meta.className = 'sub'; meta.textContent = `${h.from}さんより（${h.date}）`;
     const txt = document.createElement('div'); txt.className = 't'; txt.textContent = h.text;
+    const pics = thumbs(h.images);
     const opts = document.createElement('div'); opts.className = 'opts';
     const l1 = document.createElement('label'), c1 = document.createElement('input');
     c1.type = 'checkbox'; c1.onchange = () => { if (c1.checked) ack(h.id, c1); };
     l1.append(c1, '確認した（個別業務に移す）');
     opts.append(l1);
-    body.append(meta, txt, opts); row.append(body); $('hands').appendChild(row);
+    body.append(meta, txt, pics, opts); row.append(body); $('hands').appendChild(row);
   });
 
   $('today').textContent = new Date().toLocaleDateString('ja-JP', { month:'long', day:'numeric', weekday:'short' });
@@ -824,6 +897,7 @@ function render(s) {
     (annualReq || rawCall('annual', auth)).then(drawAnnual).catch(() => { $('annual').innerHTML = '<p class="sub">読み込めませんでした（更新を押してください）</p>'; });
   }
   morningCheck();
+  alarmCheck();
 }
 
 // スマホ・タブレット以外（PC）は打刻しない
@@ -858,6 +932,13 @@ function foldRows(box, near, far, label, key) {
   box.appendChild(d);
 }
 
+// お知らせ（「確認」だけ）
+function notice(title, msg) {
+  return new Promise(done => {
+    $('infoTitle').textContent = title; $('infoMsg').textContent = msg; $('infoBox').classList.remove('hidden');
+    $('infoOk').onclick = () => { $('infoBox').classList.add('hidden'); done(); };
+  });
+}
 // 「はい」「いいえ」の確認。はい＝true
 function ask(msg) {
   return new Promise(done => {
@@ -980,15 +1061,41 @@ function setStart(a, on) {
 }
 async function openStart(a) {
   if (!(a.starters || []).length) {
-    if (await ask('着手しますか？')) { setStart(a, true); show('着手にしました'); }
+    if (await startAsk(a, '着手しますか？')) { setStart(a, true); show(showTasks() ? '着手にしました。個別業務にも追加しました' : '着手にしました'); }
     return;
   }
   stCur = a.id; drawStart(); $('stBox').classList.remove('hidden');
   if (myStart(a)) return;
-  $('askBox').classList.add('low'); // 一覧が見えるように、確認は画面の下に出す
-  const yes = await ask('参加しますか？');
-  $('askBox').classList.remove('low');
-  if (yes) { setStart(a, true); show('参加しました'); }
+  if (await startAsk(a, '参加しますか？')) { setStart(a, true); show(showTasks() ? '参加しました。個別業務にも追加しました' : '参加しました'); }
+}
+/* 着手・参加の確認（2026-11-03）：同じ内容を自分の個別業務にも入れる。内容と期日は個別業務用に確かめて直せる。
+   個別業務の対象外の人（落合さん）はこれまでどおり「はい／いいえ」だけ */
+async function startAsk(a, title) {
+  if (!showTasks()) {
+    $('askBox').classList.toggle('low', title !== '着手しますか？'); // 参加の時は一覧が見えるように下に出す
+    const yes = await ask(title);
+    $('askBox').classList.remove('low');
+    return yes;
+  }
+  $('tbTitle').textContent = title;
+  $('tbWho').textContent = (a.starters || []).length ? 'いま着手している人：' + a.starters.map(p => p.name).join('・') : ''; // 参加の時は窓で一覧が隠れるのでここにも出す
+  $('tbText').value = a.text;
+  $('tbDate').value = a.date && a.date >= ymd(new Date()) ? a.date : ymd(new Date());
+  $('tbBox').classList.remove('hidden');
+  const r = await new Promise(done => {
+    $('tbOk').onclick = () => {
+      const text = $('tbText').value.trim(), due = $('tbDate').value;
+      if (!text) { alert('内容を入れてください'); return; }
+      done({ text, due });
+    };
+    $('tbNo').onclick = () => done(null);
+  });
+  $('tbBox').classList.add('hidden');
+  if (!r) return false;
+  // 返事を待たずに個別業務へ足す（保存は裏で。保存後に正しいIDの一覧に置き換わる）
+  drawTasks(sortTasks((me.tasks || []).concat([{ id: 'tmp-' + Date.now(), text: r.text, due: r.due, from: '寺内スケジュール', repeat: false, isNew: false, images: [] }])));
+  saveLater('tasks', 'addMyTask', r);
+  return true;
 }
 function drawStart() {
   const a = me.annual.find(x => !x.event && x.id === stCur);
@@ -1031,6 +1138,9 @@ async function doneAnnual(a, cb) {
   drawAnnual(me.annual.filter(x => x.event || x.id !== a.id)); // 返事を待たずに一覧から外す（保存は裏で）
   saveLater('annual', 'doneAnnual', { id: a.id, date: a.key || a.date });
   show('済みにしました（来年また表示されます）');
+  // 着手した時に個別業務にも足しているので、そちらも完了にするよう知らせる（寺内スケジュールと個別業務は別々に完了する）
+  if (showTasks() && myStart(a) && (me.tasks || []).some(t => t.from === '寺内スケジュール'))
+    notice('個別業務も完了にしてください', `着手した時に、同じ内容をあなたの個別業務にも追加しています。\n個別業務の「${(me.tasks.find(t => t.from === '寺内スケジュール' && t.text === a.text) || {}).text || a.text}」は、別に完了にしてください。`);
 }
 
 /* ---- タスク ---- */
@@ -1051,7 +1161,7 @@ function drawTasks(list) {
     const body = document.createElement('div'); body.style.flex = '1';
     const txt = document.createElement('div'); txt.className = 't' + (t.repeat ? ' rep' : ''); txt.textContent = t.text;
     const meta = document.createElement('div'); meta.className = 'sub';
-    meta.textContent = t.from ? `${t.from}さんより` : '';
+    meta.textContent = t.from === '寺内スケジュール' ? '寺内スケジュールから' : t.from ? `${t.from}さんより` : '';
     if (t.due) {
       const [, m, d] = t.due.split('-').map(Number);
       left = Math.round((new Date(t.due + 'T00:00:00') - new Date(today + 'T00:00:00')) / 864e5);
@@ -1061,8 +1171,11 @@ function drawTasks(list) {
       meta.appendChild(b);
     }
     meta.appendChild(ppButton(() => openPostpone('task', t, t.due)));
+    const mv = document.createElement('button'); mv.className = 'pp mv'; mv.textContent = '寺内へ';
+    mv.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); openTaskToAnnual(t); }; // 行はlabelなのでチェックが入らないように
+    meta.appendChild(mv);
     if (t.ruleLabel) { const r = document.createElement('div'); r.className = 'rule rep'; r.textContent = t.ruleLabel; meta.appendChild(r); }
-    body.append(txt, meta); row.append(cb, body); row.dataset.id = t.id;
+    body.append(txt, thumbs(t.images), meta); row.append(cb, body); row.dataset.id = t.id;
     if (t.repeat) { // 繰り返しをやめるときはゴミ箱
       const del = document.createElement('button'); del.className = 'ghost trash'; del.title = '繰り返しをやめる';
       del.onclick = ev => { ev.preventDefault(); removeTask(t); };
@@ -1263,6 +1376,9 @@ async function doneTask(t, cb) {
   drawTasks(me.tasks.filter(x => x.id !== t.id)); // 返事を待たずに一覧から外す（保存は裏で）
   saveLater('tasks', 'doneTask', { id: t.id });
   show('個別業務を完了しました');
+  // 寺内スケジュールから追加した個別業務：寺内スケジュールの方がまだ残っていれば、そちらも完了にするよう知らせる
+  if (t.from === '寺内スケジュール' && (me.annual || []).some(a => !a.event && myStart(a)))
+    notice('寺内スケジュールも完了にしてください', `この個別業務は、寺内スケジュールに着手した時に追加したものです。\n寺内スケジュールの「${((me.annual || []).find(a => !a.event && myStart(a) && a.text === t.text) || {}).text || t.text}」は、別に完了のチェックをしてください。`);
 }
 /* 繰り返しの周期（Task.gs と同じ。D 毎日／WD 平日／W:1,4 毎週／M:15 毎月○日／MN:2:3 第○○曜／Y:11-15 毎年） */
 function ruleMatch(rule, d) {
@@ -1328,6 +1444,117 @@ function doneRepeat(end) {
   const [, m, d] = next.split('-').map(Number);
   show(`完了しました。次回期日は ${m}/${d}（${ruleLabel(rule)}）。次からは完了するだけで期日が入ります`);
 }
+
+/* 個別業務 → 寺内スケジュール（2026-11-03）：内容・初回期限・繰り返し・区分を確かめて移す（Slackの /jinai と同じ項目） */
+const JINAI_KINDS = ['配布関係', '告知関係', '法要関係', '発注・準備', '総代・御報謝', '寺内雑務', 'メモ']; // Annual.gs と同じ
+let taCur = null;
+function openTaskToAnnual(t) {
+  if (String(t.id).startsWith('tmp-')) { show('保存が終わってから操作してください', true); return; }
+  taCur = t;
+  const today = ymd(new Date());
+  $('taText').value = t.text;
+  $('taDate').min = today; $('taDate').value = t.due && t.due >= today ? t.due : today;
+  if (!$('taKind').options.length) JINAI_KINDS.forEach(k => $('taKind').add(new Option(k, k)));
+  $('taKind').value = 'メモ';
+  document.querySelector(`input[name=taRep][value=${t.repeat ? 'on' : 'off'}]`).checked = true;
+  $('taBox').classList.remove('hidden');
+}
+async function doTaskToAnnual() {
+  const p = { id: taCur.id, text: $('taText').value.trim(), date: $('taDate').value, kind: $('taKind').value,
+    repeat: (document.querySelector('input[name=taRep]:checked') || {}).value !== 'off' };
+  if (!p.text) { alert('内容を入れてください'); return; }
+  if (!p.date) { alert('初回期限を選んでください'); return; }
+  if (p.date < ymd(new Date())) { alert('過ぎた日付は選べません'); return; }
+  $('taBox').classList.add('hidden');
+  busy(true);
+  try {
+    await saveQueue; // 裏で保存中の分を先に送り終える
+    const r = await call('taskToAnnual', p);
+    drawTasks(r.tasks); drawAnnual(r.annual);
+    show('寺内スケジュールへ移しました（全員の画面に出ます）');
+  } finally { busy(false); taCur = null; }
+}
+
+/* 添付画像（2026-11-03）：引き継ぎに付けて送り、申し送り・個別業務に小さく表示。押すと大きく表示 */
+const IMG_CACHE = {};
+function loadImage(id) {
+  return IMG_CACHE[id] = IMG_CACHE[id] || rawCall('image', auth, { id }).catch(e => { delete IMG_CACHE[id]; throw e; });
+}
+function thumbs(ids) {
+  const box = document.createElement('div'); box.className = 'thumbs';
+  (ids || []).forEach(id => {
+    const d = document.createElement('div'); d.className = 'th'; d.title = '押すと大きく表示';
+    loadImage(id).then(u => { d.style.backgroundImage = `url("${u}")`; }).catch(() => { d.textContent = '×'; });
+    d.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); loadImage(id).then(u => { $('imgBig').src = u; $('imgBox').classList.remove('hidden'); }).catch(() => show('画像を読み込めませんでした', true)); };
+    box.appendChild(d);
+  });
+  return box;
+}
+// スマホの写真は大きいので、長い辺1600pxのJPEGに縮めてから送る
+function shrinkImage(file, max = 1600, q = 0.8) {
+  return new Promise((ok, ng) => {
+    const url = URL.createObjectURL(file), img = new Image();
+    img.onload = () => {
+      const k = Math.min(1, max / Math.max(img.width, img.height)), c = document.createElement('canvas');
+      c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url); ok(c.toDataURL('image/jpeg', q));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); ng(new Error('画像を読み込めませんでした')); };
+    img.src = url;
+  });
+}
+let hoImages = [];
+async function addHoImages(input) {
+  const files = [...input.files]; input.value = '';
+  if (hoImages.length + files.length > 3) show('画像は3枚までです（先の3枚だけ付けました）', true);
+  for (const f of files.slice(0, 3 - hoImages.length)) {
+    try { hoImages.push(await shrinkImage(f)); } catch (e) { show(e.message, true); }
+  }
+  drawHoImages();
+}
+function drawHoImages() {
+  $('hoThumbs').innerHTML = '';
+  hoImages.forEach((u, i) => {
+    const d = document.createElement('div'); d.className = 'th'; d.style.backgroundImage = `url("${u}")`;
+    d.onclick = () => { $('imgBig').src = u; $('imgBox').classList.remove('hidden'); };
+    const x = document.createElement('button'); x.textContent = '×'; x.title = '外す';
+    x.onclick = ev => { ev.stopPropagation(); hoImages.splice(i, 1); drawHoImages(); };
+    d.appendChild(x); $('hoThumbs').appendChild(d);
+  });
+}
+
+/* 打刻のお知らせ（スマホのみ。2026-11-03）：出勤予定の日に、始業5分前（9:00なら8:55）を過ぎても出勤の打刻がない／
+   終業10分後（18:00なら18:10。パートは17:10）を過ぎても退勤の打刻がない時に出す。「確認」で消え、その日はもう出さない */
+let alarmCur = '';
+const hmNow = () => { const n = new Date(); return String(n.getHours()).padStart(2, '0') + ':' + String(n.getMinutes()).padStart(2, '0'); };
+function hmAdd(hm, min) {
+  const [h, m] = hm.split(':').map(Number), t = h * 60 + m + min;
+  return String(Math.floor(t / 60)).padStart(2, '0') + ':' + String(t % 60).padStart(2, '0');
+}
+function alarmCheck() {
+  if (!me || !me.plan || IS_PC || stale || me.noAttend || document.hidden || alarmCur || scan) return;
+  const p = me.plan, hm = hmNow(), today = ymd(new Date());
+  if (loadedDay !== today) return; // 日付が変わったら勤務状態を読み直してから
+  let kind = '';
+  if (p.start && !me.working && !me.lastTime && hm >= hmAdd(p.start, -5)) kind = 'in';
+  else if (p.end && me.working && hm >= hmAdd(p.end, 10)) kind = 'out';
+  if (!kind) return;
+  let seen = ''; try { seen = localStorage.getItem('alarm:' + kind) || ''; } catch (e) {}
+  if (seen === today) return;
+  alarmCur = kind;
+  $('alarmTitle').textContent = kind === 'in' ? '⏰ 出勤の打刻がまだです' : '⏰ 退勤の打刻がまだです';
+  $('alarmMsg').textContent = kind === 'in'
+    ? (hm < p.start ? `まもなく始業時刻（${p.start}）です。\n「出勤」を押してQRコードを写してください` : `始業時刻（${p.start}）を過ぎています。\n「出勤打刻漏れ」を押してください`)
+    : `終業時刻（${p.end}）を過ぎています。\n「退勤前チェック」から退勤の打刻をしてください`;
+  $('alarmBox').classList.remove('hidden');
+}
+function closeAlarm() {
+  try { localStorage.setItem('alarm:' + alarmCur, ymd(new Date())); } catch (e) {}
+  alarmCur = ''; $('alarmBox').classList.add('hidden');
+}
+setInterval(alarmCheck, 30 * 1000);
+document.addEventListener('visibilitychange', alarmCheck);
 
 async function ack(id, cb) {
   busy(true);
@@ -1428,8 +1655,8 @@ async function clockOut() {
   if (dueItems().length) { showDue(); return; }
   // 引き継ぎはチェックリストとは別。内容を書いたときだけ送る
   const hoText = $('hoText').value.trim();
-  if (hoText && !$('hoTo').value) { alert('引き継ぎの宛先を選んでください'); return; }
-  const handover = hoText ? { to: $('hoTo').value, text: hoText } : null;
+  if ((hoText || hoImages.length) && !$('hoTo').value) { alert('引き継ぎの宛先を選んでください'); return; }
+  const handover = hoText || hoImages.length ? { to: $('hoTo').value, text: hoText, images: hoImages } : null;
   const done = [...document.querySelectorAll('#checks input:checked')].map(x => me.checklist[x.value]);
   let qr;
   try { qr = await scanQr('退勤：QRコードを写してください'); } catch (e) { show(e.message, true); return; }
@@ -1439,7 +1666,7 @@ async function clockOut() {
     const r = await call('clockOut', { qr, done, memo: $('memo').value, handover });
     preOpen = false;
     render(r);
-    $('memo').value = '';
+    $('memo').value = ''; hoImages = []; drawHoImages();
     show('退勤しました。お疲れさまでした' + (handover ? '（引き継ぎを送信しました）' : ''));
   } finally { busy(false); }
 }
@@ -1589,6 +1816,16 @@ function adminTab(t) {
   document.querySelectorAll('.atab').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
   ['shift', 'req', 'actual', 'info', 'etc'].forEach(x => $('at-' + x).classList.toggle('hidden', x !== t));
   try { localStorage.setItem('adminTab', t); } catch (e) {}
+}
+async function testNotify() {
+  if (!await ask('全員へSlackのテスト通知を送りますか？')) return;
+  busy(true);
+  try {
+    const list = await call('adminTestNotify');
+    $('resTitle').textContent = 'Slackのテスト通知'; $('res').innerHTML = '';
+    list.forEach(p => { const li = document.createElement('li'); li.textContent = p; $('res').appendChild(li); });
+    $('resBox').classList.remove('hidden');
+  } finally { busy(false); }
 }
 async function hrmosCheck() {
   busy(true);

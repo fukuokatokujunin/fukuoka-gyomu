@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261103161907">
+<meta name="build" content="20261103162334">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -509,6 +509,16 @@
           <select id="taKind" class="tkdate"></select>
           <button onclick="doTaskToAnnual()">寺内スケジュールへ移す</button>
           <button class="ghost" onclick="$('taBox').classList.add('hidden')">キャンセル</button>
+        </div>
+      </div>
+      <div class="overlay hidden" id="edBox" onclick="if (event.target === this) $('edBox').classList.add('hidden')">
+        <div class="modal">
+          <strong>内容を編集</strong>
+          <p class="sub" style="margin:4px 0 6px">古くなった書き方を、今に合った表現に直します。全員の画面と、来年以降の予定もこの内容になります。</p>
+          <textarea id="edText" rows="3" maxlength="200"></textarea>
+          <p class="sub" id="edFrom" style="margin:4px 0 0"></p>
+          <button onclick="saveEdit()">保存</button>
+          <button class="ghost" onclick="$('edBox').classList.add('hidden')">キャンセル</button>
         </div>
       </div>
       <div class="overlay hidden" id="ntBox" onclick="if (event.target === this) closeNotes()">
@@ -1137,6 +1147,9 @@ function drawAnnual(list) {
       nb.textContent = (a.notes || []).length ? `進捗 ${a.notes.length}` : '進捗';
       nb.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); openNotes(a); }; // 行はlabelなのでチェックが入らないように
       meta.appendChild(nb);
+      const eb = document.createElement('button'); eb.className = 'pp nt'; eb.textContent = '編集';
+      eb.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); openEdit(a); };
+      meta.appendChild(eb);
     }
     if ((a.later || []).length) { // 同じ内容のほかの回（済ませると次の回が出る）
       const n = document.createElement('span'); n.className = 'later';
@@ -1237,6 +1250,26 @@ function drawStart() {
   if (!a.starters.length) $('stList').innerHTML = '<p class="sub">着手している人はいません</p>';
 }
 function closeStart() { stCur = null; $('stBox').classList.add('hidden'); }
+
+/* 編集（Ver1.2）：予定の文言を直す。全員共通・来年以降もこの文言 */
+let edCur = null;
+function openEdit(a) {
+  edCur = a;
+  $('edText').value = a.text; // 画面に出ている文言（昨年の名前で出している時はその名前）
+  $('edFrom').textContent = a.edited ? `${a.edited.by}さんが ${a.edited.at} に編集（元の内容：${a.edited.from}）` : '';
+  $('edBox').classList.remove('hidden');
+}
+async function saveEdit() {
+  const text = $('edText').value.replace(/\s+/g, ' ').trim();
+  if (!text) { alert('内容を入れてください'); return; }
+  const a = edCur;
+  $('edBox').classList.add('hidden');
+  if (text === a.text) return;
+  // 返事を待たずに一覧を直す（保存は裏で）
+  drawAnnual(me.annual.map(x => !x.event && x.id === a.id ? Object.assign({}, x, { text, base: text, orig: '' }) : x));
+  saveLater('annual', 'editAnnual', { id: a.id, text });
+  show('内容を直しました（全員の画面に反映されます）');
+}
 
 /* 進捗（Ver1.2。旧称 備考）：着手した人が進み具合を時系列で書き足す。全員が見られる。自分の書き込みは消せる */
 let ntCur = null;

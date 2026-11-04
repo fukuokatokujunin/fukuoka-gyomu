@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261104154815">
+<meta name="build" content="20261104171925">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -326,6 +326,9 @@
   #imgBox img { max-width:100%; max-height:88vh; display:block; margin:auto; background:#fff; }
   #alarmBox .modal { border-top:4px solid var(--warn); }
   .later { display:inline-block; margin-left:6px; font-size:11px; color:var(--sub); }
+  .pwlink { display:block; text-align:center; margin-top:14px; font-size:13px; color:var(--sub); text-decoration:underline; cursor:pointer; }
+  .pwrow { display:flex; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid var(--line); } .pwrow button { width:auto; margin:0; padding:6px 14px; font-size:13px; }
+  #mailErr { color:var(--ng); } #mailErr:empty { display:none; }
   /* 見出しのボタン：開いている間（依頼した・完了済み・削除済み）と読み込み中（更新）は黒く反転（Ver1.2） */
   #annualBox .head button.hbtn, #taskBox .head button.hbtn { padding:4px 6px; transition:background .15s, color .15s; }
   #annualBox .head button.hbtn.on, #taskBox .head button.hbtn.on { background:#222629; color:#fff; border-bottom-color:#222629; opacity:1; }
@@ -391,6 +394,17 @@
         </div>
       </div>
 
+      <!-- メールアドレスの登録（パスワード再設定用。2026-11-04） -->
+      <div class="overlay hidden" id="mailBox">
+        <div class="modal">
+          <strong>📧 メールアドレスの登録</strong>
+          <p class="sub" id="mailText" style="line-height:1.7;margin:10px 0;white-space:pre-line"></p>
+          <input id="mailIn" type="email" placeholder="メールアドレス" autocomplete="email">
+          <p class="sub" id="mailErr"></p>
+          <button onclick="sendMailReg()">確認メールを送る</button>
+          <button class="ghost" id="mailLaterBtn" onclick="mailLater()">あとで</button>
+        </div>
+      </div>
       <div class="overlay hidden" id="imgBox" onclick="this.classList.add('hidden')"><img id="imgBig" alt="添付画像"></div>
       <div class="overlay hidden" id="infoBox">
         <div class="modal center">
@@ -416,6 +430,7 @@
       <button id="btnReq" class="hidden" onclick="view('req')">シフト希望</button>
       <button id="btnAdmin" class="hidden" onclick="view('admin')">管理</button>
       <button id="btnPush" class="hidden" onclick="testPushMe()">通知のテスト</button>
+      <button id="btnMail" class="hidden" onclick="openMail(true)">メールアドレス</button>
       <button id="btnLogout" class="hidden" onclick="logout()">ログアウト</button>
     </div>
   </div>
@@ -429,6 +444,13 @@
     <input id="pw" type="password" placeholder="パスワード">
     <p class="sub" id="pwHint"></p>
     <button onclick="doLogin()">ログイン</button>
+    <a class="pwlink" onclick="forgotPw()">パスワードを忘れた場合</a>
+  </section>
+  <section id="pwReset" class="card hidden"><!-- メールの再設定用URLから開いた時（2026-11-04） -->
+    <p><b id="prName"></b> さんの新しいパスワードを入力してください（4文字以上）</p>
+    <input id="prPw" type="password" placeholder="新しいパスワード" autocomplete="new-password">
+    <input id="prPw2" type="password" placeholder="もう一度入力" autocomplete="new-password">
+    <button onclick="doPwReset()">登録する</button>
   </section>
 
   <div id="app" class="hidden">
@@ -811,6 +833,11 @@
           <button class="ghost" onclick="stampQrSheet(true)">QRコードを作り直す（古いQRは使えなくなります）</button>
         </div>
         <div class="card">
+          <strong>パスワードの初期化（緊急用）</strong>
+          <span class="sub">パスワードを忘れて、メールでも再設定できない人のパスワードを消します。本人は次にログインする時に、新しいパスワードを決めて入力します（その人のログイン中の端末も、ログインし直しになります）。</span>
+          <div id="pwList"></div>
+        </div>
+        <div class="card">
           <strong>データベース</strong>
           <a id="sheetLink" target="_blank" class="btnlink">📄 データベース（スプレッドシート）を開く</a>
           <span class="sub">従業員の基本公休曜日・基本出勤日、パスワード再設定、チェック項目、設定の編集はこちら</span>
@@ -932,15 +959,16 @@ function hint() {
   $('pwHint').textContent = n && !n.registered ? '初回です。自分で決めたパスワード（4文字以上）を入力してください。次回からそのパスワードでログインします。' : '';
 }
 async function doLogin() {
-  auth = { id: $('eid').value, pw: $('pw').value };
+  auth = { id: $('eid').value, pw: $('pw').value, form: true }; // form＝ログイン画面で入力した（初回はこの時だけパスワードを登録する）
   busy(true);
   try {
     render(await call('login'));
+    auth = { id: auth.id, pw: auth.pw };
     try { localStorage.setItem('auth', JSON.stringify(auth)); } catch (e) {}
     $('login').classList.add('hidden'); $('app').classList.remove('hidden'); show('');
     view('clock');
     tasksAt = Date.now(); doGo(); // リンクから開いてログインし直した時も、その所へ移る
-    pushSync();
+    pushSync(); mailPrompt();
   } finally { busy(false); }
 }
 function logout() {
@@ -988,6 +1016,7 @@ function render(s) {
   const annual = me && me.annual; // 年間予定はログイン後に別読込（ログインを速くするため）
   me = s;
   $('btnLogout').classList.remove('hidden');
+  $('btnMail').classList.remove('hidden');
   $('btnMenu').classList.remove('hidden');
   $('who').textContent = s.name;
   // 締切アナウンス：希望受付月の前月15日（設定値）まで
@@ -2505,6 +2534,7 @@ function showRes(title, list) {
 function adminTab(t) {
   document.querySelectorAll('.atab').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
   ['shift', 'req', 'actual', 'info', 'etc'].forEach(x => $('at-' + x).classList.toggle('hidden', x !== t));
+  if (t === 'etc') loadPwList();
   try { localStorage.setItem('adminTab', t); } catch (e) {}
 }
 async function testNotify() {
@@ -2654,6 +2684,88 @@ function drawReqView(o) {
   $('rqCal').innerHTML = h;
 }
 
+/* ---- パスワードの再設定・メールアドレスの登録（2026-11-04。Password.gs） ---- */
+async function forgotPw() {
+  const id = $('eid').value;
+  if (!id) return show('名前を選んでから「パスワードを忘れた場合」を押してください', true);
+  const n = names.find(x => String(x.id) === id);
+  if (!await ask(`${n ? n.name + 'さんの' : ''}パスワードを再設定しますか？\n登録したメールアドレスに、再設定用のURLを送ります`)) return;
+  busy(true);
+  try { const r = await rawCall('pwForgot', null, { id }); show(''); notice('パスワードの再設定', r.msg); }
+  catch (e) { show(e.message, true); } finally { busy(false); }
+}
+async function doPwReset() {
+  const pw = $('prPw').value.trim();
+  if (pw.length < 4) return show('パスワードは4文字以上にしてください', true);
+  if (pw !== $('prPw2').value.trim()) return show('2回入力したパスワードが違います', true);
+  busy(true);
+  try {
+    const r = await rawCall('pwReset', null, { tk: pwTk, pw });
+    try { localStorage.setItem('auth', JSON.stringify({ id: String(r.id), pw })); } catch (e) {}
+    show('');
+    await notice('パスワードの再設定', '新しいパスワードを登録しました。次回からこのパスワードでログインします。');
+    location.replace(location.pathname);
+  } catch (e) { show(e.message, true); } finally { busy(false); }
+}
+/* メールアドレスが未登録なら、起動・ログインの時に登録を案内（「あとで」でその日は出さない。登録するまで毎日） */
+let mailAsked = false, mailDone = '', mailManual = false;
+function mailPrompt() {
+  if (mailAsked || !me || me.mail || mailDone || mailTk) return;
+  mailAsked = true;
+  let skip = '';
+  try { skip = localStorage.getItem('mailLater') || ''; } catch (e) {}
+  if (skip !== ymd(new Date())) openMail(false);
+}
+function openMail(manual) {
+  const cur = mailDone || (me && me.mail) || '';
+  $('mailText').textContent = cur
+    ? `登録中：${cur}\n変更する時は、新しいメールアドレスを入力してください。確認メールのURLを開くと変更が完了します。`
+    : 'パスワードを忘れた時に、再設定用のURLをメールで受け取れるよう、メールアドレスを登録してください。\n入力したアドレスに確認メールが届きます。メールのURLを開くと登録が完了します。';
+  $('mailIn').value = ''; $('mailErr').textContent = '';
+  mailManual = manual;
+  $('mailLaterBtn').textContent = manual ? '閉じる' : 'あとで';
+  $('mailBox').classList.remove('hidden');
+}
+function mailLater() {
+  if (!mailManual) try { localStorage.setItem('mailLater', ymd(new Date())); } catch (e) {}
+  $('mailBox').classList.add('hidden');
+}
+async function sendMailReg() {
+  const mail = $('mailIn').value.trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) { $('mailErr').textContent = 'メールアドレスを正しく入力してください'; return; }
+  busy(true);
+  try {
+    await rawCall('mailRegister', auth, { mail });
+    $('mailBox').classList.add('hidden');
+    try { localStorage.setItem('mailLater', ymd(new Date())); } catch (e) {} // 確認待ちの間（今日）はもう案内しない
+    notice('確認メールを送りました', `${mail} に確認メールを送りました。メールのURLを開くと登録が完了します（24時間以内）。\nメールが届かない時は、迷惑メールのフォルダも確認してください。`);
+  } catch (e) { $('mailErr').textContent = e.message; } finally { busy(false); }
+}
+/* 管理画面「QR・設定」：パスワードの初期化（緊急用） */
+async function loadPwList() {
+  try { drawPwList(await call('adminPwList')); } catch (e) {}
+}
+function drawPwList(list) {
+  const box = $('pwList'); box.innerHTML = '';
+  list.forEach(p => {
+    const row = document.createElement('div'); row.className = 'pwrow';
+    const t = document.createElement('div'); t.style.flex = '1'; t.textContent = p.name + ' ';
+    const st = document.createElement('small'); st.className = 'sub';
+    st.textContent = (p.registered ? '' : 'パスワード未登録・') + (p.mail ? 'メール登録済み' : 'メール未登録');
+    t.appendChild(st); row.appendChild(t);
+    if (p.registered) {
+      const b = document.createElement('button'); b.className = 'sec'; b.textContent = '初期化';
+      b.onclick = async () => {
+        if (!await ask(`${p.name}さんのパスワードを初期化しますか？\n本人は次のログインで新しいパスワードを決めます`)) return;
+        busy(true);
+        try { drawPwList(await call('adminPwReset', { id: p.id })); show(`${p.name}さんのパスワードを初期化しました`); } finally { busy(false); }
+      };
+      row.appendChild(b);
+    }
+    box.appendChild(row);
+  });
+}
+
 /* ---- 起動 ---- */
 let saved = null;
 try { saved = JSON.parse(localStorage.getItem('auth') || 'null'); } catch (e) {}
@@ -2667,6 +2779,19 @@ if (linkQ.get('u') && linkQ.get('s')) {
   }
 }
 if (linkQ.has('u') || linkQ.has('go')) history.replaceState(null, '', location.pathname);
+// メールのURL（2026-11-04）：?pwtk＝パスワードの再設定、?mailtk＝メールアドレスの確認。URLからは消す
+const pwTk = linkQ.get('pwtk') || '', mailTk = linkQ.get('mailtk') || '';
+if (pwTk || mailTk) history.replaceState(null, '', location.pathname);
+if (pwTk) {
+  saved = null; // 再設定が終わるまで、端末に保存したパスワードでログインしない
+  $('login').classList.add('hidden'); $('pwReset').classList.remove('hidden'); show('確認中…');
+  rawCall('pwResetCheck', null, { tk: pwTk }).then(r => { show(''); $('prName').textContent = r.name; $('prPw').focus(); })
+    .catch(e => { show(e.message, true); $('pwReset').classList.add('hidden'); $('login').classList.remove('hidden'); });
+}
+if (mailTk) rawCall('mailVerify', null, { tk: mailTk }).then(r => {
+  mailDone = r.mail; if (me) me.mail = r.mail; $('mailBox').classList.add('hidden');
+  notice('メールアドレスの登録', `${r.name}さんのメールアドレス（${r.mail}）を登録しました。\nパスワードを忘れた時は、ログイン画面の「パスワードを忘れた場合」から再設定できます。`);
+}).catch(e => notice('メールアドレスの登録', e.message));
 if (saved) { // 名前一覧を待たずにログインを始める
   $('login').classList.add('hidden');
   auth = saved;
@@ -2687,7 +2812,7 @@ if (saved) { // 名前一覧を待たずにログインを始める
     stale = false; lockStamp();
     render(s); $('app').classList.remove('hidden'); show(''); view('clock');
     tasksAt = Date.now(); doGo();
-    pushSync();
+    pushSync(); mailPrompt();
   }).catch(() => {
     stale = false; lockStamp(); $('app').classList.add('hidden'); $('login').classList.remove('hidden');
     if (auth && auth.tk) try { localStorage.removeItem('auth'); } catch (e) {} // 期限切れのリンクの印は捨てる（パスワードでログインし直す）

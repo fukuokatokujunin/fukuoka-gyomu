@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261104141911">
+<meta name="build" content="20261104142038">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -138,6 +138,7 @@
   details.addbox .addbtns button.req::before { background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='1.8' stroke-linejoin='round'%3E%3Cpath d='M5 3h10l4 4v14H5z'/%3E%3Cpath d='M9 11h6M9 15h6'/%3E%3C/svg%3E"); }
   details.addbox .addbtns button.jin::before { background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='1.8' stroke-linejoin='round'%3E%3Cpath d='M2 9l10-5 10 5'/%3E%3Cpath d='M5 9v10M19 9v10M3 20h18M10 20v-5h4v5'/%3E%3C/svg%3E"); }
   details.addbox .addbtns button:active { background:#f0f0f0; transform:translateY(1px); }
+  @media (min-width:900px) { details.addbox .addbtns button.jin { order:-1; } } /* PCは「寺内スケジュールに追加」を左に（2026-11-04） */
   details.addbox .addbtns .nw { display:inline-block; white-space:nowrap; } /* 狭い画面では言葉の切れ目（「寺内スケジュール／に追加」）で折り返す */
   .whos { display:flex; flex-wrap:wrap; gap:6px 14px; margin:4px 0; }
   .whos label { display:flex; align-items:center; gap:4px; white-space:nowrap; font-size:15px; }

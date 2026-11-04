@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261104104039">
+<meta name="build" content="20261104104508">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -502,10 +502,14 @@
           <label for="taText" class="tklabel">内容</label>
           <textarea id="taText" rows="3"></textarea>
           <label for="taDate" class="tklabel">📅 初回期限</label>
-          <input type="date" id="taDate" class="tkdate">
-          <span class="tklabel">繰り返し設定</span>
-          <label class="chk"><input type="radio" name="taRep" value="on">オン（毎年。来年以降は同じ曜日の近い日）</label>
-          <label class="chk"><input type="radio" name="taRep" value="off">オフ（今回のみ）</label>
+          <input type="date" id="taDate" class="tkdate" onchange="taRepHint()">
+          <label for="taRep" class="tklabel"><span class="rep"></span>繰り返し</label>
+          <select id="taRep" class="tkdate" onchange="taRepHint()">
+            <option value="Y">毎年（来年以降は同じ曜日の近い日）</option><option value="none">今回のみ</option>
+            <option value="D">毎日</option><option value="WD">平日（月〜金）</option><option value="W">毎週（初回期限と同じ曜日）</option>
+            <option value="M">毎月（初回期限と同じ日）</option><option value="MN">毎月（初回期限と同じ「第○ ○曜日」）</option>
+          </select>
+          <p class="sub" id="taHint" style="margin:4px 0 0"></p>
           <label for="taKind" class="tklabel">区分</label>
           <select id="taKind" class="tkdate"></select>
           <button onclick="doTaskToAnnual()">寺内スケジュールへ移す</button>
@@ -1146,6 +1150,7 @@ function drawAnnual(list) {
     b.className = 'due' + (a.left <= 0 ? ' over' : a.left <= 7 ? ' soon' : ''); // 期日が来たら赤
     b.textContent = `${m}/${d}` + (a.left < 0 ? `（${-a.left}日過ぎています）` : a.left === 0 ? '（今日）' : `（あと${a.left}日）`);
     const meta = document.createElement('div'); meta.className = 'sub'; meta.appendChild(b);
+    if (a.cycle) { const cy = document.createElement('div'); cy.className = 'rule rep'; cy.textContent = a.cycle; meta.appendChild(cy); } // 周期の予定（2026-11-04）
     if (a.moved) { const [, om, od] = a.key.split('-').map(Number); b.textContent += `　延長（本来 ${om}/${od}）`; }
     if (!a.event) {
       meta.appendChild(ppButton(() => openPostpone('annual', a, a.date)));
@@ -1738,16 +1743,35 @@ function openTaskToAnnual(t) {
   $('taDate').min = today; $('taDate').value = t.due && t.due >= today ? t.due : today;
   if (!$('taKind').options.length) JINAI_KINDS.forEach(k => $('taKind').add(new Option(k, k)));
   $('taKind').value = 'メモ';
-  document.querySelector(`input[name=taRep][value=${t.repeat ? 'on' : 'off'}]`).checked = true;
+  // 繰り返し：個別業務に周期があれば「いまと同じ」、周期のない繰り返しは毎年、繰り返しでなければ今回のみ（2026-11-04）
+  const keep = t.repeat && t.rule && !/^Y:/.test(t.rule);
+  [...$('taRep').options].filter(o => o.value === 'KEEP').forEach(o => o.remove()); // iPhoneは option の hidden が効かないので足し引きする
+  if (keep) $('taRep').add(new Option(`いまの個別業務と同じ（${t.ruleLabel || ruleLabel(t.rule)}）`, 'KEEP'), 0);
+  $('taRep').value = keep ? 'KEEP' : t.repeat ? 'Y' : 'none';
+  taRepHint();
   // 同じ個別業務が他の人にもあれば、一緒に寺内へ移ることを知らせる（2026-11-04）
   const others = t.others || [];
   $('taOthers').textContent = others.length ? `⚠ 同じ個別業務がある ${others.map(n => n + 'さん').join('・')} の分も一緒に寺内スケジュールへ移ります` : '';
   $('taOthers').classList.toggle('hidden', !others.length);
   $('taBox').classList.remove('hidden');
 }
+/** 選んだ繰り返しの説明（初回期限から次の回を出す） */
+function taRepHint() {
+  const v = $('taRep').value, date = $('taDate').value;
+  const rule = v === 'KEEP' ? taCur.rule : ['D', 'WD', 'W', 'M', 'MN'].includes(v) && date ? ruleFromKind(v, date) : '';
+  if (!rule || !date) {
+    $('taHint').textContent = v === 'Y' ? '済ませると、来年の同じころにまた出ます' : v === 'none' ? '済ませると、もう出ません' : '';
+    return;
+  }
+  let d = ruleMatch(rule, new Date(date + 'T00:00:00')) ? date : nextByRule(rule, date);
+  const ds = [d];
+  for (let i = 0; i < 2; i++) ds.push(d = nextByRule(rule, d));
+  $('taHint').textContent = `${ruleLabel(rule)}：${ds.map(x => x.slice(5).replace('-', '/').replace(/^0/, '').replace('/0', '/')).join('、')}…（済ませると次の回が出ます）`;
+}
 async function doTaskToAnnual() {
+  const cycle = $('taRep').value;
   const p = { id: taCur.id, text: $('taText').value.trim(), date: $('taDate').value, kind: $('taKind').value,
-    repeat: (document.querySelector('input[name=taRep]:checked') || {}).value !== 'off' };
+    repeat: cycle !== 'none', cycle, rule: cycle === 'KEEP' ? taCur.rule : '' };
   if (!p.text) { alert('内容を入れてください'); return; }
   if (!p.date) { alert('初回期限を選んでください'); return; }
   if (p.date < ymd(new Date())) { alert('過ぎた日付は選べません'); return; }

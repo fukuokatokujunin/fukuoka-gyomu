@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261103164348">
+<meta name="build" content="20261104101406">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -363,7 +363,7 @@
 <!-- 確認ダイアログ：どの画面からも使うので画面（section）の外に置く -->
       <div class="overlay hidden" id="askBox">
         <div class="modal center">
-          <p id="askMsg" style="font-size:17px;font-weight:bold;margin:8px 0 16px"></p>
+          <p id="askMsg" style="font-size:17px;font-weight:bold;margin:8px 0 16px;white-space:pre-line"></p>
           <div class="row"><button id="askYes">はい</button><button class="ghost" id="askNo">いいえ</button></div>
         </div>
       </div>
@@ -498,6 +498,7 @@
         <div class="modal" style="max-height:90vh;overflow-y:auto">
           <strong>寺内スケジュールへ移す</strong>
           <p class="sub" style="margin:4px 0 6px">みんなで進める寺内スケジュールに移します。あなたの個別業務からは消え、全員の画面に出ます（期限の30日前から。発注・締切・予約などは60日前から）。</p>
+          <p class="sub hidden" id="taOthers" style="margin:0 0 6px;color:#b45309"></p>
           <label for="taText" class="tklabel">内容</label>
           <textarea id="taText" rows="3"></textarea>
           <label for="taDate" class="tklabel">📅 初回期限</label>
@@ -1609,11 +1610,13 @@ function saveLater(kind, action, p) {
 // パソコンのブラウザでは、保存中に閉じようとすると確認が出る
 addEventListener('beforeunload', e => { if (savePending) { e.preventDefault(); e.returnValue = ''; } });
 async function doneTask(t, cb) {
-  if (!await ask('完了にしますか？')) { cb.checked = false; return; }
+  // 同じ依頼の他の担当者がいれば、一緒に完了になることを知らせる（2026-11-04）
+  const mates = (t.mates || []).length ? `\n（同じ依頼の ${t.mates.map(n => n + 'さん').join('・')} の分も完了になります）` : '';
+  if (!await ask('完了にしますか？' + mates)) { cb.checked = false; return; }
   if (t.repeat && t.rule) { // 周期が決まっている繰り返し：次回の期日は自動（サーバーと同じ計算で先に表示）
     const today = ymd(new Date()), next = nextByRule(t.rule, t.due && t.due > today ? t.due : today);
     drawTasks(sortTasks(me.tasks.map(x => x.id === t.id ? Object.assign({}, x, { due: next, isNew: false }) : x)));
-    saveLater('tasks', 'doneTask', { id: t.id });
+    saveLater('tasks', 'doneTask', { id: t.id, due: t.due || '' });
     const [, m, d] = next.split('-').map(Number);
     show(`完了しました。次回の期日は ${m}/${d} です`);
     return;
@@ -1628,7 +1631,7 @@ async function doneTask(t, cb) {
     return;
   }
   drawTasks(me.tasks.filter(x => x.id !== t.id)); // 返事を待たずに一覧から外す（保存は裏で）
-  saveLater('tasks', 'doneTask', { id: t.id });
+  saveLater('tasks', 'doneTask', { id: t.id, due: t.due || '' });
   show('個別業務を完了しました');
   // 寺内スケジュールから追加した個別業務：寺内スケジュールの方がまだ残っていれば、そちらも完了にするよう知らせる
   if (t.from === '寺内スケジュール' && (me.annual || []).some(a => !a.event && myStart(a)))
@@ -1694,7 +1697,7 @@ function doneRepeat(end) {
   if (rule && !ruleMatch(rule, new Date(next + 'T00:00:00'))) next = nextByRule(rule, next); // 「平日」で土日を選んだ時など
   drawTasks(end ? me.tasks.filter(x => x.id !== t.id)
     : sortTasks(me.tasks.map(x => x.id === t.id ? Object.assign({}, x, { due: next, isNew: false, rule, ruleLabel: ruleLabel(rule) }) : x)));
-  saveLater('tasks', 'doneTask', { id: t.id, next: end || $('tkDate').value, kind });
+  saveLater('tasks', 'doneTask', { id: t.id, next: end || $('tkDate').value, kind, due: t.due || '' });
   if (end) { show('完了しました（今後は繰り返しません）'); return; }
   const [, m, d] = next.split('-').map(Number);
   show(`完了しました。次回期日は ${m}/${d}（${ruleLabel(rule)}）。次からは完了するだけで期日が入ります`);
@@ -1712,6 +1715,10 @@ function openTaskToAnnual(t) {
   if (!$('taKind').options.length) JINAI_KINDS.forEach(k => $('taKind').add(new Option(k, k)));
   $('taKind').value = 'メモ';
   document.querySelector(`input[name=taRep][value=${t.repeat ? 'on' : 'off'}]`).checked = true;
+  // 同じ個別業務が他の人にもあれば、一緒に寺内へ移ることを知らせる（2026-11-04）
+  const others = t.others || [];
+  $('taOthers').textContent = others.length ? `⚠ 同じ個別業務がある ${others.map(n => n + 'さん').join('・')} の分も一緒に寺内スケジュールへ移ります` : '';
+  $('taOthers').classList.toggle('hidden', !others.length);
   $('taBox').classList.remove('hidden');
 }
 async function doTaskToAnnual() {
@@ -1726,7 +1733,10 @@ async function doTaskToAnnual() {
     await saveQueue; // 裏で保存中の分を先に送り終える
     const r = await call('taskToAnnual', p);
     drawTasks(r.tasks); drawAnnual(r.annual);
-    show('寺内スケジュールへ移しました（全員の画面に出ます）');
+    const with_ = r.others && r.others.length ? `${r.others.map(n => n + 'さん').join('・')}の同じ個別業務も移しました。` : '';
+    show(r.already ? 'この個別業務は、すでにほかの人が寺内スケジュールへ移していました（寺内スケジュールで対応してください）'
+      : r.dup ? `寺内スケジュールに同じ内容がすでにあるため、新しくは追加せずに個別業務から外しました。${with_}`
+      : `寺内スケジュールへ移しました（全員の画面に出ます）。${with_}`);
   } finally { busy(false); taCur = null; }
 }
 

@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261104133835">
+<meta name="build" content="20261104141530">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -123,6 +123,24 @@
   .cbw { flex:none; display:flex; padding:8px; margin:-8px; cursor:pointer; }
   .titem .t { white-space:pre-wrap; word-break:break-word; }
   .pn { white-space:nowrap; } /* 名前は途中で改行しない（2026-11-04） */
+  /* 業務追加（2026-11-04）：勤務中の下。折りたたみ（開閉は端末に記憶）。アイコンはほかと同じ黒地に白の線（絵文字は使わない） */
+  details.addbox { padding-top:0; padding-bottom:0; }
+  details.addbox > summary { cursor:pointer; list-style:none; padding:16px 0; display:flex; justify-content:space-between; align-items:center; gap:10px;
+    font-family:"Shippori Mincho","Hiragino Mincho ProN","Yu Mincho",serif; font-size:16px; font-weight:500; letter-spacing:.2em; }
+  details.addbox > summary::-webkit-details-marker { display:none; }
+  details.addbox > summary::after { content:''; flex:none; width:22px; height:22px; background:#222629 no-repeat center / 10px
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' fill='none' stroke='white' stroke-width='1.5'%3E%3Cpath d='M1 3l4 4 4-4'/%3E%3C/svg%3E"); transition:transform .3s; }
+  details.addbox[open] > summary::after { transform:rotate(180deg); }
+  details.addbox .addbtns { display:flex; gap:10px; padding-bottom:18px; }
+  details.addbox .addbtns button { flex:1; min-width:0; margin:0; display:flex; align-items:center; gap:10px; padding:5px 10px 5px 5px; background:#fff; color:#222629;
+    border:1px solid #222629; border-radius:0; font-size:13px; font-weight:400; letter-spacing:.1em; text-align:left; line-height:1.4; }
+  details.addbox .addbtns button::before { content:''; flex:none; width:30px; height:30px; background:#222629 no-repeat center / 18px; }
+  details.addbox .addbtns button.req::before { background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='1.8' stroke-linejoin='round'%3E%3Cpath d='M5 3h10l4 4v14H5z'/%3E%3Cpath d='M9 11h6M9 15h6'/%3E%3C/svg%3E"); }
+  details.addbox .addbtns button.jin::before { background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='1.8' stroke-linejoin='round'%3E%3Cpath d='M2 9l10-5 10 5'/%3E%3Cpath d='M5 9v10M19 9v10M3 20h18M10 20v-5h4v5'/%3E%3C/svg%3E"); }
+  details.addbox .addbtns button:active { background:#f0f0f0; transform:translateY(1px); }
+  .whos { display:flex; flex-wrap:wrap; gap:6px 14px; margin:4px 0; }
+  .whos label { display:flex; align-items:center; gap:4px; white-space:nowrap; font-size:15px; }
+  .whos input { width:20px; height:20px; margin:0; }
   .mates { margin-left:6px; }
   .due { display:inline-block; margin-left:6px; padding:1px 6px; border-radius:6px; background:#f3f4f6; font-size:12px; font-weight:700; }
   .due.soon { background:#fef3c7; color:var(--warn); } .due.over { background:#fee2e2; color:var(--ng); }
@@ -436,6 +454,51 @@
         <button id="btnIn" class="in" onclick="clockInOrMissed()">出勤</button>
         <button id="btnPre" class="out hidden" onclick="openPre(true)">退勤前チェック</button>
         <div class="pcwarn hidden" id="pcWarn">⚠ 出勤の打刻をしてください（スマホのアプリから）</div>
+      </div>
+
+      <details class="card addbox hidden" id="addBox">
+        <summary>業務追加</summary>
+        <div class="addbtns">
+          <button class="req" onclick="openRequest()">個別業務を依頼</button>
+          <button class="jin" onclick="openJinaiAdd()">寺内スケジュールに追加</button>
+        </div>
+      </details>
+      <div class="overlay hidden" id="rqBox">
+        <div class="modal" style="max-height:90vh;overflow-y:auto">
+          <strong>個別業務を依頼</strong>
+          <label for="rqText" class="tklabel">内容</label>
+          <textarea id="rqText" rows="3" maxlength="200"></textarea>
+          <span class="tklabel">担当 <small class="sub">（複数可）</small></span>
+          <div class="whos" id="rqWho"></div>
+          <label for="rqDue" class="tklabel">📅 期日 <small class="sub">（なくても可）</small></label>
+          <input type="date" id="rqDue" class="tkdate">
+          <label for="rqRep" class="tklabel"><span class="rep"></span>繰り返し</label>
+          <select id="rqRep" class="tkdate" onchange="$('rqDaysWrap').classList.toggle('hidden', this.value !== 'W')">
+            <option value="none">繰り返さない</option><option value="D">毎日</option><option value="WD">平日（月〜金）</option>
+            <option value="W">毎週（下で曜日を選ぶ。なければ期日の曜日）</option><option value="M">毎月（期日と同じ日）</option>
+            <option value="MN">毎月（期日と同じ「第○ ○曜日」）</option><option value="Y">毎年（期日と同じ月日）</option>
+          </select>
+          <div class="hidden" id="rqDaysWrap"><span class="tklabel">曜日（複数可）</span><div class="whos" id="rqDays"></div></div>
+          <button onclick="doRequest()">登録</button>
+          <button class="ghost" onclick="$('rqBox').classList.add('hidden')">キャンセル</button>
+        </div>
+      </div>
+      <div class="overlay hidden" id="jaBox">
+        <div class="modal" style="max-height:90vh;overflow-y:auto">
+          <strong>寺内スケジュールに追加</strong>
+          <p class="sub" style="margin:4px 0 6px">みんなの打刻画面の寺内スケジュールに出ます。表示は期限の30日前から（発注・締切・予約などは60日前から）</p>
+          <label for="jaText" class="tklabel">内容</label>
+          <textarea id="jaText" rows="3" maxlength="200"></textarea>
+          <label for="jaDate" class="tklabel">📅 初回期限</label>
+          <input type="date" id="jaDate" class="tkdate">
+          <span class="tklabel">繰り返し設定</span>
+          <label class="chk"><input type="radio" name="jaRep" value="on" checked>オン（毎年。来年以降は同じ曜日の近い日）</label>
+          <label class="chk"><input type="radio" name="jaRep" value="off">オフ（今回のみ）</label>
+          <label for="jaKind" class="tklabel">区分</label>
+          <select id="jaKind" class="tkdate"></select>
+          <button onclick="doJinaiAdd()">登録</button>
+          <button class="ghost" onclick="$('jaBox').classList.add('hidden')">キャンセル</button>
+        </div>
       </div>
 
       <div class="overlay hidden" id="scanBox">
@@ -966,6 +1029,7 @@ function render(s) {
   $('main').classList.toggle('split', cur === 'clock');
   $('main').classList.toggle('three', cur === 'clock' && showTasks());
   $('taskBox').classList.toggle('hidden', !showTasks());
+  $('addBox').classList.toggle('hidden', !showTasks()); // 業務追加（2026-11-04）
   drawNew(me.tasks || []);
   drawTasks(s.tasks);
   if (annual) drawAnnual(annual);
@@ -1817,6 +1881,72 @@ function openTaskToAnnual(t) {
 }
 /** 選んだ繰り返しの説明（初回期限から次の回を出す） */
 function taRepHint() { repHint($('taRep').value, $('taDate').value, taCur && taCur.rule, $('taHint'), true); }
+/* 業務追加（2026-11-04）：Slackの「個別業務を依頼」（/task）・「寺内スケジュールに追加」（/jinai）と同じ。折りたたみの開閉は端末に記憶 */
+(() => {
+  const d = $('addBox');
+  try { d.open = localStorage.getItem('addOpen') === '1'; } catch (e) {}
+  d.addEventListener('toggle', () => { try { localStorage.setItem('addOpen', d.open ? '1' : '0'); } catch (e) {} });
+})();
+function openRequest() {
+  $('rqText').value = ''; $('rqDue').value = ''; $('rqDue').min = ymd(new Date());
+  $('rqRep').value = 'none'; $('rqDaysWrap').classList.add('hidden');
+  $('rqWho').innerHTML = '';
+  (me.taskPeople || []).forEach(p => {
+    const l = document.createElement('label'), c = document.createElement('input');
+    c.type = 'checkbox'; c.value = p.id; c.checked = String(p.id) === String(auth.id); // 初期値は自分（Slackと同じ）
+    l.append(c, String(p.id) === String(auth.id) ? '自分' : p.name); $('rqWho').appendChild(l);
+  });
+  $('rqDays').innerHTML = '';
+  '日月火水木金土'.split('').forEach((w, i) => {
+    const l = document.createElement('label'), c = document.createElement('input');
+    c.type = 'checkbox'; c.value = i; l.append(c, w); $('rqDays').appendChild(l);
+  });
+  $('rqBox').classList.remove('hidden');
+}
+async function doRequest() {
+  const p = { text: $('rqText').value.replace(/\s+/g, ' ').trim(), due: $('rqDue').value, kind: $('rqRep').value,
+    ids: [...$('rqWho').querySelectorAll('input:checked')].map(c => Number(c.value)),
+    days: [...$('rqDays').querySelectorAll('input:checked')].map(c => Number(c.value)) };
+  if (!p.text) { alert('内容を入れてください'); return; }
+  if (!p.ids.length) { alert('担当を選んでください'); return; }
+  if (p.due && p.due < ymd(new Date())) { alert('過ぎた日付は選べません'); return; }
+  if (['M', 'MN', 'Y'].includes(p.kind) && !p.due) { alert('毎月・毎年の繰り返しは、最初の期日を選んでください'); return; }
+  $('rqBox').classList.add('hidden');
+  busy(true);
+  try {
+    await saveQueue; // 裏で保存中の分を先に送り終える
+    const r = await call('requestTask', p);
+    drawTasks(r.tasks);
+    const [, m, d] = (r.due || '').split('-').map(Number);
+    show(`個別業務を依頼しました：${nbs(r.names)}「${p.text.slice(0, 30)}」` + (r.due ? `（期日 ${m}/${d}）` : '') + (r.ruleLabel ? ` 🔁${r.ruleLabel}` : ''));
+  } catch (e) { $('rqBox').classList.remove('hidden'); } // 入れた内容を残して窓を開き直す
+  finally { busy(false); }
+}
+function openJinaiAdd() {
+  const today = ymd(new Date());
+  $('jaText').value = ''; $('jaDate').value = ''; $('jaDate').min = today;
+  document.querySelector('input[name=jaRep][value=on]').checked = true;
+  if (!$('jaKind').options.length) JINAI_KINDS.forEach(k => $('jaKind').add(new Option(k, k)));
+  $('jaKind').value = 'メモ';
+  $('jaBox').classList.remove('hidden');
+}
+async function doJinaiAdd() {
+  const p = { text: $('jaText').value.replace(/\s+/g, ' ').trim(), date: $('jaDate').value, kind: $('jaKind').value,
+    repeat: (document.querySelector('input[name=jaRep]:checked') || {}).value !== 'off' };
+  if (!p.text) { alert('内容を入れてください'); return; }
+  if (!p.date) { alert('初回期限を選んでください'); return; }
+  if (p.date < ymd(new Date())) { alert('過ぎた日付は選べません'); return; }
+  $('jaBox').classList.add('hidden');
+  busy(true);
+  try {
+    await saveQueue;
+    const r = await call('addAnnualApp', p);
+    drawAnnual(r.annual);
+    show('寺内スケジュールに追加しました：' + r.msg.replace(/\n/g, ' '));
+  } catch (e) { $('jaBox').classList.remove('hidden'); }
+  finally { busy(false); }
+}
+
 /** 周期にする時、同じ内容のほかの日付の予定を以降不要にするか確かめる（2026-11-04）。なければ聞かずに false */
 async function askRemoveDups(q, label) {
   let dups = [];

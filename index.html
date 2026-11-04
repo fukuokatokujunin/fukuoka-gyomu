@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261104142038">
+<meta name="build" content="20261104142836">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -492,10 +492,15 @@
           <label for="jaText" class="tklabel">内容</label>
           <textarea id="jaText" rows="3" maxlength="200"></textarea>
           <label for="jaDate" class="tklabel">📅 初回期限</label>
-          <input type="date" id="jaDate" class="tkdate">
-          <span class="tklabel">繰り返し設定</span>
-          <label class="chk"><input type="radio" name="jaRep" value="on" checked>オン（毎年。来年以降は同じ曜日の近い日）</label>
-          <label class="chk"><input type="radio" name="jaRep" value="off">オフ（今回のみ）</label>
+          <input type="date" id="jaDate" class="tkdate" onchange="jaRepHint()">
+          <label for="jaRep" class="tklabel"><span class="rep"></span>繰り返し</label>
+          <select id="jaRep" class="tkdate" onchange="jaRepHint()">
+            <option value="Y">毎年（来年以降は同じ曜日の近い日）</option><option value="none">今回のみ</option>
+            <option value="D">毎日</option><option value="WD">平日（月〜金）</option><option value="W">毎週（下で曜日を選ぶ。なければ期限の曜日）</option>
+            <option value="M">毎月（期限と同じ日）</option><option value="MN">毎月（期限と同じ「第○ ○曜日」）</option>
+          </select>
+          <div class="hidden" id="jaDaysWrap"><span class="tklabel">曜日（複数可）</span><div class="whos" id="jaDays"></div></div>
+          <p class="sub" id="jaHint" style="margin:4px 0 0;white-space:pre-line"></p>
           <label for="jaKind" class="tklabel">区分</label>
           <select id="jaKind" class="tkdate"></select>
           <button onclick="doJinaiAdd()">登録</button>
@@ -1927,18 +1932,38 @@ async function doRequest() {
 function openJinaiAdd() {
   const today = ymd(new Date());
   $('jaText').value = ''; $('jaDate').value = ''; $('jaDate').min = today;
-  document.querySelector('input[name=jaRep][value=on]').checked = true;
+  $('jaRep').value = 'Y';
+  $('jaDays').innerHTML = '';
+  '日月火水木金土'.split('').forEach((w, i) => {
+    const l = document.createElement('label'), c = document.createElement('input');
+    c.type = 'checkbox'; c.value = i; c.onchange = jaRepHint; l.append(c, w); $('jaDays').appendChild(l);
+  });
+  jaRepHint();
   if (!$('jaKind').options.length) JINAI_KINDS.forEach(k => $('jaKind').add(new Option(k, k)));
   $('jaKind').value = 'メモ';
   $('jaBox').classList.remove('hidden');
 }
+/** 寺内スケジュールに追加の繰り返し（2026-11-04。個別業務と同じく毎日・毎週・毎月も）：毎週の曜日欄と、次の回の説明 */
+function jaDaysSel() { return [...$('jaDays').querySelectorAll('input:checked')].map(c => Number(c.value)); }
+function jaRule(v, date) {
+  if (!date || !['D', 'WD', 'W', 'M', 'MN'].includes(v)) return '';
+  const ds = jaDaysSel();
+  return v === 'W' && ds.length ? 'W:' + ds.sort().join(',') : ruleFromKind(v, date);
+}
+function jaRepHint() {
+  const v = $('jaRep').value; $('jaDaysWrap').classList.toggle('hidden', v !== 'W');
+  repHint(v === 'W' && jaRule(v, $('jaDate').value) ? 'KEEP' : v, $('jaDate').value, jaRule(v, $('jaDate').value), $('jaHint'), false);
+}
 async function doJinaiAdd() {
+  const cycle = $('jaRep').value;
   const p = { text: $('jaText').value.replace(/\s+/g, ' ').trim(), date: $('jaDate').value, kind: $('jaKind').value,
-    repeat: (document.querySelector('input[name=jaRep]:checked') || {}).value !== 'off' };
+    repeat: cycle !== 'none', cycle, days: cycle === 'W' ? jaDaysSel() : [] };
   if (!p.text) { alert('内容を入れてください'); return; }
   if (!p.date) { alert('初回期限を選んでください'); return; }
   if (p.date < ymd(new Date())) { alert('過ぎた日付は選べません'); return; }
   $('jaBox').classList.add('hidden');
+  const rule = jaRule(cycle, p.date); // 周期の時は、寺内に同じ内容の予定があれば以降不要にするか確かめる（寺内へ移す時と同じ）
+  if (rule) p.removeDups = await askRemoveDups({ texts: [p.text] }, ruleLabel(rule));
   busy(true);
   try {
     await saveQueue;

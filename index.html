@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261104153044">
+<meta name="build" content="20261104154815">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -46,7 +46,6 @@
   .center { text-align:center; }
   .notice { background:#eff6ff; border:1px solid #bfdbfe; color:#1e40af; border-radius:10px; padding:10px 12px; font-size:14px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; gap:8px; }
   .notice a { color:var(--pri); font-weight:700; white-space:nowrap; cursor:pointer; }
-  #chimeHint { position:fixed; left:50%; bottom:14px; transform:translateX(-50%); z-index:40; background:#222629; color:#fff; padding:9px 16px; border-radius:20px; font-size:13px; box-shadow:0 4px 14px rgba(0,0,0,.3); cursor:pointer; white-space:nowrap; }
   #pushBox p { margin:6px 0 10px; } #pushBox .later { margin-left:10px; font-size:13px; text-decoration:underline; cursor:pointer; }
   .hand { border:2px solid var(--warn); }
   .hand h3 { margin:0 0 6px; font-size:16px; color:var(--warn); }
@@ -423,7 +422,6 @@
 </header>
 <main id="main">
   <div id="msg"></div>
-  <div id="chimeHint" class="hidden">🔔 画面を一度クリックすると、通知の音が鳴るようになります</div>
 
   <section id="login" class="card">
     <p>名前を選んでパスワードを入力してください</p>
@@ -1729,7 +1727,6 @@ let pushOn = false;
 const PUSH_TEST_END = '2026-11-08'; // メニューの「通知のテスト」はこの日から出さない（導入期間だけ。2026-11-04 ユーザー指定）
 function drawPush() {
   const st = pushState();
-  chimeHint();
   $('btnPush').classList.toggle('hidden', st !== 'on' || ymd(new Date()) >= PUSH_TEST_END);
   let later = '';
   try { later = localStorage.getItem('pushLater') || ''; } catch (e) {}
@@ -1801,18 +1798,13 @@ function pushOff() {
 /** Service Worker から：push＝通知が届いた（開いていれば読み直す）、go＝通知を押した（その所へ） */
 /* PCのチャイム（2026-11-04）：Chromeの通知は Mac の設定によって音が鳴らないことがあるため、アプリの画面が開いていれば
  * 通知が届いた時に画面からも「ピンポン」と鳴らす。ブラウザの決まりで、一度クリック（キー入力）した後でないと鳴らせない
- * → まだの間は画面の下に案内を出す。タブを複数開いていても1回だけ鳴らす（localStorage chimeAt） */
+ * （画面下の「クリックすると鳴る」案内は 2026-11-04 ユーザー指定で廃止）。タブを複数開いていても1回だけ鳴らす（localStorage chimeAt） */
 let chimeCtx = null;
 function chimeUnlock() {
   try {
     if (!chimeCtx) chimeCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (chimeCtx.state !== 'running') chimeCtx.resume().then(chimeHint, chimeHint);
+    if (chimeCtx.state !== 'running') chimeCtx.resume().catch(() => {});
   } catch (e) {}
-  chimeHint();
-}
-function chimeHint() {
-  const need = IS_PC && !inGas && !!me && !(chimeCtx && chimeCtx.state === 'running');
-  $('chimeHint').classList.toggle('hidden', !need);
 }
 if (IS_PC) ['pointerdown', 'keydown'].forEach(ev => addEventListener(ev, chimeUnlock, true));
 function chime(force) {

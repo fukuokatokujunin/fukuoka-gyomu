@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261104142836">
+<meta name="build" content="20261104144941">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -46,6 +46,7 @@
   .center { text-align:center; }
   .notice { background:#eff6ff; border:1px solid #bfdbfe; color:#1e40af; border-radius:10px; padding:10px 12px; font-size:14px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; gap:8px; }
   .notice a { color:var(--pri); font-weight:700; white-space:nowrap; cursor:pointer; }
+  #pushBox p { margin:6px 0 10px; } #pushBox .later { margin-left:10px; font-size:13px; text-decoration:underline; cursor:pointer; }
   .hand { border:2px solid var(--warn); }
   .hand h3 { margin:0 0 6px; font-size:16px; color:var(--warn); }
   .hitem { display:flex; gap:10px; align-items:flex-start; padding:10px 0; border-top:1px solid var(--line); }
@@ -414,6 +415,7 @@
     <div id="menu" onclick="this.classList.remove('open')">
       <button id="btnReq" class="hidden" onclick="view('req')">シフト希望</button>
       <button id="btnAdmin" class="hidden" onclick="view('admin')">管理</button>
+      <button id="btnPush" class="hidden" onclick="testPushMe()">通知のテスト</button>
       <button id="btnLogout" class="hidden" onclick="logout()">ログアウト</button>
     </div>
   </div>
@@ -442,6 +444,11 @@
      <div>
       <div class="notice" id="deadline"></div>
       <div id="infos"></div>
+      <div class="card hidden" id="pushBox"><!-- プッシュ通知（2026-11-04 Slackの代わり） -->
+        <strong id="pushTitle"></strong>
+        <p class="sub" id="pushText"></p>
+        <span id="pushBtns"><button onclick="enablePush()">通知をオンにする</button><a class="later" onclick="pushLater()">あとで</a></span>
+      </div>
 
       <div class="card hand hidden" id="handBox">
         <h3>申し送り</h3>
@@ -793,9 +800,9 @@
 
       <div id="at-etc" class="hidden">
         <div class="card">
-          <strong>Slackのテスト通知</strong>
-          <span class="sub">fukuoka-bot から全員へテストのメッセージを送ります。PCで音が鳴りアイコンが跳ねるか、スマホに通知が出るかを各自で確かめてもらいます（設定は導入マニュアル）。</span>
-          <button class="sec" onclick="testNotify()">Slackのテスト通知を送る</button>
+          <strong>テスト通知</strong>
+          <span class="sub">通知をオンにした全員の端末（スマホ・PC）へテストの通知を送ります。「通知オフ」の人は、その人の端末で打刻画面の「通知をオンにする」を押してもらってください。</span>
+          <button class="sec" onclick="testNotify()">テスト通知を送る</button>
         </div>
         <div class="card">
           <strong>打刻用QRコード</strong>
@@ -933,12 +940,13 @@ async function doLogin() {
     $('login').classList.add('hidden'); $('app').classList.remove('hidden'); show('');
     view('clock');
     tasksAt = Date.now(); doGo(); // リンクから開いてログインし直した時も、その所へ移る
+    pushSync();
   } finally { busy(false); }
 }
 function logout() {
   const out = () => { try { ['auth', 'snap', 'snapAnnual'].forEach(k => localStorage.removeItem(k)); } catch (e) {} location.reload(); };
   if (savePending) show('保存中です。終わり次第ログアウトします');
-  saveQueue.then(out, out); // 保存が終わってから
+  saveQueue.then(pushOff).then(out, out); // 保存が終わってから（この端末の通知も止める）
 }
 
 function view(v) {
@@ -1697,6 +1705,106 @@ document.addEventListener('visibilitychange', pulse);
 document.addEventListener('visibilitychange', () => refreshTasks(30 * 1000));
 window.addEventListener('pageshow', () => refreshTasks(30 * 1000));
 window.addEventListener('focus', () => refreshTasks(30 * 1000));
+/* ---- プッシュ通知（2026-11-04 Slackの代わり。アプリを閉じていても音つきで届く） ----
+ * sw.js（Service Worker）が受けて通知を出す。押すとアプリを開いて go の所へ。
+ * iPhone は「ホーム画面に追加」したアプリでだけ使える（iOS 16.4以降）。PCはブラウザ（Chrome・Safari・Edge）が開いていれば届く */
+const IS_IOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
+const STANDALONE = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const PUSH_OK = !inGas && location.protocol === 'https:' && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+if (!inGas && location.protocol === 'https:' && 'serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+  navigator.serviceWorker.addEventListener('message', e => onSwMessage(e.data || {}));
+}
+function pushState() {
+  if (!PUSH_OK) return IS_IOS && !STANDALONE && !inGas ? 'ios-home' : 'none';
+  if (Notification.permission === 'denied') return 'denied';
+  if (Notification.permission !== 'granted') return 'off';
+  return pushOn ? 'on' : 'off';
+}
+let pushOn = false;
+function drawPush() {
+  const st = pushState();
+  $('btnPush').classList.toggle('hidden', st !== 'on');
+  let later = '';
+  try { later = localStorage.getItem('pushLater') || ''; } catch (e) {}
+  const msg = {
+    off: ['🔔 この端末で通知を受け取る', '新しい個別業務・申し送り・打刻のお知らせが、アプリを閉じていても音つきで届きます。'],
+    denied: ['🔕 通知がブロックされています', IS_IOS ? 'iPhoneの「設定」→「通知」→「徳純院」で「通知を許可」をオンにしてください。'
+      : 'アドレスバーの左のマーク（鍵など）を押して「通知」を「許可」にし、画面を読み込み直してください。Macは「システム設定」→「通知」でブラウザ（Chromeなど）の通知も許可してください。'],
+    'ios-home': ['🔔 通知を受け取るには', 'iPhoneでは、ホーム画面に追加したアプリから開くと通知をオンにできます（Safariの共有ボタン →「ホーム画面に追加」）。'],
+  }[st];
+  const hide = !me || !msg || (st !== 'denied' && later === ymd(new Date()));
+  $('pushBox').classList.toggle('hidden', hide);
+  if (hide) return;
+  $('pushTitle').textContent = msg[0]; $('pushText').textContent = msg[1];
+  $('pushBtns').querySelector('button').classList.toggle('hidden', st !== 'off');
+}
+function pushLater() { try { localStorage.setItem('pushLater', ymd(new Date())); } catch (e) {} drawPush(); } // 今日は出さない
+const b64uBytes = s => { s = s.replace(/-/g, '+').replace(/_/g, '/'); const b = atob(s + '==='.slice((s.length + 3) % 4)); return Uint8Array.from(b, c => c.charCodeAt(0)); };
+const bytesB64u = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+/** この端末の受け口を作り（鍵が変わっていれば作り直す）、サーバーに覚えさせる。force でなければ1日1回だけ送る */
+async function pushSubscribe(force) {
+  const reg = await navigator.serviceWorker.ready;
+  let sub = await reg.pushManager.getSubscription();
+  if (sub && sub.options && sub.options.applicationServerKey && bytesB64u(sub.options.applicationServerKey) !== me.pushKey) { await sub.unsubscribe(); sub = null; }
+  if (!sub) { sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64uBytes(me.pushKey) }); force = true; }
+  const mark = `${auth.id}|${sub.endpoint}|${ymd(new Date())}`;
+  let last = ''; try { last = localStorage.getItem('pushSent') || ''; } catch (e) {}
+  if (force || last !== mark) {
+    await rawCall('pushSubscribe', auth, { sub: sub.toJSON(), ua: (IS_IOS ? 'iPhone' : IS_PC ? 'PC' : 'スマホ') + ' ' + (navigator.userAgent.match(/(Edg|Chrome|Firefox|Version)\/\d+/) || [''])[0] });
+    try { localStorage.setItem('pushSent', mark); } catch (e) {}
+  }
+  pushOn = true;
+}
+/** ログインした時：許可済みの端末は黙って登録を確かめる（別の人がこの端末でログインしていた時の付け替えも） */
+function pushSync() {
+  drawPush();
+  if (!PUSH_OK || !me || !me.pushKey || Notification.permission !== 'granted') return;
+  pushSubscribe(false).then(drawPush).catch(() => {});
+}
+async function enablePush() {
+  try {
+    const perm = await Notification.requestPermission(); // iPhoneはボタンを押した直後でないと聞いてくれない
+    if (perm !== 'granted') { show('通知が許可されませんでした', true); return; }
+    busy(true);
+    await pushSubscribe(true);
+    await rawCall('pushTest', auth);
+    show('この端末で通知を受け取るようにしました（テストの通知を送りました）');
+  } catch (e) { show('通知をオンにできませんでした：' + e.message, true); }
+  finally { busy(false); drawPush(); }
+}
+async function testPushMe() {
+  busy(true);
+  try {
+    const r = await call('pushTest');
+    show(r.sent ? `テストの通知を送りました（${r.sent}台）。届かない時は端末の通知の設定を確かめてください` : '通知を送れる端末がありません。「通知をオンにする」をやり直してください');
+    if (!r.sent) { pushOn = false; try { localStorage.removeItem('pushSent'); } catch (e) {} drawPush(); }
+  } finally { busy(false); }
+}
+/** ログアウトの時：この端末は前の人あての通知を受けない */
+function pushOff() {
+  if (!PUSH_OK || !auth) return;
+  return navigator.serviceWorker.ready.then(reg => reg.pushManager.getSubscription()).then(sub => {
+    if (!sub) return;
+    try { localStorage.removeItem('pushSent'); } catch (e) {}
+    return rawCall('pushUnsubscribe', auth, { endpoint: sub.endpoint }).catch(() => {}).then(() => sub.unsubscribe());
+  }).catch(() => {});
+}
+/** Service Worker から：push＝通知が届いた（開いていれば読み直す）、go＝通知を押した（その所へ） */
+function onSwMessage(d) {
+  if (!me || !auth || stale) return;
+  const g = String(d.go || '');
+  if (d.type === 'push') {
+    if (g.startsWith('task:')) refreshTasks(0);
+    else if (g === 'hand' && !savePending) rawCall('login', auth).then(s => { if (!savePending && cur === 'clock') render(s); }).catch(() => {});
+  }
+  if (d.type === 'go' && g) {
+    pendingGo = g;
+    if (g.startsWith('task:')) rawCall('tasks', auth).then(list => { drawTasks(list); doGo(); }).catch(doGo);
+    else if (g === 'hand') rawCall('login', auth).then(s => { render(s); if (cur !== 'clock') view('clock'); doGo(); }).catch(doGo);
+    else { if (cur !== 'clock' && g !== 'admin') view('clock'); doGo(); }
+  }
+}
 /* リンクの go の所へ移る：task:ID＝その個別業務（新着なら確認済みにする）、hand＝申し送り、clock＝打刻 */
 function doGo() {
   const g = pendingGo; pendingGo = '';
@@ -1708,6 +1816,7 @@ function doGo() {
       if (t.isNew) seeNew(id); else jumpTo(`#tasks [data-id="${id}"]`);
     } else if (g === 'hand') jumpTo('#handBox');
     else if (g === 'clock') jumpTo('#clockCard');
+    else if (g === 'admin' && me.admin) view('admin');
   }, 300);
 }
 // PCは打刻をスマホで行うので、開いたままでも状態（勤務中・打刻時刻・警告）を5分ごとと画面に戻ったときに読み直す
@@ -1863,7 +1972,7 @@ function doneRepeat(end) {
   show(`完了しました。次回期日は ${m}/${d}（${ruleLabel(rule)}）。次からは完了するだけで期日が入ります`);
 }
 
-/* 個別業務 → 寺内スケジュール（2026-11-03）：内容・初回期限・繰り返し・区分を確かめて移す（Slackの /jinai と同じ項目） */
+/* 個別業務 → 寺内スケジュール（2026-11-03）：内容・初回期限・繰り返し・区分を確かめて移す */
 const JINAI_KINDS = ['配布関係', '告知関係', '法要関係', '発注・準備', '総代・御報謝', '寺内雑務', 'メモ']; // Annual.gs と同じ
 let taCur = null;
 function openTaskToAnnual(t) {
@@ -1888,7 +1997,7 @@ function openTaskToAnnual(t) {
 }
 /** 選んだ繰り返しの説明（初回期限から次の回を出す） */
 function taRepHint() { repHint($('taRep').value, $('taDate').value, taCur && taCur.rule, $('taHint'), true); }
-/* 業務追加（2026-11-04）：Slackの「個別業務を依頼」（/task）・「寺内スケジュールに追加」（/jinai）と同じ。折りたたみの開閉は端末に記憶 */
+/* 業務追加（2026-11-04）：個別業務を依頼・寺内スケジュールに追加（Slackの /task・/jinai は廃止）。折りたたみの開閉は端末に記憶 */
 (() => {
   const d = $('addBox');
   try { d.open = localStorage.getItem('addOpen') === '1'; } catch (e) {}
@@ -1900,7 +2009,7 @@ function openRequest() {
   $('rqWho').innerHTML = '';
   (me.taskPeople || []).forEach(p => {
     const l = document.createElement('label'), c = document.createElement('input');
-    c.type = 'checkbox'; c.value = p.id; c.checked = String(p.id) === String(auth.id); // 初期値は自分（Slackと同じ）
+    c.type = 'checkbox'; c.value = p.id; c.checked = String(p.id) === String(auth.id); // 初期値は自分
     l.append(c, String(p.id) === String(auth.id) ? '自分' : p.name); $('rqWho').appendChild(l);
   });
   $('rqDays').innerHTML = '';
@@ -2364,11 +2473,11 @@ function adminTab(t) {
   try { localStorage.setItem('adminTab', t); } catch (e) {}
 }
 async function testNotify() {
-  if (!await ask('全員へSlackのテスト通知を送りますか？')) return;
+  if (!await ask('全員の端末へテスト通知を送りますか？')) return;
   busy(true);
   try {
     const list = await call('adminTestNotify');
-    $('resTitle').textContent = 'Slackのテスト通知'; $('res').innerHTML = '';
+    $('resTitle').textContent = 'テスト通知'; $('res').innerHTML = '';
     list.forEach(p => { const li = document.createElement('li'); li.textContent = p; $('res').appendChild(li); });
     $('resBox').classList.remove('hidden');
   } finally { busy(false); }
@@ -2513,7 +2622,7 @@ function drawReqView(o) {
 /* ---- 起動 ---- */
 let saved = null;
 try { saved = JSON.parse(localStorage.getItem('auth') || 'null'); } catch (e) {}
-// Slackの通知のリンク（Ver1.2）：?u=従業員ID&e=期限&s=署名 でログイン済みで開き、go の所へ移る。URLからは消す
+// 印つきのリンク（Ver1.2。以前のSlackの通知のリンク）：?u=従業員ID&e=期限&s=署名 でログイン済みで開く。go（通知を押した時も）の所へ移る。URLからは消す
 const linkQ = new URLSearchParams(location.search);
 let pendingGo = linkQ.get('go') || '';
 if (linkQ.get('u') && linkQ.get('s')) {
@@ -2543,6 +2652,7 @@ if (saved) { // 名前一覧を待たずにログインを始める
     stale = false; lockStamp();
     render(s); $('app').classList.remove('hidden'); show(''); view('clock');
     tasksAt = Date.now(); doGo();
+    pushSync();
   }).catch(() => {
     stale = false; lockStamp(); $('app').classList.add('hidden'); $('login').classList.remove('hidden');
     if (auth && auth.tk) try { localStorage.removeItem('auth'); } catch (e) {} // 期限切れのリンクの印は捨てる（パスワードでログインし直す）

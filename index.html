@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261104101406">
+<meta name="build" content="20261104104039">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -515,7 +515,7 @@
       <div class="overlay hidden" id="edBox" onclick="if (event.target === this) $('edBox').classList.add('hidden')">
         <div class="modal">
           <strong>内容を編集</strong>
-          <p class="sub" style="margin:4px 0 6px">古くなった書き方を、今に合った表現に直します。全員の画面と、来年以降の予定もこの内容になります。</p>
+          <p class="sub" id="edNote" style="margin:4px 0 6px"></p>
           <textarea id="edText" rows="3" maxlength="200"></textarea>
           <p class="sub" id="edFrom" style="margin:4px 0 0"></p>
           <button onclick="saveEdit()">保存</button>
@@ -1259,9 +1259,19 @@ function drawStart() {
 function closeStart() { stCur = null; $('stBox').classList.add('hidden'); }
 
 /* 編集（Ver1.2）：予定の文言を直す。全員共通・来年以降もこの文言 */
-let edCur = null;
+let edCur = null, edKind = 'annual';
+/* 個別業務の編集（2026-11-04）：同じ依頼の他の担当者の分も同じ内容になる */
+function openTaskEdit(t) {
+  if (String(t.id).startsWith('tmp-')) { show('保存が終わってから操作してください', true); return; }
+  edCur = t; edKind = 'task';
+  const mates = (t.mates || []).map(n => n + 'さん').join('・');
+  $('edNote').textContent = 'この個別業務の内容を直します。' + (mates ? `同じ依頼の ${mates} の分も同じ内容になります。` : '');
+  $('edText').value = t.text; $('edFrom').textContent = '';
+  $('edBox').classList.remove('hidden');
+}
 function openEdit(a) {
-  edCur = a;
+  edCur = a; edKind = 'annual';
+  $('edNote').textContent = '古くなった書き方を、今に合った表現に直します。全員の画面と、来年以降の予定もこの内容になります。';
   $('edText').value = a.text; // 画面に出ている文言（昨年の名前で出している時はその名前）
   $('edFrom').textContent = a.edited ? `${a.edited.by}さんが ${a.edited.at} に編集（元の内容：${a.edited.from}）` : '';
   $('edBox').classList.remove('hidden');
@@ -1272,6 +1282,12 @@ async function saveEdit() {
   const a = edCur;
   $('edBox').classList.add('hidden');
   if (text === a.text) return;
+  if (edKind === 'task') {
+    drawTasks(me.tasks.map(x => x.id === a.id ? Object.assign({}, x, { text }) : x)); // 返事を待たずに一覧を直す（保存は裏で）
+    saveLater('tasks', 'editTask', { id: a.id, text });
+    show('内容を直しました' + ((a.mates || []).length ? `（${a.mates.map(n => n + 'さん').join('・')}の分も直ります）` : ''));
+    return;
+  }
   // 返事を待たずに一覧を直す（保存は裏で）
   drawAnnual(me.annual.map(x => !x.event && x.id === a.id ? Object.assign({}, x, { text, base: text, orig: '' }) : x));
   saveLater('annual', 'editAnnual', { id: a.id, text });
@@ -1382,6 +1398,14 @@ function drawTasks(list) {
     const mv = document.createElement('button'); mv.className = 'pp mv'; mv.textContent = '寺内へ';
     mv.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); openTaskToAnnual(t); }; // 行はlabelなのでチェックが入らないように
     meta.appendChild(mv);
+    const eb = document.createElement('button'); eb.className = 'pp nt'; eb.textContent = '編集';
+    eb.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); openTaskEdit(t); };
+    meta.appendChild(eb);
+    if ((t.mates || []).length) { // 複数あての依頼：担当者がだれかを出す（2026-11-04）
+      const w = document.createElement('div'); w.className = 'sub who';
+      w.textContent = '担当：あなた・' + t.mates.map(n => n + 'さん').join('・');
+      meta.appendChild(w);
+    }
     if (t.ruleLabel) { const r = document.createElement('div'); r.className = 'rule rep'; r.textContent = t.ruleLabel; meta.appendChild(r); }
     body.append(txt, thumbs(t.images), meta); row.append(cbBox(cb), body); row.dataset.id = t.id;
     { // ゴミ箱：どの個別業務も削除できる（Ver1.2。以前は繰り返しだけ）。7日間は「削除済み」から戻せる

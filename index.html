@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261104104508">
+<meta name="build" content="20261104110930">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -522,6 +522,9 @@
           <p class="sub" id="edNote" style="margin:4px 0 6px"></p>
           <textarea id="edText" rows="3" maxlength="200"></textarea>
           <p class="sub" id="edFrom" style="margin:4px 0 0"></p>
+          <label for="edDate" class="tklabel">📅 期日</label>
+          <input type="date" id="edDate" class="tkdate">
+          <p class="sub" id="edDateNote" style="margin:4px 0 0"></p>
           <button onclick="saveEdit()">保存</button>
           <button class="ghost" onclick="$('edBox').classList.add('hidden')">キャンセル</button>
         </div>
@@ -1060,7 +1063,7 @@ async function toggleDone(kind) {
 /* ---- 削除済み（以降不要・ゴミ箱で消したもの。7日間は「戻す」で元に戻せる。Ver1.2） ---- */
 const REMOVED = {
   tasks: { list: 'removedTasks', restore: 'restoreTask', after: r => { drawTasks(r.tasks); drawRemoved('tasks', r.removed); } },
-  annual: { list: 'annualRemoved', restore: 'restoreAnnual', after: r => { drawAnnual(r.annual); drawRemoved('annual', r.removed); } },
+  annual: { list: 'annualRemoved', restore: 'restoreAnnual', after: r => { drawAnnual(r.annual); drawRemoved('annual', r.removed); if (r.tasks && showTasks()) drawTasks(r.tasks); } },
 };
 async function toggleRemoved(kind) {
   const box = $(kind + 'RmBox');
@@ -1236,7 +1239,7 @@ async function startAsk(a, title) {
     $('tbOk').onclick = () => {
       const text = $('tbText').value.trim(), due = $('tbDate').value;
       if (!text) { alert('内容を入れてください'); return; }
-      done({ text, due });
+      done({ text, due, annualId: a.id }); // どの予定から足したか（以降不要にした時に一緒に消すため。2026-11-04）
     };
     $('tbNo').onclick = () => done(null);
   });
@@ -1265,6 +1268,7 @@ function closeStart() { stCur = null; $('stBox').classList.add('hidden'); }
 
 /* 編集（Ver1.2）：予定の文言を直す。全員共通・来年以降もこの文言 */
 let edCur = null, edKind = 'annual';
+function edSetDate(v) { const today = ymd(new Date()); $('edDate').value = v; $('edDate').min = v && v < today ? '' : today; }
 /* 個別業務の編集（2026-11-04）：同じ依頼の他の担当者の分も同じ内容になる */
 function openTaskEdit(t) {
   if (String(t.id).startsWith('tmp-')) { show('保存が終わってから操作してください', true); return; }
@@ -1272,25 +1276,41 @@ function openTaskEdit(t) {
   const mates = (t.mates || []).map(n => n + 'さん').join('・');
   $('edNote').textContent = 'この個別業務の内容を直します。' + (mates ? `同じ依頼の ${mates} の分も同じ内容になります。` : '');
   $('edText').value = t.text; $('edFrom').textContent = '';
+  edSetDate(t.due || '');
+  $('edDateNote').textContent = '期日そのものを直します（今回だけずらす時は「延長」）。空にすると期日なし。' + (mates ? `同じ依頼の ${mates} の分も同じ期日になります。` : '');
   $('edBox').classList.remove('hidden');
 }
 function openEdit(a) {
   edCur = a; edKind = 'annual';
   $('edNote').textContent = '古くなった書き方を、今に合った表現に直します。全員の画面と、来年以降の予定もこの内容になります。';
+  edSetDate(a.date);
+  $('edDateNote').textContent = a.cycle ? `期日を変えると、この日から数え直します（${a.cycle}。今回だけずらす時は「延長」）`
+    : '期日を変えると、来年以降もこの日が基準になります（今回だけずらす時は「延長」）';
   $('edText').value = a.text; // 画面に出ている文言（昨年の名前で出している時はその名前）
   $('edFrom').textContent = a.edited ? `${a.edited.by}さんが ${a.edited.at} に編集（元の内容：${a.edited.from}）` : '';
   $('edBox').classList.remove('hidden');
 }
 async function saveEdit() {
-  const text = $('edText').value.replace(/\s+/g, ' ').trim();
+  const text = $('edText').value.replace(/\s+/g, ' ').trim(), date = $('edDate').value;
   if (!text) { alert('内容を入れてください'); return; }
-  const a = edCur;
+  const a = edCur, today = ymd(new Date());
+  const oldDate = edKind === 'task' ? (a.due || '') : a.date, dateChanged = date !== oldDate;
+  if (dateChanged && date && date < today) { alert('過ぎた日付は選べません'); return; }
+  if (dateChanged && !date && edKind !== 'task') { alert('期日を選んでください'); return; }
   $('edBox').classList.add('hidden');
-  if (text === a.text) return;
+  if (text === a.text && !dateChanged) return;
+  const what = text !== a.text && dateChanged ? '内容と期日' : dateChanged ? '期日' : '内容';
   if (edKind === 'task') {
-    drawTasks(me.tasks.map(x => x.id === a.id ? Object.assign({}, x, { text }) : x)); // 返事を待たずに一覧を直す（保存は裏で）
-    saveLater('tasks', 'editTask', { id: a.id, text });
-    show('内容を直しました' + ((a.mates || []).length ? `（${a.mates.map(n => n + 'さん').join('・')}の分も直ります）` : ''));
+    drawTasks(sortTasks(me.tasks.map(x => x.id === a.id ? Object.assign({}, x, { text, due: date }) : x))); // 返事を待たずに一覧を直す（保存は裏で）
+    saveLater('tasks', 'editTask', { id: a.id, text, due: date });
+    show(`${what}を直しました` + ((a.mates || []).length ? `（${a.mates.map(n => n + 'さん').join('・')}の分も直ります）` : ''));
+    return;
+  }
+  if (dateChanged) { // 期日の変更（来年以降もこの日が基準）
+    const left = Math.round((new Date(date + 'T00:00:00') - new Date(today + 'T00:00:00')) / 864e5);
+    drawAnnual(me.annual.map(x => !x.event && x.id === a.id ? Object.assign({}, x, text !== a.text ? { text, base: text, orig: '' } : {}, { date, key: date, left, moved: false, early: left > 30 }) : x));
+    saveLater('annual', 'editAnnual', Object.assign({ id: a.id, date, key: a.key }, text !== a.text ? { text } : {}));
+    show(`${what}を直しました（全員の画面に反映されます）`);
     return;
   }
   // 返事を待たずに一覧を直す（保存は裏で）
@@ -1350,8 +1370,11 @@ function closeMorning() {
   $('morningBox').classList.add('hidden');
 }
 async function removeAnnual(a) {
-  if (!await ask(`「${a.text.slice(0, 40)}」を今後表示しないようにしますか？（7日間は「削除済み」から戻せます）`)) return;
+  const st = (a.starters || []).length ? `\n（着手した ${a.starters.map(p => p.name + 'さん').join('・')} の個別業務からも消えます）` : '';
+  if (!await ask(`「${a.text.slice(0, 40)}」を今後表示しないようにしますか？（7日間は「削除済み」から戻せます）` + st)) return;
   drawAnnual(me.annual.filter(x => x.event || x.id !== a.id)); // 返事を待たずに一覧から外す（保存は裏で）
+  // この予定から足した自分の個別業務も外す（サーバーは全員分を削除。2026-11-04）
+  if (showTasks() && (me.tasks || []).some(t => t.annualId === a.id)) drawTasks(me.tasks.filter(t => t.annualId !== a.id));
   saveLater('annual', 'removeAnnual', { id: a.id });
   show('以降不要にしました（7日間は「削除済み」から戻せます）');
 }
@@ -1700,7 +1723,8 @@ function nextByRule(rule, after) {
 }
 async function removeTask(t) {
   if (String(t.id).startsWith('tmp-')) { show('保存が終わってから操作してください', true); return; }
-  if (!await ask(`${t.repeat ? 'この繰り返しの個別業務' : 'この個別業務'}を削除しますか？（7日間は「削除済み」から戻せます）`)) return;
+  const mates = (t.mates || []).length ? `\n（同じ依頼の ${t.mates.map(n => n + 'さん').join('・')} の分も削除されます）` : '';
+  if (!await ask(`${t.repeat ? 'この繰り返しの個別業務' : 'この個別業務'}を削除しますか？（7日間は「削除済み」から戻せます）` + mates)) return;
   drawTasks(me.tasks.filter(x => x.id !== t.id)); // 返事を待たずに一覧から外す（保存は裏で）
   saveLater('tasks', 'removeTask', { id: t.id });
   show('削除しました（7日間は「削除済み」から戻せます）');

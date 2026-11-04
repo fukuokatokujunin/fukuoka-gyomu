@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261104171925">
+<meta name="build" content="20261104172408">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -430,7 +430,6 @@
       <button id="btnReq" class="hidden" onclick="view('req')">シフト希望</button>
       <button id="btnAdmin" class="hidden" onclick="view('admin')">管理</button>
       <button id="btnPush" class="hidden" onclick="testPushMe()">通知のテスト</button>
-      <button id="btnMail" class="hidden" onclick="openMail(true)">メールアドレス</button>
       <button id="btnLogout" class="hidden" onclick="logout()">ログアウト</button>
     </div>
   </div>
@@ -1016,7 +1015,6 @@ function render(s) {
   const annual = me && me.annual; // 年間予定はログイン後に別読込（ログインを速くするため）
   me = s;
   $('btnLogout').classList.remove('hidden');
-  $('btnMail').classList.remove('hidden');
   $('btnMenu').classList.remove('hidden');
   $('who').textContent = s.name;
   // 締切アナウンス：希望受付月の前月15日（設定値）まで

@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261104151901">
+<meta name="build" content="20261104153044">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -1726,10 +1726,11 @@ function pushState() {
   return pushOn ? 'on' : 'off';
 }
 let pushOn = false;
+const PUSH_TEST_END = '2026-11-08'; // メニューの「通知のテスト」はこの日から出さない（導入期間だけ。2026-11-04 ユーザー指定）
 function drawPush() {
   const st = pushState();
   chimeHint();
-  $('btnPush').classList.toggle('hidden', st !== 'on');
+  $('btnPush').classList.toggle('hidden', st !== 'on' || ymd(new Date()) >= PUSH_TEST_END);
   let later = '';
   try { later = localStorage.getItem('pushLater') || ''; } catch (e) {}
   const msg = {

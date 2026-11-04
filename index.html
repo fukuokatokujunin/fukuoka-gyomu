@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261104172408">
+<meta name="build" content="20261104180407">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -336,6 +336,12 @@
   button.pp.nt { background:#fff; color:#222629; border:1px solid #222629; margin-left:6px; } button.pp.nt::before { display:none; }
   .ntlast { margin-top:4px; font-size:12px; color:var(--sub); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; border-left:2px solid #c9b88f; padding-left:6px; }
   .annual .titem > div { min-width:0; } /* 最新の書き込みの1行が長くても、行の幅を広げない */
+  /* 個別業務の行（2026-11-04）：担当者の名前が長くても本文の幅を広げない（ゴミ箱が枠の外へ押し出されないように）。
+     下の段（依頼者・担当・期日・延長・寺内へ・編集）は左端をそろえ、折り返した段も本文と同じ位置から始める */
+  #tasks .titem > div { min-width:0; }
+  #tasks .titem > div > .sub > * { margin:2px 6px 2px 0; } /* 余白は右側に（左側だと折り返した段の先頭がずれる） */
+  #tasks .titem > div > .sub > .rule { margin:4px 0 0; }
+  #tasks .titem.alert { padding-left:5px; } /* 赤い線（3px）の分だけ詰めて、□と本文の位置をほかの行とそろえる */
   .tl { margin:10px 0 6px; padding-left:14px; max-height:45vh; overflow-y:auto; }
   .tl .ne { position:relative; border-left:2px solid #c9b88f; padding:0 0 12px 14px; } .tl .ne:last-child { padding-bottom:2px; }
   .tl .ne::before { content:''; position:absolute; left:-7px; top:4px; width:12px; height:12px; border-radius:50%; background:#222629; box-shadow:0 0 0 2px #fff; }

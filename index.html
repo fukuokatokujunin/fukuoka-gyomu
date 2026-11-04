@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261104114620">
+<meta name="build" content="20261104133835">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -122,6 +122,8 @@
   .titem input { width:24px; height:24px; margin:2px 0 0; flex:none; }
   .cbw { flex:none; display:flex; padding:8px; margin:-8px; cursor:pointer; }
   .titem .t { white-space:pre-wrap; word-break:break-word; }
+  .pn { white-space:nowrap; } /* 名前は途中で改行しない（2026-11-04） */
+  .mates { margin-left:6px; }
   .due { display:inline-block; margin-left:6px; padding:1px 6px; border-radius:6px; background:#f3f4f6; font-size:12px; font-weight:700; }
   .due.soon { background:#fef3c7; color:var(--warn); } .due.over { background:#fee2e2; color:var(--ng); }
   /* 寺内全体スケジュール：PCは打刻画面の左、スマホは一番下 */
@@ -909,7 +911,7 @@ function render(s) {
   me = s;
   $('btnLogout').classList.remove('hidden');
   $('btnMenu').classList.remove('hidden');
-  $('who').textContent = s.name + ' さん';
+  $('who').textContent = s.name;
   // 締切アナウンス：希望受付月の前月15日（設定値）まで
   const [y, m] = s.requestMonth.split('-').map(Number);
   const dlMonth = m === 1 ? 12 : m - 1;
@@ -926,7 +928,7 @@ function render(s) {
   s.handovers.forEach(h => {
     const row = document.createElement('div'); row.className = 'hitem';
     const body = document.createElement('div'); body.style.flex = '1';
-    const meta = document.createElement('div'); meta.className = 'sub'; meta.textContent = `${h.from}さんより（${h.date}）`;
+    const meta = document.createElement('div'); meta.className = 'sub'; meta.append(pn(`${h.from}より`), `（${h.date}）`);
     const txt = document.createElement('div'); txt.className = 't'; txt.textContent = h.text;
     const pics = thumbs(h.images);
     const opts = document.createElement('div'); opts.className = 'opts';
@@ -956,7 +958,7 @@ function render(s) {
     $('checks').appendChild(l);
   });
   $('hoTo').innerHTML = '<option value="">宛先を選択</option><option value="all">全員</option>' +
-    s.colleagues.map(c => `<option value="${c.id}">${c.name}さん</option>`).join('');
+    s.colleagues.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
   $('hoText').value = '';
 
   // タスク（勤務中のみ表示）
@@ -1056,7 +1058,7 @@ function drawRequested(list) {
     const who = document.createElement('div'); who.className = 'who';
     g.people.forEach(p => {
       const c = document.createElement('span'); c.className = 's-' + p.state;
-      c.textContent = `${p.name}：${p.state}${p.doneAt ? '（' + p.doneAt + '）' : ''}`;
+      c.textContent = `${nb(p.name)}：${p.state}${p.doneAt ? '（' + p.doneAt + '）' : ''}`;
       who.appendChild(c);
     });
     d.append(t, sub, who); $('reqd').appendChild(d);
@@ -1095,7 +1097,9 @@ function drawRemoved(kind, list) {
     if (a.kind) { const k = document.createElement('span'); k.className = 'kind'; k.textContent = a.kind; t.appendChild(k); }
     t.append(a.text);
     const m = document.createElement('div'); m.className = 'sub';
-    m.textContent = `${a.at} ${kind === 'annual' ? '以降不要' : '削除'}` + (a.by ? `（${a.by}）` : '') + (a.date ? `　毎年 ${a.date}` : '');
+    m.textContent = `${a.at} ${kind === 'annual' ? '以降不要' : '削除'}`;
+    if (a.by) m.appendChild(pn(`（${a.by}）`));
+    if (a.date) m.append(`　毎年 ${a.date}`);
     const b = document.createElement('button'); b.className = 'pp st'; b.textContent = '戻す';
     b.onclick = async () => {
       if (!await ask(kind === 'annual' ? 'この予定を元に戻しますか？（また表示されます）' : 'この個別業務を元に戻しますか？')) return;
@@ -1129,7 +1133,8 @@ function drawDone(kind, list) {
     const body = document.createElement('div'); body.style.flex = '1';
     const t = document.createElement('div'); t.className = 't' + (a.repeat ? ' rep' : ''); t.textContent = a.text;
     const m = document.createElement('div'); m.className = 'sub';
-    m.textContent = `${a.doneAt} 完了` + (a.by ? `（${a.by}）` : '');
+    m.textContent = `${a.doneAt} 完了`;
+    if (a.by) m.appendChild(pn(`（${a.by}）`));
     body.append(t, m); row.append(u, body); box.appendChild(row);
   });
 }
@@ -1188,7 +1193,7 @@ function drawAnnual(list) {
     }
     body.append(txt, meta); row.appendChild(body);
     const last = (a.notes || [])[(a.notes || []).length - 1];
-    if (last) { const n = document.createElement('div'); n.className = 'ntlast'; n.textContent = `${last.name}（${last.at}）：${last.text}`; body.appendChild(n); }
+    if (last) { const n = document.createElement('div'); n.className = 'ntlast'; n.textContent = `${nb(last.name)}（${last.at}）：${last.text}`; body.appendChild(n); }
     if (!a.event) {
       const del = document.createElement('button'); del.className = 'ghost trash'; del.textContent = ''; del.title = '今後表示しない';
       del.onclick = ev => { ev.preventDefault(); removeAnnual(a); };
@@ -1240,7 +1245,7 @@ async function startAsk(a, title) {
     return yes;
   }
   $('tbTitle').textContent = title;
-  $('tbWho').textContent = (a.starters || []).length ? 'いま着手している人：' + a.starters.map(p => p.name).join('・') : ''; // 参加の時は窓で一覧が隠れるのでここにも出す
+  $('tbWho').textContent = (a.starters || []).length ? 'いま着手している人：' + nbs(a.starters.map(p => p.name)) : ''; // 参加の時は窓で一覧が隠れるのでここにも出す
   $('tbText').value = a.text;
   $('tbDate').value = a.date && a.date >= ymd(new Date()) ? a.date : ymd(new Date());
   $('tbBox').classList.remove('hidden');
@@ -1267,7 +1272,7 @@ function drawStart() {
   a.starters.forEach(p => {
     const mine = String(p.id) === String(auth.id);
     const b = document.createElement('button'); b.className = mine ? '' : 'sec'; b.disabled = !mine;
-    b.textContent = p.name + (mine ? '（自分）' : '');
+    b.textContent = nb(p.name) + (mine ? '（自分）' : '');
     if (mine) b.onclick = async () => { if (await ask('着手を取り消しますか？')) { setStart(a, false); show('着手を取り消しました'); } };
     $('stList').appendChild(b);
   });
@@ -1276,6 +1281,10 @@ function drawStart() {
 function closeStart() { stCur = null; $('stBox').classList.add('hidden'); }
 
 /* 編集（Ver1.2）：予定の文言を直す。全員共通・来年以降もこの文言 */
+/* 名前の表示（2026-11-04）：敬称は付けない。名前の途中で改行しない（文の中は文字の間に改行禁止の印 U+2060、行の中は span.pn） */
+function nb(name) { return [...String(name || '')].join('\u2060'); }
+function pn(text) { const s = document.createElement('span'); s.className = 'pn'; s.textContent = text; return s; }
+function nbs(list) { return (list || []).map(nb).join('・'); }
 let edCur = null, edKind = 'annual';
 let edRep0 = '';
 /** 編集の窓の繰り返しの説明（寺内へ移す窓と同じ） */
@@ -1285,7 +1294,7 @@ function edSetDate(v) { const today = ymd(new Date()); $('edDate').value = v; $(
 function openTaskEdit(t) {
   if (String(t.id).startsWith('tmp-')) { show('保存が終わってから操作してください', true); return; }
   edCur = t; edKind = 'task';
-  const mates = (t.mates || []).map(n => n + 'さん').join('・');
+  const mates = nbs(t.mates);
   $('edNote').textContent = 'この個別業務の内容を直します。' + (mates ? `同じ依頼の ${mates} の分も同じ内容になります。` : '');
   $('edText').value = t.text; $('edFrom').textContent = '';
   edSetDate(t.due || '');
@@ -1307,7 +1316,7 @@ function openEdit(a) {
   $('edRepWrap').classList.remove('hidden');
   edRepHint();
   $('edText').value = a.text; // 画面に出ている文言（昨年の名前で出している時はその名前）
-  $('edFrom').textContent = a.edited ? `${a.edited.by}さんが ${a.edited.at} に編集（元の内容：${a.edited.from}）` : '';
+  $('edFrom').textContent = a.edited ? `${nb(a.edited.by)}が ${a.edited.at} に編集（元の内容：${a.edited.from}）` : '';
   $('edBox').classList.remove('hidden');
 }
 async function saveEdit() {
@@ -1324,7 +1333,7 @@ async function saveEdit() {
   if (edKind === 'task') {
     drawTasks(sortTasks(me.tasks.map(x => x.id === a.id ? Object.assign({}, x, { text, due: date }) : x))); // 返事を待たずに一覧を直す（保存は裏で）
     saveLater('tasks', 'editTask', { id: a.id, text, due: date });
-    show(`${what}を直しました` + ((a.mates || []).length ? `（${a.mates.map(n => n + 'さん').join('・')}の分も直ります）` : ''));
+    show(`${what}を直しました` + ((a.mates || []).length ? `（${nbs(a.mates)}の分も直ります）` : ''));
     return;
   }
   if (dateChanged || repChanged) { // 期日・繰り返しの変更（来年以降もこの日が基準。周期はこの日から数える）
@@ -1353,11 +1362,11 @@ function drawNotes() {
   const a = me.annual.find(x => !x.event && x.id === ntCur);
   if (!a) { closeNotes(); return; }
   $('ntText').textContent = a.text;
-  $('ntWho').textContent = (a.starters || []).length ? '着手している人：' + a.starters.map(p => p.name).join('・') : 'まだだれも着手していません';
+  $('ntWho').textContent = (a.starters || []).length ? '着手している人：' + nbs(a.starters.map(p => p.name)) : 'まだだれも着手していません';
   $('ntList').innerHTML = (a.notes || []).length ? '' : '<p class="sub" style="margin:0">まだ書き込みはありません</p>';
   (a.notes || []).forEach(n => {
     const d = document.createElement('div'); d.className = 'ne';
-    const w = document.createElement('div'); w.className = 'who'; w.textContent = `${n.name}　${n.at}`;
+    const w = document.createElement('div'); w.className = 'who'; w.textContent = `${nb(n.name)}　${n.at}`;
     if (String(n.empId) === String(auth.id)) {
       const x = document.createElement('span'); x.className = 'del'; x.textContent = '消す';
       x.onclick = () => delNote(n.id); w.appendChild(x);
@@ -1396,7 +1405,7 @@ function closeMorning() {
   $('morningBox').classList.add('hidden');
 }
 async function removeAnnual(a) {
-  const st = (a.starters || []).length ? `\n（着手した ${a.starters.map(p => p.name + 'さん').join('・')} の個別業務からも消えます）` : '';
+  const st = (a.starters || []).length ? `\n（着手した ${nbs(a.starters.map(p => p.name))} の個別業務からも消えます）` : '';
   if (!await ask(`「${a.text.slice(0, 40)}」を今後表示しないようにしますか？（7日間は「削除済み」から戻せます）` + st)) return;
   drawAnnual(me.annual.filter(x => x.event || x.id !== a.id)); // 返事を待たずに一覧から外す（保存は裏で）
   // この予定から足した自分の個別業務も外す（サーバーは全員分を削除。2026-11-04）
@@ -1439,7 +1448,13 @@ function drawTasks(list) {
     const body = document.createElement('div'); body.style.flex = '1';
     const txt = document.createElement('div'); txt.className = 't' + (t.repeat ? ' rep' : ''); txt.textContent = t.text;
     const meta = document.createElement('div'); meta.className = 'sub';
-    meta.textContent = t.from === '寺内スケジュール' ? '寺内スケジュールから' : t.from ? `${t.from}さんより` : '';
+    if (t.from === '寺内スケジュール') meta.textContent = '寺内スケジュールから';
+    else if (t.from) meta.appendChild(pn(`${t.from}より`));
+    if ((t.mates || []).length) { // 複数あての依頼：担当者（2026-11-04。別の行にせず、依頼者と同じ行に。名前ごとに改行しない）
+      const w = document.createElement('span'); w.className = 'mates'; w.append('担当 ');
+      ['あなた'].concat(t.mates).forEach((n, k) => { if (k) w.append('・'); w.appendChild(pn(n)); });
+      meta.appendChild(w);
+    }
     if (t.due) {
       const [, m, d] = t.due.split('-').map(Number);
       left = Math.round((new Date(t.due + 'T00:00:00') - new Date(today + 'T00:00:00')) / 864e5);
@@ -1455,11 +1470,6 @@ function drawTasks(list) {
     const eb = document.createElement('button'); eb.className = 'pp nt'; eb.textContent = '編集';
     eb.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); openTaskEdit(t); };
     meta.appendChild(eb);
-    if ((t.mates || []).length) { // 複数あての依頼：担当者がだれかを出す（2026-11-04）
-      const w = document.createElement('div'); w.className = 'sub who';
-      w.textContent = '担当：あなた・' + t.mates.map(n => n + 'さん').join('・');
-      meta.appendChild(w);
-    }
     if (t.ruleLabel) { const r = document.createElement('div'); r.className = 'rule rep'; r.textContent = t.ruleLabel; meta.appendChild(r); }
     body.append(txt, thumbs(t.images), meta); row.append(cbBox(cb), body); row.dataset.id = t.id;
     { // ゴミ箱：どの個別業務も削除できる（Ver1.2。以前は繰り返しだけ）。7日間は「削除済み」から戻せる
@@ -1566,7 +1576,7 @@ function openNew() {
     const txt = document.createElement('div'); txt.className = 't' + (t.repeat ? ' rep' : ''); txt.textContent = t.text;
     const meta = document.createElement('div'); meta.className = 'sub';
     const [, m, d] = (t.due || '--').split('-').map(Number);
-    meta.textContent = (t.from ? `${t.from}さんより` : '') + (t.due ? `　期日 ${m}/${d}` : '　期日なし');
+    meta.textContent = (t.from ? `${nb(t.from)}より` : '') + (t.due ? `　期日 ${m}/${d}` : '　期日なし');
     const b = document.createElement('button'); b.textContent = '確認'; b.onclick = () => seeNew(t.id);
     div.append(txt, meta, b); $('newList').appendChild(div);
   });
@@ -1689,7 +1699,7 @@ function saveLater(kind, action, p) {
 addEventListener('beforeunload', e => { if (savePending) { e.preventDefault(); e.returnValue = ''; } });
 async function doneTask(t, cb) {
   // 同じ依頼の他の担当者がいれば、一緒に完了になることを知らせる（2026-11-04）
-  const mates = (t.mates || []).length ? `\n（同じ依頼の ${t.mates.map(n => n + 'さん').join('・')} の分も完了になります）` : '';
+  const mates = (t.mates || []).length ? `\n（同じ依頼の ${nbs(t.mates)} の分も完了になります）` : '';
   if (!await ask('完了にしますか？' + mates)) { cb.checked = false; return; }
   if (t.repeat && t.rule) { // 周期が決まっている繰り返し：次回の期日は自動（サーバーと同じ計算で先に表示）
     const today = ymd(new Date()), next = nextByRule(t.rule, t.due && t.due > today ? t.due : today);
@@ -1749,7 +1759,7 @@ function nextByRule(rule, after) {
 }
 async function removeTask(t) {
   if (String(t.id).startsWith('tmp-')) { show('保存が終わってから操作してください', true); return; }
-  const mates = (t.mates || []).length ? `\n（同じ依頼の ${t.mates.map(n => n + 'さん').join('・')} の分も削除されます）` : '';
+  const mates = (t.mates || []).length ? `\n（同じ依頼の ${nbs(t.mates)} の分も削除されます）` : '';
   if (!await ask(`${t.repeat ? 'この繰り返しの個別業務' : 'この個別業務'}を削除しますか？（7日間は「削除済み」から戻せます）` + mates)) return;
   drawTasks(me.tasks.filter(x => x.id !== t.id)); // 返事を待たずに一覧から外す（保存は裏で）
   saveLater('tasks', 'removeTask', { id: t.id });
@@ -1801,7 +1811,7 @@ function openTaskToAnnual(t) {
   taRepHint();
   // 同じ個別業務が他の人にもあれば、一緒に寺内へ移ることを知らせる（2026-11-04）
   const others = t.others || [];
-  $('taOthers').textContent = others.length ? `⚠ 同じ個別業務がある ${others.map(n => n + 'さん').join('・')} の分も一緒に寺内スケジュールへ移ります` : '';
+  $('taOthers').textContent = others.length ? `⚠ 同じ個別業務がある ${nbs(others)} の分も一緒に寺内スケジュールへ移ります` : '';
   $('taOthers').classList.toggle('hidden', !others.length);
   $('taBox').classList.remove('hidden');
 }
@@ -1847,7 +1857,7 @@ async function doTaskToAnnual() {
     await saveQueue; // 裏で保存中の分を先に送り終える
     const r = await call('taskToAnnual', p);
     drawTasks(r.tasks); drawAnnual(r.annual);
-    const with_ = r.others && r.others.length ? `${r.others.map(n => n + 'さん').join('・')}の同じ個別業務も移しました。` : '';
+    const with_ = r.others && r.others.length ? `${nbs(r.others)}の同じ個別業務も移しました。` : '';
     show(r.already ? 'この個別業務は、すでにほかの人が寺内スケジュールへ移していました（寺内スケジュールで対応してください）'
       : r.dup ? `寺内スケジュールに同じ内容がすでにあるため、新しくは追加せずに個別業務から外しました。${with_}`
       : `寺内スケジュールへ移しました（全員の画面に出ます）。${with_}`);

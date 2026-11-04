@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261104111751">
+<meta name="build" content="20261104114620">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -509,7 +509,7 @@
             <option value="D">毎日</option><option value="WD">平日（月〜金）</option><option value="W">毎週（初回期限と同じ曜日）</option>
             <option value="M">毎月（初回期限と同じ日）</option><option value="MN">毎月（初回期限と同じ「第○ ○曜日」）</option>
           </select>
-          <p class="sub" id="taHint" style="margin:4px 0 0"></p>
+          <p class="sub" id="taHint" style="margin:4px 0 0;white-space:pre-line"></p>
           <label for="taKind" class="tklabel">区分</label>
           <select id="taKind" class="tkdate"></select>
           <button onclick="doTaskToAnnual()">寺内スケジュールへ移す</button>
@@ -532,7 +532,7 @@
               <option value="D">毎日</option><option value="WD">平日（月〜金）</option><option value="W">毎週（期日と同じ曜日）</option>
               <option value="M">毎月（期日と同じ日）</option><option value="MN">毎月（期日と同じ「第○ ○曜日」）</option>
             </select>
-            <p class="sub" id="edHint" style="margin:4px 0 0"></p>
+            <p class="sub" id="edHint" style="margin:4px 0 0;white-space:pre-line"></p>
           </div>
           <button onclick="saveEdit()">保存</button>
           <button class="ghost" onclick="$('edBox').classList.add('hidden')">キャンセル</button>
@@ -1279,7 +1279,7 @@ function closeStart() { stCur = null; $('stBox').classList.add('hidden'); }
 let edCur = null, edKind = 'annual';
 let edRep0 = '';
 /** 編集の窓の繰り返しの説明（寺内へ移す窓と同じ） */
-function edRepHint() { if (edKind === 'annual') repHint($('edRep').value, $('edDate').value, edCur && edCur.rule, $('edHint')); }
+function edRepHint() { if (edKind === 'annual') repHint($('edRep').value, $('edDate').value, edCur && edCur.rule, $('edHint'), $('edRep').value !== edRep0); }
 function edSetDate(v) { const today = ymd(new Date()); $('edDate').value = v; $('edDate').min = v && v < today ? '' : today; }
 /* 個別業務の編集（2026-11-04）：同じ依頼の他の担当者の分も同じ内容になる */
 function openTaskEdit(t) {
@@ -1329,12 +1329,14 @@ async function saveEdit() {
   }
   if (dateChanged || repChanged) { // 期日・繰り返しの変更（来年以降もこの日が基準。周期はこの日から数える）
     const rule = repChanged && ['D', 'WD', 'W', 'M', 'MN'].includes(rep) ? ruleFromKind(rep, date) : repChanged ? '' : a.rule;
+    const removeDups = repChanged && !!rule && await askRemoveDups({ id: a.id }, ruleLabel(rule));
     const d = rule && !ruleMatch(rule, new Date(date + 'T00:00:00')) ? nextByRule(rule, date) : date;
     const left = Math.round((new Date(d + 'T00:00:00') - new Date(today + 'T00:00:00')) / 864e5);
     drawAnnual(me.annual.map(x => !x.event && x.id === a.id ? Object.assign({}, x, text !== a.text ? { text, base: text, orig: '' } : {},
-      { date: d, key: d, left, moved: false, early: left > 30, rule, cycle: rule ? ruleLabel(rule) : '', once: repChanged ? rep === 'none' : a.once }) : x));
-    saveLater('annual', 'editAnnual', Object.assign({ id: a.id, key: a.key }, dateChanged || repChanged ? { date } : {}, text !== a.text ? { text } : {}, repChanged ? { cycle: rep } : {}));
-    show(`${what}を直しました（全員の画面に反映されます）`);
+      { date: d, key: d, left, moved: false, early: left > 30, rule, cycle: rule ? ruleLabel(rule) : '', once: repChanged ? rep === 'none' : a.once,
+        later: removeDups ? [] : x.later }) : x)); // 以降不要にした時は、同じ内容のほかの日付（このあと○/○にも）を外す
+    saveLater('annual', 'editAnnual', Object.assign({ id: a.id, key: a.key, removeDups }, dateChanged || repChanged ? { date } : {}, text !== a.text ? { text } : {}, repChanged ? { cycle: rep } : {}));
+    show(`${what}を直しました（全員の画面に反映されます）` + (removeDups ? '。同じ内容のほかの日付の予定は以降不要にしました（7日間は「削除済み」から戻せます）' : ''));
     return;
   }
   // 返事を待たずに一覧を直す（保存は裏で）
@@ -1804,8 +1806,18 @@ function openTaskToAnnual(t) {
   $('taBox').classList.remove('hidden');
 }
 /** 選んだ繰り返しの説明（初回期限から次の回を出す） */
-function taRepHint() { repHint($('taRep').value, $('taDate').value, taCur && taCur.rule, $('taHint')); }
-function repHint(v, date, keepRule, el) {
+function taRepHint() { repHint($('taRep').value, $('taDate').value, taCur && taCur.rule, $('taHint'), true); }
+/** 周期にする時、同じ内容のほかの日付の予定を以降不要にするか確かめる（2026-11-04）。なければ聞かずに false */
+async function askRemoveDups(q, label) {
+  let dups = [];
+  busy(true);
+  try { await saveQueue; dups = await call('annualDups', q); } catch (e) { return false; } finally { busy(false); }
+  if (!dups.length) return false;
+  const dates = dups.slice(0, 8).map(d => d.date).join('、') + (dups.length > 8 ? ' ほか' : '');
+  return ask(`同じ内容の予定が、ほかに${dups.length}件あります（${dates}）。\n繰り返し（${label}）で足りるので、以降不要にしますか？\n\nはい＝以降不要にする（7日間は「削除済み」から戻せます）\nいいえ＝残す`);
+}
+/** dup＝周期にした時、同じ内容のほかの日付の予定のことも書く */
+function repHint(v, date, keepRule, el, dup) {
   const rule = v === 'KEEP' ? keepRule : ['D', 'WD', 'W', 'M', 'MN'].includes(v) && date ? ruleFromKind(v, date) : '';
   if (!rule || !date) {
     el.textContent = v === 'Y' ? '済ませると、来年の同じころにまた出ます' : v === 'none' ? '済ませると、もう出ません' : '';
@@ -1814,16 +1826,22 @@ function repHint(v, date, keepRule, el) {
   let d = ruleMatch(rule, new Date(date + 'T00:00:00')) ? date : nextByRule(rule, date);
   const ds = [d];
   for (let i = 0; i < 2; i++) ds.push(d = nextByRule(rule, d));
-  el.textContent = `${ruleLabel(rule)}：${ds.map(x => x.slice(5).replace('-', '/').replace(/^0/, '').replace('/0', '/')).join('、')}…（済ませると次の回が出ます）`;
+  el.textContent = `${ruleLabel(rule)}：${ds.map(x => x.slice(5).replace('-', '/').replace(/^0/, '').replace('/0', '/')).join('、')}…（済ませると次の回が出ます）` +
+    (dup && v !== 'KEEP' ? '\n同じ内容のほかの日付の予定があれば、保存の時に以降不要にするか確認します' : '');
 }
 async function doTaskToAnnual() {
   const cycle = $('taRep').value;
   const p = { id: taCur.id, text: $('taText').value.trim(), date: $('taDate').value, kind: $('taKind').value,
     repeat: cycle !== 'none', cycle, rule: cycle === 'KEEP' ? taCur.rule : '' };
+  // 周期（毎日〜毎月）の時は、寺内に同じ内容の予定があれば以降不要にするか確かめる（2026-11-04）
+  const cyRule = cycle === 'KEEP' ? (/^Y:/.test(taCur.rule || '') ? '' : taCur.rule) : ['D', 'WD', 'W', 'M', 'MN'].includes(cycle) && p.date ? ruleFromKind(cycle, p.date) : '';
   if (!p.text) { alert('内容を入れてください'); return; }
   if (!p.date) { alert('初回期限を選んでください'); return; }
   if (p.date < ymd(new Date())) { alert('過ぎた日付は選べません'); return; }
   $('taBox').classList.add('hidden');
+  const t0 = taCur;
+  if (cyRule) p.removeDups = await askRemoveDups({ texts: [p.text, t0.text] }, ruleLabel(cyRule));
+  taCur = t0;
   busy(true);
   try {
     await saveQueue; // 裏で保存中の分を先に送り終える

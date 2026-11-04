@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261104151520">
+<meta name="build" content="20261104151901">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -1647,6 +1647,7 @@ function drawNew(list) {
   const fresh = news.filter(t => !shown.includes(t.id));
   if (fresh.length && !stale) {
     try { sessionStorage.setItem('newShown', JSON.stringify(shown.concat(fresh.map(t => t.id)).slice(-100))); } catch (e) {}
+    chime(); // PCのチャイム（通知と同時なら1回だけ）
     openNew();
   } else if (!$('newBox').classList.contains('hidden')) openNew();
 }
@@ -1716,6 +1717,7 @@ const PUSH_OK = !inGas && location.protocol === 'https:' && 'serviceWorker' in n
 if (!inGas && location.protocol === 'https:' && 'serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
   navigator.serviceWorker.addEventListener('message', e => onSwMessage(e.data || {}));
+  try { navigator.serviceWorker.startMessages(); } catch (e) {} // 通知が届いた知らせを、読み込み直後から受け取る
 }
 function pushState() {
   if (!PUSH_OK) return IS_IOS && !STANDALONE && !inGas ? 'ios-home' : 'none';
@@ -1777,10 +1779,12 @@ async function enablePush() {
   finally { busy(false); drawPush(); }
 }
 async function testPushMe() {
+  if (IS_PC) { chimeUnlock(); setTimeout(() => chime(true), 150); } // その場で1回鳴らす（聞こえなければMacの音量・出力先）
   busy(true);
   try {
     const r = await call('pushTest');
-    show(r.sent ? `テストの通知を送りました（${r.sent}台）。届かない時は端末の通知の設定を確かめてください` : '通知を送れる端末がありません。「通知をオンにする」をやり直してください');
+    show(r.sent ? `テストの通知を送りました（${r.sent}台）。` + (IS_PC ? '押した時の「ピンポン」が聞こえなければ、Macの音量・出力先を確かめてください。通知が出た時にもう一度鳴ります' : '届かない時は端末の通知の設定を確かめてください')
+      : '通知を送れる端末がありません。「通知をオンにする」をやり直してください');
     if (!r.sent) { pushOn = false; try { localStorage.removeItem('pushSent'); } catch (e) {} drawPush(); }
   } finally { busy(false); }
 }
@@ -1806,15 +1810,15 @@ function chimeUnlock() {
   chimeHint();
 }
 function chimeHint() {
-  const need = IS_PC && PUSH_OK && !!me && Notification.permission === 'granted' && !(chimeCtx && chimeCtx.state === 'running');
+  const need = IS_PC && !inGas && !!me && !(chimeCtx && chimeCtx.state === 'running');
   $('chimeHint').classList.toggle('hidden', !need);
 }
 if (IS_PC) ['pointerdown', 'keydown'].forEach(ev => addEventListener(ev, chimeUnlock, true));
-function chime() {
+function chime(force) {
   if (!IS_PC || !chimeCtx || chimeCtx.state !== 'running') return;
   try {
     const last = Number(localStorage.getItem('chimeAt') || 0);
-    if (Date.now() - last < 3000) return;
+    if (!force && Date.now() - last < 3000) return;
     localStorage.setItem('chimeAt', String(Date.now()));
   } catch (e) {}
   const t0 = chimeCtx.currentTime + 0.05;

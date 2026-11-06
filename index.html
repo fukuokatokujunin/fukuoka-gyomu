@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261106173632">
+<meta name="build" content="20261106174125">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -293,6 +293,16 @@
     box-shadow:0 10px 30px rgba(0,0,0,.3); pointer-events:none; }
   #saveBar::before { content:''; flex:none; width:14px; height:14px; border:2px solid rgba(255,255,255,.3); border-top-color:#c9b88f; border-radius:50%; animation:spin .8s linear infinite; }
   @keyframes spin { to { transform:rotate(360deg); } }
+  /* 反映中のグルグル（2026-11-06）。押したボタンの中に回る輪を出し、0.3秒以上かかる時は画面中央にも「反映中…」を出す（押せたか分からず何度も押すのを防ぐ） */
+  button.loading { opacity:.85 !important; }
+  button.loading.lrel { position:relative; }
+  button.loading::after { content:''; position:absolute; top:50%; right:12px; width:14px; height:14px; margin-top:-9px; border:2px solid currentColor; border-top-color:transparent; border-radius:50%; animation:spin .8s linear infinite; }
+  button.loading.sm { color:transparent !important; }
+  button.loading.sm::after { right:auto; left:50%; margin-left:-9px; border-color:#888; border-top-color:transparent; }
+  #busyBar { display:none; position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); z-index:30; flex-direction:column; align-items:center; gap:12px;
+    padding:22px 30px; background:rgba(34,38,41,.92); color:#fff; font-size:14px; letter-spacing:.15em; box-shadow:0 10px 30px rgba(0,0,0,.3); pointer-events:none; }
+  #busyBar::before { content:''; width:34px; height:34px; border:3px solid rgba(255,255,255,.25); border-top-color:#c9b88f; border-radius:50%; animation:spin .8s linear infinite; }
+  body.busy #busyBar { display:flex; }
   @media (max-width:360px) { #saveBar { font-size:12px; letter-spacing:0; padding:10px 16px; } } /* 小さい画面でも1行に収める */
   body.saving #saveBar { display:flex; }
   body.saving #newPop { bottom:70px; }
@@ -401,6 +411,7 @@
 <body>
 <div id="ptr"></div>
 <div id="saveBar">保存中…　アプリを閉じないでください</div>
+<div id="busyBar">反映中…</div>
 <!-- 確認ダイアログ：どの画面からも使うので画面（section）の外に置く -->
       <div class="overlay hidden" id="askBox">
         <div class="modal center">
@@ -980,7 +991,24 @@ function show(t, err) {
   $('msg').appendChild(d); window.scrollTo(0, 0);
   if (!err) setTimeout(() => d.remove(), 5000); // 完了などのお知らせは5秒で消す（エラーは残す）
 }
-function busy(on) { document.querySelectorAll('button,select').forEach(b => b.disabled = on); if (!on) lockStamp(); }
+function busy(on) {
+  document.querySelectorAll('button,select').forEach(b => b.disabled = on);
+  spinBtn(on && Date.now() - lastTapAt < 2000 ? lastTap : null); // 押したボタンの中で輪を回す
+  clearTimeout(busyTimer); document.body.classList.remove('busy');
+  if (on) busyTimer = setTimeout(() => document.body.classList.add('busy'), 300); // 少しかかる時は画面中央にも「反映中…」
+  if (!on) lockStamp();
+}
+// 反映中のグルグル（2026-11-06）：最後に押したボタンを覚えておき、busy の間その中で輪を回す
+let lastTap = null, lastTapAt = 0, busyTimer = 0;
+document.addEventListener('pointerdown', e => { const b = e.target.closest && e.target.closest('button'); if (b) { lastTap = b; lastTapAt = Date.now(); } }, true);
+document.addEventListener('keydown', e => { const b = document.activeElement; if ((e.key === 'Enter' || e.key === ' ') && b && b.tagName === 'BUTTON') { lastTap = b; lastTapAt = Date.now(); } }, true);
+function spinBtn(b) {
+  document.querySelectorAll('button.loading').forEach(x => x.classList.remove('loading', 'lrel', 'sm'));
+  if (!b || !b.isConnected) return;
+  b.classList.add('loading');
+  if (getComputedStyle(b).position === 'static') b.classList.add('lrel');
+  if (b.offsetWidth < 90) b.classList.add('sm'); // 小さいボタンは文字を隠して真ん中で回す
+}
 // 前回の表示のまま最新を読み込み中は、打刻だけ押せないようにする（勤務状態が古い可能性があるため）
 function lockStamp() { ['btnIn', 'btnPre'].forEach(id => { if ($(id)) $(id).disabled = stale; }); document.querySelectorAll('#outBox button.out').forEach(b => b.disabled = stale); }
 
@@ -2096,14 +2124,14 @@ async function eveTick(item, on, fromEve) {
 /** PC：途中までチェックした項目をスマホに反映（2026-11-06。すべてでなくてもよい） */
 async function eveSave() {
   const got = eveGet().filter(c => me.checklist.includes(c));
-  const btn = $('eveSaveBtn'); btn.disabled = true;
+  const btn = $('eveSaveBtn'); btn.disabled = true; spinBtn(btn);
   try {
     const r = await call('eveSave', { done: got });
     eveSetLocal(r.eveSaved.items, r.eveSaved.at);
     if (r.eveDone) me.eveDone = true;
     drawEve(); drawChecks();
     show(r.eveDone ? '退勤前チェックをすべて済ませました' : `チェックした ${got.length}件 をスマホに反映しました`);
-  } finally { btn.disabled = false; }
+  } finally { btn.disabled = false; spinBtn(null); }
 }
 setInterval(() => { if (me && !document.hidden) drawEve(); }, 60 * 1000); // 17時に出す（シフト対象外の人は19時に消す）
 

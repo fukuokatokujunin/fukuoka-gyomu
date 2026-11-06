@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261106160114">
+<meta name="build" content="20261106160222">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -1631,8 +1631,10 @@ function drawTasks(list) {
     const body = document.createElement('div'); body.style.flex = '1';
     const txt = document.createElement('div'); txt.className = 't' + (t.repeat ? ' rep' : ''); txt.append(linked(t.text));
     const meta = document.createElement('div'); meta.className = 'sub';
+    // マイタスク（2026-11-06）：自分から自分だけへの依頼（登録者が自分で、複数あての依頼でない）。右上に印を出し「○○より」は出さない
+    const isMy = !!t.from && t.from === me.name && !t.multi && !(t.mates || []).length;
     if (t.from === '寺内スケジュール') meta.textContent = '寺内スケジュールから';
-    else if (t.from) meta.appendChild(pn(`${t.from}より`));
+    else if (t.from && !isMy) meta.appendChild(pn(`${t.from}より`));
     if ((t.mates || []).length) { // 複数あての依頼：担当者（2026-11-04。別の行にせず、依頼者と同じ行に。名前ごとに改行しない）
       const w = document.createElement('span'); w.className = 'mates'; w.append('担当 ');
       ['あなた'].concat(t.mates).forEach((n, k) => { if (k) w.append('・'); w.appendChild(pn(n)); });
@@ -1659,8 +1661,7 @@ function drawTasks(list) {
       const del = document.createElement('button'); del.className = 'ghost trash'; del.title = t.repeat ? '繰り返しをやめる' : '削除';
       del.onclick = ev => { ev.preventDefault(); removeTask(t); };
       const wrap = document.createElement('div'); wrap.className = 'trashwrap';
-      // マイタスク（2026-11-06）：自分から自分だけへの依頼（登録者が自分で、複数あての依頼でない）は右上に印
-      if (t.from && t.from === me.name && !t.multi && !(t.mates || []).length) {
+      if (isMy) { // マイタスクの印（右上）
         const my = document.createElement('div'); my.className = 'mytag'; my.title = 'マイタスク（自分から自分への依頼）';
         my.innerHTML = '<i></i><b>MY</b>'; wrap.classList.add('mine'); wrap.appendChild(my);
       }

@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261106160801">
+<meta name="build" content="20261106162921">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -1836,7 +1836,7 @@ function drawPush() {
   let later = '';
   try { later = localStorage.getItem('pushLater') || ''; } catch (e) {}
   const msg = {
-    off: ['🔔 この端末で通知を受け取る', '新しい個別業務・申し送り・打刻のお知らせが、アプリを閉じていても音つきで届きます。'],
+    off: ['🔔 この端末で通知を受け取る', '新しい個別業務・申し送り・打刻のお知らせが、アプリを閉じていても音つきで届きます。' + (IS_PC || (me && me.noAttend) ? '' : '（スマホは勤務中だけ。勤務外の分は次の出勤日の9時にまとめて届きます）')],
     denied: ['🔕 通知がブロックされています', IS_IOS ? 'iPhoneの「設定」→「通知」→「徳純院」で「通知を許可」をオンにしてください。'
       : 'アドレスバーの左のマーク（鍵など）を押して「通知」を「許可」にし、画面を読み込み直してください。Macは「システム設定」→「通知」でブラウザ（Chromeなど）の通知も許可してください。'],
     'ios-home': ['🔔 通知を受け取るには', 'iPhoneでは、ホーム画面に追加したアプリから開くと通知をオンにできます（Safariの共有ボタン →「ホーム画面に追加」）。'],

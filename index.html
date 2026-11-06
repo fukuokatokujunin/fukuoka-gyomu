@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261106160222">
+<meta name="build" content="20261106160801">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -345,14 +345,12 @@
   #tasks .titem > div > .sub > .rule { margin:4px 0 0; }
   #tasks .titem.alert { padding-left:5px; } /* 赤い線（3px）の分だけ詰めて、□と本文の位置をほかの行とそろえる */
   /* マイタスク（2026-11-06）：自分から自分だけに依頼した個別業務。行の右上（削除の列の上端）に印。
-     チャコールの角に金の細線（内枠と人の形）。どの行も同じ形 */
+     チャコールの角に金の細線の内枠、中に「MY」の文字だけ（2026-11-06 人の形をやめた）。どの行も同じ形 */
   #tasks .trashwrap.mine { align-self:stretch; }
   #tasks .trashwrap.mine .mytag { margin-bottom:auto; }
-  .mytag { display:flex; flex-direction:column; align-items:center; gap:3px; }
-  .mytag i { display:block; width:24px; height:24px; background:#222629 no-repeat center / 14px
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23c9b88f' stroke-width='1.6' stroke-linecap='round'%3E%3Ccircle cx='12' cy='8.5' r='3.6'/%3E%3Cpath d='M5 20.5c1.3-3.8 3.9-5.8 7-5.8s5.7 2 7 5.8'/%3E%3C/svg%3E");
+  .mytag { display:flex; align-items:center; justify-content:center; width:24px; height:24px; background:#222629;
     outline:1px solid #c9b88f; outline-offset:-3px; }
-  .mytag b { font-size:8px; font-weight:500; letter-spacing:.2em; margin-right:-.2em; color:#8a7b5c; line-height:1; font-family:"Noto Sans JP",sans-serif; }
+  .mytag b { font-size:9px; font-weight:600; letter-spacing:.06em; margin-right:-.06em; color:#c9b88f; line-height:1; font-family:"Noto Sans JP",sans-serif; }
   .tl { margin:10px 0 6px; padding-left:14px; max-height:45vh; overflow-y:auto; }
   .tl .ne { position:relative; border-left:2px solid #c9b88f; padding:0 0 12px 14px; } .tl .ne:last-child { padding-bottom:2px; }
   .tl .ne::before { content:''; position:absolute; left:-7px; top:4px; width:12px; height:12px; border-radius:50%; background:#222629; box-shadow:0 0 0 2px #fff; }
@@ -502,8 +500,8 @@
         <button id="btnPre" class="out hidden" onclick="openPre(true)">退勤前チェック</button>
         <div class="pcwarn hidden" id="pcWarn">⚠ 出勤の打刻をしてください（スマホのアプリから）</div>
       </div>
-      <div class="card hidden" id="eveBox"><!-- シフト対象外の人の夕方のチェック（2026-11-06。17時〜19時） -->
-        <strong>退勤前チェック</strong> <span class="sub">（すべてチェックすると消えます。19時まで表示）</span>
+      <div class="card hidden" id="eveBox"><!-- 夕方のチェック（2026-11-06。17時から。シフト対象外の人は19時まで、シフト対象の人は出勤中なら退勤まで） -->
+        <strong>退勤前チェック</strong> <span class="sub" id="eveNote"></span>
         <div id="eveChecks"></div>
       </div>
 
@@ -900,6 +898,7 @@ function openPre(on) {
   $('outBox').classList.toggle('hidden', !on);
   if (on) $('outBox').scrollIntoView({ behavior: 'smooth' });
   if (on) showDue();
+  drawEve(); // 退勤前チェックを開いている間は夕方のチェックを隠す（同じ項目なので）
 }
 
 /* 退勤前：今日までが期日で、済み・延長していない個別業務／寺内スケジュールを知らせる */
@@ -1083,12 +1082,7 @@ function render(s) {
   $('btnPre').classList.toggle('hidden', !s.working || preOpen || IS_PC);
   $('pcWarn').classList.toggle('hidden', !IS_PC || s.noAttend || s.working || !!s.lastTime);
   $('outBox').classList.toggle('hidden', !s.working || !preOpen || IS_PC);
-  $('checks').innerHTML = '';
-  s.checklist.forEach((c, i) => {
-    const l = document.createElement('label'); l.className = 'chk';
-    l.innerHTML = `<input type="checkbox" value="${i}">`; l.append(c, tobaNote(c));
-    $('checks').appendChild(l);
-  });
+  drawChecks();
   drawEve();
   $('hoTo').innerHTML = '<option value="">宛先を選択</option><option value="all">全員</option>' +
     s.colleagues.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
@@ -1663,7 +1657,7 @@ function drawTasks(list) {
       const wrap = document.createElement('div'); wrap.className = 'trashwrap';
       if (isMy) { // マイタスクの印（右上）
         const my = document.createElement('div'); my.className = 'mytag'; my.title = 'マイタスク（自分から自分への依頼）';
-        my.innerHTML = '<i></i><b>MY</b>'; wrap.classList.add('mine'); wrap.appendChild(my);
+        my.innerHTML = '<b>MY</b>'; wrap.classList.add('mine'); wrap.appendChild(my);
       }
       const cap = document.createElement('small'); cap.textContent = '削除';
       wrap.append(cap, del); row.appendChild(wrap);
@@ -2023,8 +2017,11 @@ function saveLater(kind, action, p) {
 }
 // パソコンのブラウザでは、保存中に閉じようとすると確認が出る
 addEventListener('beforeunload', e => { if (savePending) { e.preventDefault(); e.returnValue = ''; } });
-/* シフト対象外（区分「その他」）の人の夕方のチェック（2026-11-06）：17時〜19時に勤務中の枠の下へ退勤前チェックの項目を出す。
-   チェックした所は端末に覚え、すべてチェックすると記録（api eveCheck）して消える。19時になったら消える */
+/* 夕方のチェック（2026-11-06）：17時から、勤務中の枠の下へ退勤前チェックの項目を出す。
+   ・シフト対象外（区分「その他」）の人：19時まで表示
+   ・シフト対象の人：出勤中なら退勤まで表示（2026-11-06 追加）
+   チェックは端末に覚え、退勤前チェック（#checks）と同じ記録を使うので、どちらでチェックしても連動する。
+   すべてチェックすると記録（api eveCheck）して消える。記録済みなら退勤前チェックも全部チェック済みで出す */
 const EVE_FROM = 17, EVE_TO = 19;
 /** 塔婆の項目の横に「本日設置○件（＝翌日開始分を今日準備）、本日撤去○件」（2026-11-06。塔婆受付表.xlsx から1時間ごとに読んだ件数） */
 function tobaNote(item) {
@@ -2035,34 +2032,49 @@ function tobaNote(item) {
   return s;
 }
 function eveKey() { return 'eve:' + (auth && auth.id) + ':' + ymd(new Date()); }
-function eveGet() { try { return JSON.parse(localStorage.getItem(eveKey()) || '[]'); } catch (e) { return []; } }
+function eveGet() {
+  if (me && me.eveDone) return (me.checklist || []).slice(); // 夕方のチェックを済ませた（別の端末でも）
+  try { return JSON.parse(localStorage.getItem(eveKey()) || '[]'); } catch (e) { return []; }
+}
+function eveAll(got) { return (me.checklist || []).every(c => got.includes(c)); }
 function eveOn() {
+  if (!me || me.eveDone || preOpen || !(me.checklist || []).length || eveAll(eveGet())) return false;
   const h = new Date().getHours();
-  return !!me && !!me.noAttend && !me.eveDone && h >= EVE_FROM && h < EVE_TO && (me.checklist || []).length > 0;
+  if (me.noAttend) return h >= EVE_FROM && h < EVE_TO;
+  return !!me.working && h >= EVE_FROM;
+}
+function eveBoxes(box, onTick) {
+  const got = eveGet();
+  box.innerHTML = '';
+  me.checklist.forEach(c => {
+    const l = document.createElement('label'), x = document.createElement('input');
+    l.className = 'chk'; x.type = 'checkbox'; x.checked = got.includes(c); x.dataset.item = c; x.onchange = () => onTick(c, x.checked);
+    l.append(x, c, tobaNote(c)); box.appendChild(l);
+  });
 }
 function drawEve() {
   const on = eveOn();
   $('eveBox').classList.toggle('hidden', !on);
   if (!on) { $('eveChecks').innerHTML = ''; return; }
-  const got = eveGet(), list = me.checklist;
-  if ($('eveChecks').dataset.list === JSON.stringify(list) && $('eveChecks').children.length) return; // 表示中はそのまま
-  $('eveChecks').dataset.list = JSON.stringify(list);
-  $('eveChecks').innerHTML = '';
-  list.forEach(c => {
-    const l = document.createElement('label'), x = document.createElement('input');
-    l.className = 'chk'; x.type = 'checkbox'; x.checked = got.includes(c); x.onchange = () => eveTick(c, x.checked);
-    l.append(x, c, tobaNote(c)); $('eveChecks').appendChild(l);
-  });
+  $('eveNote').textContent = me.noAttend ? '（すべてチェックすると消えます。19時まで表示）' : '（すべてチェックすると消えます。退勤前チェックと連動）';
+  eveBoxes($('eveChecks'), (c, on) => eveTick(c, on, true));
 }
-async function eveTick(item, on) {
+/** 退勤前チェック（退勤の時に開く方）の項目。夕方のチェックと同じ記録を使う */
+function drawChecks() { eveBoxes($('checks'), (c, on) => eveTick(c, on, false)); }
+async function eveTick(item, on, fromEve) {
+  if (me.eveDone && !on) { // 記録済みの後に外した：端末の記録に戻して続ける（退勤時は外した分が未完了）
+    me.eveDone = false;
+    try { localStorage.setItem(eveKey(), JSON.stringify(me.checklist)); } catch (e) {}
+  }
   const got = eveGet().filter(x => x !== item).concat(on ? [item] : []);
   try { localStorage.setItem(eveKey(), JSON.stringify(got)); } catch (e) {}
-  if (!me.checklist.every(c => got.includes(c))) return;
-  me.eveDone = true; drawEve(); // すべてチェック → 消す（記録は裏で）
+  if (fromEve) drawChecks(); else drawEve(); // もう一方の表示も合わせる
+  if (!fromEve || !eveAll(got)) return;
+  me.eveDone = true; drawEve(); drawChecks(); // すべてチェック → 消す（記録は裏で）
   try { await call('eveCheck', { done: me.checklist }); show('退勤前チェックをすべて済ませました'); }
-  catch (e) { me.eveDone = false; $('eveChecks').innerHTML = ''; drawEve(); }
+  catch (e) { me.eveDone = false; drawEve(); drawChecks(); }
 }
-setInterval(() => { if (me && !document.hidden) drawEve(); }, 60 * 1000); // 17時に出し、19時に消す
+setInterval(() => { if (me && !document.hidden) drawEve(); }, 60 * 1000); // 17時に出す（シフト対象外の人は19時に消す）
 
 async function doneTask(t, cb) {
   // 同じ依頼の他の担当者がいても、完了になるのは自分の分だけ（2026-11-06 一人ずつ完了）
@@ -2543,7 +2555,9 @@ async function clockOut() {
   const hoText = $('hoText').value.trim();
   if ((hoText || hoImages.length) && !$('hoTo').value) { alert('引き継ぎの宛先を選んでください'); return; }
   const handover = hoText || hoImages.length ? { to: $('hoTo').value, text: hoText, images: hoImages } : null;
-  const done = [...document.querySelectorAll('#checks input:checked')].map(x => me.checklist[x.value]);
+  const done = [...document.querySelectorAll('#checks input:checked')].map(x => x.dataset.item);
+  // 退勤のカメラは、チェックがすべて済んでから（夕方のチェック・退勤前チェックのどちらで済ませても可）。未完了は理由のメモが必要
+  if (!eveAll(done) && !$('memo').value.trim()) { alert('退勤前チェックがすべて済んでいません。\nすべてチェックするか、未完了の理由をメモに記入してください。'); return; }
   let qr;
   try { qr = await scanQr('退勤：QRコードを写してください'); } catch (e) { show(e.message, true); return; }
   if (!qr) return;

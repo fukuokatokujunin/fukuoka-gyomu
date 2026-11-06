@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261106101127">
+<meta name="build" content="20261106112837">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -1777,9 +1777,10 @@ function pushState() {
   if (!PUSH_OK) return IS_IOS && !STANDALONE && !inGas ? 'ios-home' : 'none';
   if (Notification.permission === 'denied') return 'denied';
   if (Notification.permission !== 'granted') return 'off';
-  return pushOn ? 'on' : 'off';
+  return pushOn ? 'on' : pushFail ? 'off' : 'wait'; // 許可済みは登録の確認中も案内を出さない（2026-11-06 毎日一瞬出ていた）
 }
-let pushOn = false;
+let pushOn = false, pushFail = false;
+const PUSH_LATER_DAYS = 7; // 「あとで」で案内を出さない日数（2026-11-06 毎日出ないように）
 const PUSH_TEST_END = '2026-11-08'; // メニューの「通知のテスト」はこの日から出さない（導入期間だけ。2026-11-04 ユーザー指定）
 function drawPush() {
   const st = pushState();
@@ -1792,13 +1793,13 @@ function drawPush() {
       : 'アドレスバーの左のマーク（鍵など）を押して「通知」を「許可」にし、画面を読み込み直してください。Macは「システム設定」→「通知」でブラウザ（Chromeなど）の通知も許可してください。'],
     'ios-home': ['🔔 通知を受け取るには', 'iPhoneでは、ホーム画面に追加したアプリから開くと通知をオンにできます（Safariの共有ボタン →「ホーム画面に追加」）。'],
   }[st];
-  const hide = !me || !msg || (st !== 'denied' && later === ymd(new Date()));
+  const hide = !me || !msg || later > ymd(new Date()); // later＝この日まで出さない
   $('pushBox').classList.toggle('hidden', hide);
   if (hide) return;
   $('pushTitle').textContent = msg[0]; $('pushText').textContent = msg[1];
   $('pushBtns').querySelector('button').classList.toggle('hidden', st !== 'off');
 }
-function pushLater() { try { localStorage.setItem('pushLater', ymd(new Date())); } catch (e) {} drawPush(); } // 今日は出さない
+function pushLater() { try { localStorage.setItem('pushLater', ymd(new Date(Date.now() + PUSH_LATER_DAYS * 864e5))); } catch (e) {} drawPush(); } // しばらく出さない
 const b64uBytes = s => { s = s.replace(/-/g, '+').replace(/_/g, '/'); const b = atob(s + '==='.slice((s.length + 3) % 4)); return Uint8Array.from(b, c => c.charCodeAt(0)); };
 const bytesB64u = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 /** この端末の受け口を作り（鍵が変わっていれば作り直す）、サーバーに覚えさせる。force でなければ1日1回だけ送る */
@@ -1819,7 +1820,7 @@ async function pushSubscribe(force) {
 function pushSync() {
   drawPush();
   if (!PUSH_OK || !me || !me.pushKey || Notification.permission !== 'granted') return;
-  pushSubscribe(false).then(drawPush).catch(() => {});
+  pushSubscribe(false).then(drawPush).catch(() => { pushFail = true; drawPush(); });
 }
 async function enablePush() {
   try {
@@ -1829,7 +1830,7 @@ async function enablePush() {
     await pushSubscribe(true);
     await rawCall('pushTest', auth);
     show('この端末で通知を受け取るようにしました（テストの通知を送りました）');
-  } catch (e) { show('通知をオンにできませんでした：' + e.message, true); }
+  } catch (e) { pushFail = true; show('通知をオンにできませんでした：' + e.message, true); }
   finally { busy(false); drawPush(); }
 }
 async function testPushMe() {
@@ -1839,7 +1840,7 @@ async function testPushMe() {
     const r = await call('pushTest');
     show(r.sent ? `テストの通知を送りました（${r.sent}台）。` + (IS_PC ? '押した時の「ピンポン」が聞こえなければ、Macの音量・出力先を確かめてください。通知が出た時にもう一度鳴ります' : '届かない時は端末の通知の設定を確かめてください')
       : '通知を送れる端末がありません。「通知をオンにする」をやり直してください');
-    if (!r.sent) { pushOn = false; try { localStorage.removeItem('pushSent'); } catch (e) {} drawPush(); }
+    if (!r.sent) { pushOn = false; pushFail = true; try { localStorage.removeItem('pushSent'); } catch (e) {} drawPush(); }
   } finally { busy(false); }
 }
 /** ログアウトの時：この端末は前の人あての通知を受けない */

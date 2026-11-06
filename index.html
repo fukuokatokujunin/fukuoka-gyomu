@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261106151502">
+<meta name="build" content="20261106152148">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -491,6 +491,10 @@
         <button id="btnIn" class="in" onclick="clockInOrMissed()">出勤</button>
         <button id="btnPre" class="out hidden" onclick="openPre(true)">退勤前チェック</button>
         <div class="pcwarn hidden" id="pcWarn">⚠ 出勤の打刻をしてください（スマホのアプリから）</div>
+      </div>
+      <div class="card hidden" id="eveBox"><!-- シフト対象外の人の夕方のチェック（2026-11-06。17時〜19時） -->
+        <strong>退勤前チェック</strong> <span class="sub">（すべてチェックすると消えます。19時まで表示）</span>
+        <div id="eveChecks"></div>
       </div>
 
       <details class="card addbox hidden" id="addBox">
@@ -1071,6 +1075,7 @@ function render(s) {
     l.innerHTML = `<input type="checkbox" value="${i}">`; l.append(c);
     $('checks').appendChild(l);
   });
+  drawEve();
   $('hoTo').innerHTML = '<option value="">宛先を選択</option><option value="all">全員</option>' +
     s.colleagues.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
   $('hoText').value = '';
@@ -1969,6 +1974,39 @@ function saveLater(kind, action, p) {
 }
 // パソコンのブラウザでは、保存中に閉じようとすると確認が出る
 addEventListener('beforeunload', e => { if (savePending) { e.preventDefault(); e.returnValue = ''; } });
+/* シフト対象外（区分「その他」）の人の夕方のチェック（2026-11-06）：17時〜19時に勤務中の枠の下へ退勤前チェックの項目を出す。
+   チェックした所は端末に覚え、すべてチェックすると記録（api eveCheck）して消える。19時になったら消える */
+const EVE_FROM = 17, EVE_TO = 19;
+function eveKey() { return 'eve:' + (auth && auth.id) + ':' + ymd(new Date()); }
+function eveGet() { try { return JSON.parse(localStorage.getItem(eveKey()) || '[]'); } catch (e) { return []; } }
+function eveOn() {
+  const h = new Date().getHours();
+  return !!me && !!me.noAttend && !me.eveDone && h >= EVE_FROM && h < EVE_TO && (me.checklist || []).length > 0;
+}
+function drawEve() {
+  const on = eveOn();
+  $('eveBox').classList.toggle('hidden', !on);
+  if (!on) { $('eveChecks').innerHTML = ''; return; }
+  const got = eveGet(), list = me.checklist;
+  if ($('eveChecks').dataset.list === JSON.stringify(list) && $('eveChecks').children.length) return; // 表示中はそのまま
+  $('eveChecks').dataset.list = JSON.stringify(list);
+  $('eveChecks').innerHTML = '';
+  list.forEach(c => {
+    const l = document.createElement('label'), x = document.createElement('input');
+    l.className = 'chk'; x.type = 'checkbox'; x.checked = got.includes(c); x.onchange = () => eveTick(c, x.checked);
+    l.append(x, c); $('eveChecks').appendChild(l);
+  });
+}
+async function eveTick(item, on) {
+  const got = eveGet().filter(x => x !== item).concat(on ? [item] : []);
+  try { localStorage.setItem(eveKey(), JSON.stringify(got)); } catch (e) {}
+  if (!me.checklist.every(c => got.includes(c))) return;
+  me.eveDone = true; drawEve(); // すべてチェック → 消す（記録は裏で）
+  try { await call('eveCheck', { done: me.checklist }); show('退勤前チェックをすべて済ませました'); }
+  catch (e) { me.eveDone = false; $('eveChecks').innerHTML = ''; drawEve(); }
+}
+setInterval(() => { if (me && !document.hidden) drawEve(); }, 60 * 1000); // 17時に出し、19時に消す
+
 async function doneTask(t, cb) {
   // 同じ依頼の他の担当者がいても、完了になるのは自分の分だけ（2026-11-06 一人ずつ完了）
   const mates = (t.mates || []).length ? `\n（完了になるのはあなたの分だけです。同じ依頼の ${nbs(t.mates)} の分は残ります）` : '';

@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261106152148">
+<meta name="build" content="20261106153626">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -145,6 +145,7 @@
   .whos label { display:flex; align-items:center; gap:4px; white-space:nowrap; font-size:15px; }
   .whos input { width:20px; height:20px; margin:0; }
   .mates { margin-left:6px; }
+  .chk .toba { color:var(--ng); font-weight:bold; margin-left:4px; }
   .due { display:inline-block; margin-left:6px; padding:1px 6px; border-radius:6px; background:#f3f4f6; font-size:12px; font-weight:700; }
   .due.soon { background:#fef3c7; color:var(--warn); } .due.over { background:#fee2e2; color:var(--ng); }
   /* 寺内全体スケジュール：PCは打刻画面の左、スマホは一番下 */
@@ -1072,7 +1073,7 @@ function render(s) {
   $('checks').innerHTML = '';
   s.checklist.forEach((c, i) => {
     const l = document.createElement('label'); l.className = 'chk';
-    l.innerHTML = `<input type="checkbox" value="${i}">`; l.append(c);
+    l.innerHTML = `<input type="checkbox" value="${i}">`; l.append(c, tobaNote(c));
     $('checks').appendChild(l);
   });
   drawEve();
@@ -1977,6 +1978,14 @@ addEventListener('beforeunload', e => { if (savePending) { e.preventDefault(); e
 /* シフト対象外（区分「その他」）の人の夕方のチェック（2026-11-06）：17時〜19時に勤務中の枠の下へ退勤前チェックの項目を出す。
    チェックした所は端末に覚え、すべてチェックすると記録（api eveCheck）して消える。19時になったら消える */
 const EVE_FROM = 17, EVE_TO = 19;
+/** 塔婆の項目の横に「本日設置○件（＝翌日開始分を今日準備）、本日撤去○件」（2026-11-06。塔婆受付表.xlsx から1時間ごとに読んだ件数） */
+function tobaNote(item) {
+  const t = me && me.toba;
+  const s = document.createElement('span');
+  if (!t || item !== t.item) return s;
+  s.className = 'toba'; s.textContent = `（本日設置（翌日開始） ${t.set}件、本日撤去 ${t.remove}件）`; // 設置は翌日開始分を前日の退勤時に準備する
+  return s;
+}
 function eveKey() { return 'eve:' + (auth && auth.id) + ':' + ymd(new Date()); }
 function eveGet() { try { return JSON.parse(localStorage.getItem(eveKey()) || '[]'); } catch (e) { return []; } }
 function eveOn() {
@@ -1994,7 +2003,7 @@ function drawEve() {
   list.forEach(c => {
     const l = document.createElement('label'), x = document.createElement('input');
     l.className = 'chk'; x.type = 'checkbox'; x.checked = got.includes(c); x.onchange = () => eveTick(c, x.checked);
-    l.append(x, c); $('eveChecks').appendChild(l);
+    l.append(x, c, tobaNote(c)); $('eveChecks').appendChild(l);
   });
 }
 async function eveTick(item, on) {

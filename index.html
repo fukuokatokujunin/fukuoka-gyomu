@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261106174125">
+<meta name="build" content="20261106175324">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -993,9 +993,11 @@ function show(t, err) {
 }
 function busy(on) {
   document.querySelectorAll('button,select').forEach(b => b.disabled = on);
-  spinBtn(on && Date.now() - lastTapAt < 2000 ? lastTap : null); // 押したボタンの中で輪を回す
+  const b = on && Date.now() - lastTapAt < 2000 ? lastTap : null;
+  spinBtn(b); // 押したボタンの中で輪を回す
   clearTimeout(busyTimer); document.body.classList.remove('busy');
-  if (on) busyTimer = setTimeout(() => document.body.classList.add('busy'), 300); // 少しかかる時は画面中央にも「反映中…」
+  // 画面中央にも「反映中…」。押したボタンが見えない（窓を閉じて送る「登録」など）時はすぐ、見えている時は少しかかったら出す
+  if (on) busyTimer = setTimeout(() => document.body.classList.add('busy'), b && b.offsetWidth ? 300 : 0);
   if (!on) lockStamp();
 }
 // 反映中のグルグル（2026-11-06）：最後に押したボタンを覚えておき、busy の間その中で輪を回す

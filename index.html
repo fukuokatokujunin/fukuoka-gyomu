@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261106173050">
+<meta name="build" content="20261106173331">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -503,6 +503,7 @@
       <div class="card hidden" id="eveBox"><!-- 夕方のチェック（2026-11-06。17時から。シフト対象外の人は19時まで、シフト対象の人は出勤中なら退勤まで） -->
         <strong>退勤前チェック</strong> <span class="sub" id="eveNote"></span>
         <div id="eveChecks"></div>
+        <button class="hidden" id="eveSaveBtn" onclick="eveSave()">チェックした項目をスマホに反映</button><!-- PCだけ（2026-11-06） -->
       </div>
 
       <details class="card addbox hidden" id="addBox">
@@ -899,6 +900,10 @@ function openPre(on) {
   if (on) $('outBox').scrollIntoView({ behavior: 'smooth' });
   if (on) showDue();
   drawEve(); // 退勤前チェックを開いている間は夕方のチェックを隠す（同じ項目なので）
+  if (on) rawCall('eveState', auth).then(r => { // PCで反映した分を読み直す（2026-11-06）
+    if (r.eveDone) me.eveDone = true;
+    eveMerge(r.eveSaved); drawChecks();
+  }).catch(() => {});
 }
 
 /* 退勤前：今日までが期日で、済み・延長していない個別業務／寺内スケジュールを知らせる */
@@ -1082,6 +1087,7 @@ function render(s) {
   $('btnPre').classList.toggle('hidden', !s.working || preOpen || IS_PC);
   $('pcWarn').classList.toggle('hidden', !IS_PC || s.noAttend || s.working || !!s.lastTime);
   $('outBox').classList.toggle('hidden', !s.working || !preOpen || IS_PC);
+  eveMerge(s.eveSaved);
   drawChecks();
   drawEve();
   $('hoTo').innerHTML = '<option value="">宛先を選択</option><option value="all">全員</option>' +
@@ -2032,6 +2038,18 @@ function tobaNote(item) {
   return s;
 }
 function eveKey() { return 'eve:' + (auth && auth.id) + ':' + ymd(new Date()); }
+/** 端末でチェックを変えた時刻（PCから反映した分と、どちらが新しいか比べる） */
+function eveAtKey() { return eveKey() + ':at'; }
+function eveSetLocal(items, at) {
+  try { localStorage.setItem(eveKey(), JSON.stringify(items)); localStorage.setItem(eveAtKey(), String(at || Date.now())); } catch (e) {}
+}
+/** サーバーに保存したチェック（PCの「スマホに反映」）が端末の記録より新しければ、そちらにする */
+function eveMerge(saved) {
+  if (!saved || !saved.at) return;
+  let at = 0;
+  try { at = Number(localStorage.getItem(eveAtKey()) || 0); } catch (e) {}
+  if (saved.at > at) eveSetLocal(saved.items || [], saved.at);
+}
 function eveGet() {
   if (me && me.eveDone) return (me.checklist || []).slice(); // 夕方のチェックを済ませた（別の端末でも）
   try { return JSON.parse(localStorage.getItem(eveKey()) || '[]'); } catch (e) { return []; }
@@ -2057,6 +2075,7 @@ function drawEve() {
   $('eveBox').classList.toggle('hidden', !on);
   if (!on) { $('eveChecks').innerHTML = ''; return; }
   $('eveNote').textContent = me.noAttend ? '（すべてチェックすると消えます。19時まで表示）' : '（すべてチェックすると消えます。退勤前チェックと連動）';
+  $('eveSaveBtn').classList.toggle('hidden', !IS_PC);
   eveBoxes($('eveChecks'), (c, on) => eveTick(c, on, true));
 }
 /** 退勤前チェック（退勤の時に開く方）の項目。夕方のチェックと同じ記録を使う */
@@ -2064,15 +2083,27 @@ function drawChecks() { eveBoxes($('checks'), (c, on) => eveTick(c, on, false));
 async function eveTick(item, on, fromEve) {
   if (me.eveDone && !on) { // 記録済みの後に外した：端末の記録に戻して続ける（退勤時は外した分が未完了）
     me.eveDone = false;
-    try { localStorage.setItem(eveKey(), JSON.stringify(me.checklist)); } catch (e) {}
+    eveSetLocal(me.checklist);
   }
   const got = eveGet().filter(x => x !== item).concat(on ? [item] : []);
-  try { localStorage.setItem(eveKey(), JSON.stringify(got)); } catch (e) {}
+  eveSetLocal(got);
   if (fromEve) drawChecks(); else drawEve(); // もう一方の表示も合わせる
   if (!fromEve || !eveAll(got)) return;
   me.eveDone = true; drawEve(); drawChecks(); // すべてチェック → 消す（記録は裏で）
   try { await call('eveCheck', { done: me.checklist }); show('退勤前チェックをすべて済ませました'); }
   catch (e) { me.eveDone = false; drawEve(); drawChecks(); }
+}
+/** PC：途中までチェックした項目をスマホに反映（2026-11-06。すべてでなくてもよい） */
+async function eveSave() {
+  const got = eveGet().filter(c => me.checklist.includes(c));
+  const btn = $('eveSaveBtn'); btn.disabled = true;
+  try {
+    const r = await call('eveSave', { done: got });
+    eveSetLocal(r.eveSaved.items, r.eveSaved.at);
+    if (r.eveDone) me.eveDone = true;
+    drawEve(); drawChecks();
+    show(r.eveDone ? '退勤前チェックをすべて済ませました' : `チェックした ${got.length}件 をスマホに反映しました`);
+  } finally { btn.disabled = false; }
 }
 setInterval(() => { if (me && !document.hidden) drawEve(); }, 60 * 1000); // 17時に出す（シフト対象外の人は19時に消す）
 

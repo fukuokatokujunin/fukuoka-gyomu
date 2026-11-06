@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261106154111">
+<meta name="build" content="20261106160114">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -344,6 +344,15 @@
   #tasks .titem > div > .sub > * { margin:2px 6px 2px 0; } /* 余白は右側に（左側だと折り返した段の先頭がずれる） */
   #tasks .titem > div > .sub > .rule { margin:4px 0 0; }
   #tasks .titem.alert { padding-left:5px; } /* 赤い線（3px）の分だけ詰めて、□と本文の位置をほかの行とそろえる */
+  /* マイタスク（2026-11-06）：自分から自分だけに依頼した個別業務。行の右上（削除の列の上端）に印。
+     チャコールの角に金の細線（内枠と人の形）。どの行も同じ形 */
+  #tasks .trashwrap.mine { align-self:stretch; }
+  #tasks .trashwrap.mine .mytag { margin-bottom:auto; }
+  .mytag { display:flex; flex-direction:column; align-items:center; gap:3px; }
+  .mytag i { display:block; width:24px; height:24px; background:#222629 no-repeat center / 14px
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23c9b88f' stroke-width='1.6' stroke-linecap='round'%3E%3Ccircle cx='12' cy='8.5' r='3.6'/%3E%3Cpath d='M5 20.5c1.3-3.8 3.9-5.8 7-5.8s5.7 2 7 5.8'/%3E%3C/svg%3E");
+    outline:1px solid #c9b88f; outline-offset:-3px; }
+  .mytag b { font-size:8px; font-weight:500; letter-spacing:.2em; margin-right:-.2em; color:#8a7b5c; line-height:1; font-family:"Noto Sans JP",sans-serif; }
   .tl { margin:10px 0 6px; padding-left:14px; max-height:45vh; overflow-y:auto; }
   .tl .ne { position:relative; border-left:2px solid #c9b88f; padding:0 0 12px 14px; } .tl .ne:last-child { padding-bottom:2px; }
   .tl .ne::before { content:''; position:absolute; left:-7px; top:4px; width:12px; height:12px; border-radius:50%; background:#222629; box-shadow:0 0 0 2px #fff; }
@@ -1650,6 +1659,11 @@ function drawTasks(list) {
       const del = document.createElement('button'); del.className = 'ghost trash'; del.title = t.repeat ? '繰り返しをやめる' : '削除';
       del.onclick = ev => { ev.preventDefault(); removeTask(t); };
       const wrap = document.createElement('div'); wrap.className = 'trashwrap';
+      // マイタスク（2026-11-06）：自分から自分だけへの依頼（登録者が自分で、複数あての依頼でない）は右上に印
+      if (t.from && t.from === me.name && !t.multi && !(t.mates || []).length) {
+        const my = document.createElement('div'); my.className = 'mytag'; my.title = 'マイタスク（自分から自分への依頼）';
+        my.innerHTML = '<i></i><b>MY</b>'; wrap.classList.add('mine'); wrap.appendChild(my);
+      }
       const cap = document.createElement('small'); cap.textContent = '削除';
       wrap.append(cap, del); row.appendChild(wrap);
     }

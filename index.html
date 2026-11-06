@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261106093440">
+<meta name="build" content="20261106101127">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -326,6 +326,7 @@
   #imgBox img { max-width:100%; max-height:88vh; display:block; margin:auto; background:#fff; }
   #alarmBox .modal { border-top:4px solid var(--warn); }
   .later { display:inline-block; margin-left:6px; font-size:11px; color:var(--sub); }
+  a.lnk { color:#1d4ed8; text-decoration:underline; word-break:break-all; cursor:pointer; } /* 本文のURL（2026-11-06） */
   .pwlink { display:block; text-align:center; margin-top:14px; font-size:13px; color:var(--sub); text-decoration:underline; cursor:pointer; }
   .pwrow { display:flex; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid var(--line); } .pwrow button { width:auto; margin:0; padding:6px 14px; font-size:13px; }
   #mailErr { color:var(--ng); } #mailErr:empty { display:none; }
@@ -652,6 +653,8 @@
           <div class="tl" id="ntList"></div>
           <div id="ntForm">
             <textarea id="ntInput" rows="3" maxlength="500" placeholder="進み具合を書き足す（例：見積を依頼しました。11/10に届く予定）"></textarea>
+            <label class="attach"><input type="file" id="ntFile" accept="image/*" multiple onchange="addNtImages(this)">写真を添付 <small>3枚まで</small></label>
+            <div class="thumbs" id="ntThumbs"></div>
             <button onclick="addNote()">書き足す</button>
           </div>
           <p class="sub" id="ntNotYet" style="margin:6px 0 0">書き足せるのは着手している人だけです（「未着手」から着手してください）</p>
@@ -900,7 +903,7 @@ function showDue() {
     const div = document.createElement('div'); div.className = 'newitem';
     const [, m, d] = x.date.split('-').map(Number);
     const meta = document.createElement('div'); meta.className = 'sub'; meta.textContent = `${x.kind}　期日 ${m}/${d}` + (x.date < today ? '（過ぎています）' : '（今日）');
-    const txt = document.createElement('div'); txt.className = 't'; txt.textContent = x.text;
+    const txt = document.createElement('div'); txt.className = 't'; txt.append(linked(x.text));
     const b = document.createElement('button'); b.textContent = 'この項目へ移動';
     b.onclick = () => { $('dueBox').classList.add('hidden'); jumpTo(x.sel); };
     div.append(meta, txt, b); $('dueList').appendChild(div);
@@ -1040,7 +1043,7 @@ function render(s) {
     const row = document.createElement('div'); row.className = 'hitem';
     const body = document.createElement('div'); body.style.flex = '1';
     const meta = document.createElement('div'); meta.className = 'sub'; meta.append(pn(`${h.from}より`), `（${h.date}）`);
-    const txt = document.createElement('div'); txt.className = 't'; txt.textContent = h.text;
+    const txt = document.createElement('div'); txt.className = 't'; txt.append(linked(h.text));
     const pics = thumbs(h.images);
     const opts = document.createElement('div'); opts.className = 'opts';
     const l1 = document.createElement('label'), c1 = document.createElement('input');
@@ -1162,7 +1165,7 @@ function drawRequested(list) {
   $('reqd').innerHTML = list.length ? '' : '<p class="sub">他の人に頼んだ個別業務はありません</p>';
   list.forEach(g => {
     const d = document.createElement('div'); d.className = 'rqd' + (g.open ? '' : ' closed');
-    const t = document.createElement('div'); t.className = 't' + (g.repeat ? ' rep' : ''); t.textContent = g.text;
+    const t = document.createElement('div'); t.className = 't' + (g.repeat ? ' rep' : ''); t.append(linked(g.text));
     const done = g.people.filter(p => p.state === '完了').length;
     const sub = document.createElement('div'); sub.className = 'sub';
     sub.textContent = [g.due ? '期日 ' + g.due.slice(5).replace('-', '/').replace(/^0/, '').replace('/0', '/') : '期日なし', g.at + ' 依頼', g.ruleLabel,
@@ -1207,7 +1210,7 @@ function drawRemoved(kind, list) {
     const body = document.createElement('div'); body.style.flex = '1';
     const t = document.createElement('div'); t.className = 't' + (a.repeat ? ' rep' : '');
     if (a.kind) { const k = document.createElement('span'); k.className = 'kind'; k.textContent = a.kind; t.appendChild(k); }
-    t.append(a.text);
+    t.append(linked(a.text));
     const m = document.createElement('div'); m.className = 'sub';
     m.textContent = `${a.at} ${kind === 'annual' ? '以降不要' : '削除'}`;
     if (a.by) m.appendChild(pn(`（${a.by}）`));
@@ -1243,7 +1246,7 @@ function drawDone(kind, list) {
       finally { busy(false); }
     };
     const body = document.createElement('div'); body.style.flex = '1';
-    const t = document.createElement('div'); t.className = 't' + (a.repeat ? ' rep' : ''); t.textContent = a.text;
+    const t = document.createElement('div'); t.className = 't' + (a.repeat ? ' rep' : ''); t.append(linked(a.text));
     const m = document.createElement('div'); m.className = 'sub';
     m.textContent = `${a.doneAt} 完了`;
     if (a.by) m.appendChild(pn(`（${a.by}）`));
@@ -1273,7 +1276,7 @@ function drawAnnual(list) {
     const body = document.createElement('div'); body.style.flex = '1';
     const txt = document.createElement('div'); txt.className = 't';
     const k = document.createElement('span'); k.className = 'kind'; k.textContent = a.kind;
-    txt.append(k, (a.early ? '★ ' : '') + a.text);
+    txt.append(k, a.early ? '★ ' : '', linked(a.text));
     const [, m, d] = a.date.split('-').map(Number);
     const b = document.createElement('span');
     b.className = 'due' + (a.left <= 0 ? ' over' : a.left <= 7 ? ' soon' : ''); // 期日が来たら赤
@@ -1468,7 +1471,7 @@ async function saveEdit() {
 
 /* 進捗（Ver1.2。旧称 備考）：着手した人が進み具合を時系列で書き足す。全員が見られる。自分の書き込みは消せる */
 let ntCur = null;
-function openNotes(a) { ntCur = a.id; $('ntInput').value = ''; drawNotes(); $('ntBox').classList.remove('hidden'); }
+function openNotes(a) { ntCur = a.id; $('ntInput').value = ''; ntImages = []; drawNtImages(); drawNotes(); $('ntBox').classList.remove('hidden'); }
 function closeNotes() { ntCur = null; $('ntBox').classList.add('hidden'); }
 function drawNotes() {
   const a = me.annual.find(x => !x.event && x.id === ntCur);
@@ -1483,8 +1486,8 @@ function drawNotes() {
       const x = document.createElement('span'); x.className = 'del'; x.textContent = '消す';
       x.onclick = () => delNote(n.id); w.appendChild(x);
     }
-    const t = document.createElement('div'); t.className = 'tx'; t.textContent = n.text;
-    d.append(w, t); $('ntList').appendChild(d);
+    const t = document.createElement('div'); t.className = 'tx'; t.append(linked(n.text));
+    d.append(w, t, thumbs(n.images)); $('ntList').appendChild(d); // 添付の写真（2026-11-06）
   });
   const mine = myStart(a);
   $('ntForm').classList.toggle('hidden', !mine);
@@ -1494,10 +1497,13 @@ function drawNotes() {
 async function addNote() {
   const a = me.annual.find(x => !x.event && x.id === ntCur), text = $('ntInput').value.trim();
   if (!a) return;
-  if (!text) { alert('進捗を入れてください'); return; }
+  if (!text && !ntImages.length) { alert('進捗を入れてください'); return; }
   busy(true);
-  try { await saveQueue; drawAnnual(await call('addAnnualNote', { id: a.id, key: a.key || a.date, text })); $('ntInput').value = ''; show('進捗を書き足しました'); }
-  finally { busy(false); }
+  try {
+    await saveQueue;
+    drawAnnual(await call('addAnnualNote', { id: a.id, key: a.key || a.date, text, images: ntImages }));
+    $('ntInput').value = ''; ntImages = []; drawNtImages(); show('進捗を書き足しました');
+  } finally { busy(false); }
 }
 async function delNote(noteId) {
   if (!await ask('この書き込みを消しますか？')) return;
@@ -1540,6 +1546,23 @@ async function doneAnnual(a, cb) {
 }
 
 /* 完了の□：□のまわりを少し広げて押しやすくする（反応するのは□だけで、内容の文字は反応しない） */
+/* 本文の URL（http:// https://）を押せるリンクにする（2026-11-06）。別のタブで開き、行の操作（□など）には反応させない */
+const URL_RE = /https?:\/\/[A-Za-z0-9\-._~:\/?#\[\]@!$&'*+,;=%]+/g;
+function linked(text) {
+  const f = document.createDocumentFragment(), s = String(text ?? '');
+  let last = 0;
+  s.replace(URL_RE, (m, at) => {
+    const url = m.replace(/[.,;:!?'\]]+$/, ''); // 文末の句読点はURLに含めない
+    if (at > last) f.append(s.slice(last, at));
+    const a = document.createElement('a'); a.className = 'lnk'; a.href = url; a.textContent = url;
+    a.target = '_blank'; a.rel = 'noopener noreferrer';
+    a.onclick = ev => ev.stopPropagation();
+    f.append(a); last = at + url.length;
+    return m;
+  });
+  if (last < s.length) f.append(s.slice(last));
+  return f;
+}
 function cbBox(cb) { const l = document.createElement('label'); l.className = 'cbw'; l.appendChild(cb); return l; }
 
 /* ---- タスク ---- */
@@ -1558,7 +1581,7 @@ function drawTasks(list) {
     cb.onchange = () => { if (cb.checked) doneTask(t, cb); };
     if (t.due && t.due <= today) row.classList.add('alert'); // 期日が来たら赤
     const body = document.createElement('div'); body.style.flex = '1';
-    const txt = document.createElement('div'); txt.className = 't' + (t.repeat ? ' rep' : ''); txt.textContent = t.text;
+    const txt = document.createElement('div'); txt.className = 't' + (t.repeat ? ' rep' : ''); txt.append(linked(t.text));
     const meta = document.createElement('div'); meta.className = 'sub';
     if (t.from === '寺内スケジュール') meta.textContent = '寺内スケジュールから';
     else if (t.from) meta.appendChild(pn(`${t.from}より`));
@@ -1604,7 +1627,7 @@ function drawInfos(list) {
   $('infos').innerHTML = '';
   list.forEach(x => {
     const n = document.createElement('div'); n.className = 'notice';
-    const t = document.createElement('span'); t.className = 'info'; t.textContent = x.text; t.style.whiteSpace = 'pre-wrap';
+    const t = document.createElement('span'); t.className = 'info'; t.append(linked(x.text)); t.style.whiteSpace = 'pre-wrap';
     n.appendChild(t); $('infos').appendChild(n);
   });
   if (!$('infoAdmin')) return;
@@ -1686,7 +1709,7 @@ function openNew() {
   $('newList').innerHTML = '';
   (me.tasks || []).filter(t => t.isNew).forEach(t => {
     const div = document.createElement('div'); div.className = 'newitem';
-    const txt = document.createElement('div'); txt.className = 't' + (t.repeat ? ' rep' : ''); txt.textContent = t.text;
+    const txt = document.createElement('div'); txt.className = 't' + (t.repeat ? ' rep' : ''); txt.append(linked(t.text));
     const meta = document.createElement('div'); meta.className = 'sub';
     const [, m, d] = (t.due || '--').split('-').map(Number);
     meta.textContent = (t.from ? `${nb(t.from)}より` : '') + (t.due ? `　期日 ${m}/${d}` : '　期日なし');
@@ -2235,6 +2258,26 @@ function shrinkImage(file, max = 1600, q = 0.8) {
   });
 }
 let hoImages = [];
+/* 進捗の写真（2026-11-06）：申し送りと同じく3枚まで。縮めてから送る */
+let ntImages = [];
+async function addNtImages(input) {
+  const files = [...input.files]; input.value = '';
+  if (ntImages.length + files.length > 3) alert('写真は3枚までです（先の3枚だけ付けました）');
+  for (const f of files.slice(0, 3 - ntImages.length)) {
+    try { ntImages.push(await shrinkImage(f)); } catch (e) { alert(e.message); }
+  }
+  drawNtImages();
+}
+function drawNtImages() {
+  $('ntThumbs').innerHTML = '';
+  ntImages.forEach((u, i) => {
+    const d = document.createElement('div'); d.className = 'th'; d.style.backgroundImage = `url("${u}")`;
+    d.onclick = () => { $('imgBig').src = u; $('imgBox').classList.remove('hidden'); };
+    const x = document.createElement('button'); x.textContent = '×'; x.title = '外す';
+    x.onclick = ev => { ev.stopPropagation(); ntImages.splice(i, 1); drawNtImages(); };
+    d.appendChild(x); $('ntThumbs').appendChild(d);
+  });
+}
 async function addHoImages(input) {
   const files = [...input.files]; input.value = '';
   if (hoImages.length + files.length > 3) show('画像は3枚までです（先の3枚だけ付けました）', true);

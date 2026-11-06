@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261106170126">
+<meta name="build" content="20261106171421">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -2023,12 +2023,12 @@ addEventListener('beforeunload', e => { if (savePending) { e.preventDefault(); e
    チェックは端末に覚え、退勤前チェック（#checks）と同じ記録を使うので、どちらでチェックしても連動する。
    すべてチェックすると記録（api eveCheck）して消える。記録済みなら退勤前チェックも全部チェック済みで出す */
 const EVE_FROM = 17, EVE_TO = 19;
-/** 塔婆の項目の横に「本日設置○件（＝翌日開始分を今日準備）、本日撤去○件」（2026-11-06。塔婆受付表.xlsx から1時間ごとに読んだ件数） */
+/** 塔婆の項目の横に「翌日開始○件（＝今日の退勤時に準備する分）、本日撤去○件」（2026-11-06。塔婆受付表.xlsx から1時間ごとに読んだ件数） */
 function tobaNote(item) {
   const t = me && me.toba;
   const s = document.createElement('span');
   if (!t || item !== t.item) return s;
-  s.className = 'toba'; s.textContent = `（本日設置（翌日開始） ${t.set}件、本日撤去 ${t.remove}件）`; // 設置は翌日開始分を前日の退勤時に準備する
+  s.className = 'toba'; s.textContent = `（翌日開始 ${t.set}件、本日撤去 ${t.remove}件）`; // 設置は翌日開始分を前日の退勤時に準備する
   return s;
 }
 function eveKey() { return 'eve:' + (auth && auth.id) + ':' + ymd(new Date()); }

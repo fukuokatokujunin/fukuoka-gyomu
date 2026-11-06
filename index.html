@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261106112837">
+<meta name="build" content="20261106145040">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -357,7 +357,7 @@
   .rqd .t { font-size:15px; } .rqd .sub { font-size:12px; margin-top:2px; }
   .rqd .who { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
   .rqd .who span { font-size:12px; padding:2px 8px; border:1px solid var(--line); background:#fff; letter-spacing:.05em; }
-  .rqd .who span.s-未確認 { border-color:var(--ng); color:var(--ng); } .rqd .who span.s-完了 { border-color:var(--ok); color:var(--ok); }
+  .rqd .who span.s-未確認 { border-color:var(--ng); color:var(--ng); } .rqd .who span.s-完了, .rqd .who span.s-今回分完了 { border-color:var(--ok); color:var(--ok); }
   button.prog { width:auto; margin:0 0 0 6px; padding:2px 10px; background:var(--ok); color:#fff; font-size:11px; letter-spacing:.15em; font-weight:500; }
   #askBox { z-index:12; }
   button.in.missed { background:var(--warn); letter-spacing:.15em; } /* 出勤打刻漏れ */
@@ -509,9 +509,9 @@
           <div class="whos" id="rqWho"></div>
           <label for="rqDue" class="tklabel">📅 期日 <small class="sub">（なくても可）</small></label>
           <input type="date" id="rqDue" class="tkdate">
-          <label for="rqRep" class="tklabel"><span class="rep"></span>繰り返し</label>
+          <label for="rqRep" class="tklabel"><span class="rep"></span>繰り返し <small class="sub" id="rqRepNote"></small></label>
           <select id="rqRep" class="tkdate" onchange="$('rqDaysWrap').classList.toggle('hidden', this.value !== 'W')">
-            <option value="none">繰り返さない</option><option value="D">毎日</option><option value="WD">平日（月〜金）</option>
+            <option value="">選んでください</option><option value="none">繰り返さない</option><option value="D">毎日</option><option value="WD">平日（月〜金）</option>
             <option value="W">毎週（下で曜日を選ぶ。なければ期日の曜日）</option><option value="M">毎月（期日と同じ日）</option>
             <option value="MN">毎月（期日と同じ「第○ ○曜日」）</option><option value="Y">毎年（期日と同じ月日）</option>
           </select>
@@ -1166,7 +1166,7 @@ function drawRequested(list) {
   list.forEach(g => {
     const d = document.createElement('div'); d.className = 'rqd' + (g.open ? '' : ' closed');
     const t = document.createElement('div'); t.className = 't' + (g.repeat ? ' rep' : ''); t.append(linked(g.text));
-    const done = g.people.filter(p => p.state === '完了').length;
+    const done = g.people.filter(p => p.state === '完了' || p.state === '今回分完了').length;
     const sub = document.createElement('div'); sub.className = 'sub';
     sub.textContent = [g.due ? '期日 ' + g.due.slice(5).replace('-', '/').replace(/^0/, '').replace('/0', '/') : '期日なし', g.at + ' 依頼', g.ruleLabel,
       `完了 ${done}/${g.people.length}`].filter(Boolean).join('　');
@@ -1970,18 +1970,26 @@ function saveLater(kind, action, p) {
 // パソコンのブラウザでは、保存中に閉じようとすると確認が出る
 addEventListener('beforeunload', e => { if (savePending) { e.preventDefault(); e.returnValue = ''; } });
 async function doneTask(t, cb) {
-  // 同じ依頼の他の担当者がいれば、一緒に完了になることを知らせる（2026-11-04）
-  const mates = (t.mates || []).length ? `\n（同じ依頼の ${nbs(t.mates)} の分も完了になります）` : '';
+  // 同じ依頼の他の担当者がいても、完了になるのは自分の分だけ（2026-11-06 一人ずつ完了）
+  const mates = (t.mates || []).length ? `\n（完了になるのはあなたの分だけです。同じ依頼の ${nbs(t.mates)} の分は残ります）` : '';
   if (!await ask('完了にしますか？' + mates)) { cb.checked = false; return; }
+  const left = (t.mates || []).length ? `\n\nまだ済んでいない担当：${nbs(t.mates)}` : '\n\nこの依頼の担当は全員済みました。';
   if (t.repeat && t.rule) { // 周期が決まっている繰り返し：次回の期日は自動（サーバーと同じ計算で先に表示）
     const today = ymd(new Date()), next = nextByRule(t.rule, t.due && t.due > today ? t.due : today);
     drawTasks(sortTasks(me.tasks.map(x => x.id === t.id ? Object.assign({}, x, { due: next, isNew: false }) : x)));
     saveLater('tasks', 'doneTask', { id: t.id, due: t.due || '' });
     const [, m, d] = next.split('-').map(Number);
-    show(`完了しました。次回の期日は ${m}/${d} です`);
+    if (t.multi) notice('完了しました', `この個別業務は 🔁${t.ruleLabel || ruleLabel(t.rule)} で繰り返します（依頼の時に決めた繰り返し）。\nあなたの次回の期日は ${m}/${d} です。` + left);
+    else show(`完了しました。次回の期日は ${m}/${d} です`);
     return;
   }
   if (t.repeat) { openTk(t, cb, false); return; }
+  if (t.multi) { // 複数あての依頼で繰り返さない：繰り返すかは依頼の時に決めたので聞かない
+    drawTasks(me.tasks.filter(x => x.id !== t.id));
+    saveLater('tasks', 'doneTask', { id: t.id, due: t.due || '' });
+    notice('完了しました', 'この個別業務は繰り返しません（依頼の時に決めた繰り返し）。' + left);
+    return;
+  }
   // 繰り返しでない個別業務：これからも繰り返すか聞く（はい＝次回の期日と周期を選ぶ。2026-11-06）。寺内スケジュールから追加した分は寺内の方で繰り返すので聞かない
   if (t.from !== '寺内スケジュール' && !String(t.id).startsWith('tmp-')
     && await ask('この個別業務を繰り返しますか？\n（はい＝次回の期日と、毎日・毎週などの繰り返し方を選びます）')) { openTk(t, cb, true); return; }
@@ -2104,11 +2112,12 @@ function taRepHint() { repHint($('taRep').value, $('taDate').value, taCur && taC
 })();
 function openRequest() {
   $('rqText').value = ''; $('rqDue').value = ''; $('rqDue').min = ymd(new Date());
-  $('rqRep').value = 'none'; $('rqDaysWrap').classList.add('hidden');
+  $('rqRep').value = ''; $('rqDaysWrap').classList.add('hidden');
   $('rqWho').innerHTML = '';
   (me.taskPeople || []).forEach(p => {
     const l = document.createElement('label'), c = document.createElement('input');
     c.type = 'checkbox'; c.value = p.id; c.checked = String(p.id) === String(auth.id); // 初期値は自分
+    c.onchange = rqRepNote;
     l.append(c, String(p.id) === String(auth.id) ? '自分' : p.name); $('rqWho').appendChild(l);
   });
   $('rqDays').innerHTML = '';
@@ -2116,7 +2125,13 @@ function openRequest() {
     const l = document.createElement('label'), c = document.createElement('input');
     c.type = 'checkbox'; c.value = i; l.append(c, w); $('rqDays').appendChild(l);
   });
+  rqRepNote();
   $('rqBox').classList.remove('hidden');
+}
+/** 担当が複数の時は、繰り返すかどうかを必ず選ぶ（2026-11-06。完了の時はここで決めた繰り返しを知らせる） */
+function rqRepNote() {
+  const n = $('rqWho').querySelectorAll('input:checked').length;
+  $('rqRepNote').textContent = n > 1 ? '（担当が複数の時は必須。完了した人から一人ずつ消え、完了の時にこの繰り返しをお知らせします）' : '（選ばなければ繰り返さない）';
 }
 async function doRequest() {
   const p = { text: $('rqText').value.replace(/\s+/g, ' ').trim(), due: $('rqDue').value, kind: $('rqRep').value,
@@ -2124,6 +2139,8 @@ async function doRequest() {
     days: [...$('rqDays').querySelectorAll('input:checked')].map(c => Number(c.value)) };
   if (!p.text) { alert('内容を入れてください'); return; }
   if (!p.ids.length) { alert('担当を選んでください'); return; }
+  if (!p.kind && p.ids.length > 1) { alert('担当が複数の時は、繰り返すかどうか（繰り返し方）を選んでください'); return; }
+  if (!p.kind) p.kind = 'none';
   if (p.due && p.due < ymd(new Date())) { alert('過ぎた日付は選べません'); return; }
   if (['M', 'MN', 'Y'].includes(p.kind) && !p.due) { alert('毎月・毎年の繰り返しは、最初の期日を選んでください'); return; }
   $('rqBox').classList.add('hidden');

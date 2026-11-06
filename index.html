@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261106153626">
+<meta name="build" content="20261106154111">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -637,6 +637,10 @@
           <label for="edDate" class="tklabel">📅 期日</label>
           <input type="date" id="edDate" class="tkdate" onchange="edRepHint()">
           <p class="sub" id="edDateNote" style="margin:4px 0 0"></p>
+          <div class="hidden" id="edWhoWrap"><!-- 個別業務の担当の付け外し（2026-11-06） -->
+            <span class="tklabel">担当 <small class="sub">（外すとその人の個別業務から消えます。足した人には新着で届きます）</small></span>
+            <div class="whos" id="edWho"></div>
+          </div>
           <div id="edRepWrap">
             <label for="edRep" class="tklabel"><span class="rep"></span>繰り返し</label>
             <select id="edRep" class="tkdate" onchange="edRepHint()">
@@ -1421,7 +1425,26 @@ function openTaskEdit(t) {
   edSetDate(t.due || '');
   $('edRepWrap').classList.add('hidden');
   $('edDateNote').textContent = '期日そのものを直します（今回だけずらす時は「延長」）。空にすると期日なし。' + (mates ? `同じ依頼の ${mates} の分も同じ期日になります。` : '');
+  // 担当の付け外し（2026-11-06）。寺内スケジュールから追加した分は1人ずつなので出さない
+  const who = t.from !== '寺内スケジュール' && (me.taskPeople || []).length > 1;
+  $('edWhoWrap').classList.toggle('hidden', !who);
+  $('edWho').innerHTML = '';
+  if (who) {
+    const now = [Number(auth.id)].concat((t.mateIds || []).map(Number));
+    me.taskPeople.forEach(p => {
+      const l = document.createElement('label'), c = document.createElement('input');
+      c.type = 'checkbox'; c.value = p.id; c.checked = now.includes(Number(p.id));
+      l.append(c, String(p.id) === String(auth.id) ? '自分' : p.name); $('edWho').appendChild(l);
+    });
+  }
   $('edBox').classList.remove('hidden');
+}
+/** 編集の窓で選んだ担当（変わっていなければ null） */
+function edWhoIds() {
+  if ($('edWhoWrap').classList.contains('hidden')) return null;
+  const ids = [...$('edWho').querySelectorAll('input:checked')].map(c => Number(c.value)).sort((a, b) => a - b);
+  const now = [Number(auth.id)].concat((edCur.mateIds || []).map(Number)).sort((a, b) => a - b);
+  return JSON.stringify(ids) === JSON.stringify([...new Set(now)]) ? null : ids;
 }
 function openEdit(a) {
   edCur = a; edKind = 'annual';
@@ -1447,14 +1470,24 @@ async function saveEdit() {
   const oldDate = edKind === 'task' ? (a.due || '') : a.date, dateChanged = date !== oldDate;
   if (dateChanged && date && date < today) { alert('過ぎた日付は選べません'); return; }
   if (dateChanged && !date && edKind !== 'task') { alert('期日を選んでください'); return; }
+  const ids = edKind === 'task' ? edWhoIds() : null; // 担当の付け外し（2026-11-06）
+  if (ids && !ids.length) { alert('担当を1人以上選んでください'); return; }
+  const nameOf = id => String(id) === String(auth.id) ? '自分' : ((me.taskPeople || []).find(p => Number(p.id) === Number(id)) || {}).name || '';
+  const before = [Number(auth.id)].concat((a.mateIds || []).map(Number));
+  const added = ids ? ids.filter(x => !before.includes(x)).map(nameOf) : [], dropped = ids ? before.filter(x => !ids.includes(x)).map(nameOf) : [];
+  if (dropped.length && !await ask(`${nbs(dropped)} を担当から外しますか？（外した人の個別業務から消えます。7日間は「削除済み」から戻せます）`)) return;
   $('edBox').classList.add('hidden');
   const rep = edKind === 'annual' ? $('edRep').value : '', repChanged = edKind === 'annual' && rep !== edRep0;
-  if (text === a.text && !dateChanged && !repChanged) return;
-  const what = [text !== a.text && '内容', dateChanged && '期日', repChanged && '繰り返し'].filter(Boolean).join('・');
+  if (text === a.text && !dateChanged && !repChanged && !ids) return;
+  const what = [text !== a.text && '内容', dateChanged && '期日', repChanged && '繰り返し', ids && '担当'].filter(Boolean).join('・');
   if (edKind === 'task') {
-    drawTasks(sortTasks(me.tasks.map(x => x.id === a.id ? Object.assign({}, x, { text, due: date }) : x))); // 返事を待たずに一覧を直す（保存は裏で）
-    saveLater('tasks', 'editTask', { id: a.id, text, due: date });
-    show(`${what}を直しました` + ((a.mates || []).length ? `（${nbs(a.mates)}の分も直ります）` : ''));
+    // 返事を待たずに一覧を直す（保存は裏で）。自分を外した時は一覧から消す
+    const mates = ids ? ids.filter(x => x !== Number(auth.id)).map(nameOf) : a.mates;
+    drawTasks(sortTasks(me.tasks.filter(x => !(x.id === a.id && ids && !ids.includes(Number(auth.id))))
+      .map(x => x.id === a.id ? Object.assign({}, x, { text, due: date }, ids ? { mates, mateIds: ids.filter(y => y !== Number(auth.id)), multi: x.multi || ids.length > 1 } : {}) : x)));
+    saveLater('tasks', 'editTask', Object.assign({ id: a.id, text, due: date }, ids ? { ids } : {}));
+    show(`${what}を直しました` + (added.length ? `（${nbs(added)} を担当に追加）` : '') + (dropped.length ? `（${nbs(dropped)} を担当から外しました）` : '')
+      + (!ids && (a.mates || []).length ? `（${nbs(a.mates)}の分も直ります）` : ''));
     return;
   }
   if (dateChanged || repChanged) { // 期日・繰り返しの変更（来年以降もこの日が基準。周期はこの日から数える）

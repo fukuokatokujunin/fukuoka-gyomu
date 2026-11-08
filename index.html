@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261108181306">
+<meta name="build" content="20261108181450">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -534,7 +534,7 @@
           <button class="jin" onclick="openJinaiAdd()"><span><span class="nw">寺内スケジュール</span><span class="nw">に追加</span></span></button>
         </div>
       </details>
-      <!-- 引き継ぎ事項（2026-11-08 退勤前チェックから独立。業務追加と同じ折りたたみ。スマホは業務追加の下、PCは業務追加の上＝退勤前チェックの下へ移す） -->
+      <!-- 引き継ぎ事項（2026-11-08 退勤前チェックから独立。業務追加と同じ折りたたみ。PC・スマホとも業務追加の下） -->
       <details class="card addbox hidden" id="hoCard">
         <summary>引き継ぎ事項</summary>
         <div class="hobody">
@@ -2346,11 +2346,10 @@ function taRepHint() { repHint($('taRep').value, $('taDate').value, taCur && taC
   const d = $('addBox');
   try { d.open = localStorage.getItem('addOpen') === '1'; } catch (e) {}
   d.addEventListener('toggle', () => { try { localStorage.setItem('addOpen', d.open ? '1' : '0'); } catch (e) {} });
-  // 引き継ぎ事項（2026-11-08）：開閉は端末に記憶。PCは業務追加の上（退勤前チェックの下）
+  // 引き継ぎ事項（2026-11-08）：開閉は端末に記憶。PC・スマホとも業務追加の下
   const h = $('hoCard');
   try { h.open = localStorage.getItem('hoOpen') === '1'; } catch (e) {}
   h.addEventListener('toggle', () => { try { localStorage.setItem('hoOpen', h.open ? '1' : '0'); } catch (e) {} });
-  if (IS_PC) d.before(h);
 })();
 function openRequest() {
   $('rqText').value = ''; $('rqDue').value = ''; $('rqDue').min = ymd(new Date());

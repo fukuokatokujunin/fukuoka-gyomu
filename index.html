@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261108100933">
+<meta name="build" content="20261108104041">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -550,7 +550,7 @@
       <div class="overlay hidden" id="jaBox">
         <div class="modal" style="max-height:90vh;overflow-y:auto">
           <strong>寺内スケジュールに追加</strong>
-          <p class="sub" style="margin:4px 0 6px">みんなの打刻画面の寺内スケジュールに出ます。表示は期限の3か月前から（1週間より先は折りたたみ。発注・締切・予約などは1か月より先なら★）</p>
+          <p class="sub" style="margin:4px 0 6px">みんなの打刻画面の寺内スケジュールに出ます。表示は期限の3か月前から（2週間より先は折りたたみ。発注・締切・予約などは1か月より先なら★）</p>
           <label for="jaText" class="tklabel">内容</label>
           <textarea id="jaText" rows="3" maxlength="200"></textarea>
           <label for="jaDate" class="tklabel">📅 初回期限</label>
@@ -1389,9 +1389,9 @@ function drawAnnual(list) {
       wrap.append(cap, del); row.appendChild(wrap);
     }
     if (!a.event) row.dataset.aid = a.id;
-    (a.left >= 7 ? far : near).push(row);
+    (a.left >= 14 ? far : near).push(row);
   });
-  foldRows($('annual'), near, far, '1週間以上先の予定', 'annual');
+  foldRows($('annual'), near, far, '2週間以上先の予定', 'annual');
   if (typeof dueMode !== 'undefined' && dueMode) setTimeout(refreshDue, 0);
   if (stCur && !$('stBox').classList.contains('hidden')) drawStart();
   if (ntCur && !$('ntBox').classList.contains('hidden')) drawNotes();

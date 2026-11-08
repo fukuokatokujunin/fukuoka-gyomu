@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261108172946">
+<meta name="build" content="20261108175049">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -525,7 +525,7 @@
       <div class="card hidden" id="eveBox"><!-- 夕方のチェック（2026-11-06。17時から。シフト対象外の人は19時まで、シフト対象の人は出勤中なら退勤まで） -->
         <strong>退勤前チェック</strong> <span class="sub" id="eveNote"></span>
         <div id="eveChecks"></div>
-        <button class="hidden" id="eveSaveBtn" onclick="eveSave()">チェックした項目をスマホに反映</button><!-- PCだけ（2026-11-06） -->
+        <button class="hidden" id="eveSaveBtn" onclick="eveSave()">反映</button><!-- PCだけ（2026-11-06） -->
       </div>
 
       <details class="card addbox hidden" id="addBox">
@@ -2111,7 +2111,9 @@ addEventListener('beforeunload', e => { if (savePending) { e.preventDefault(); e
    ・シフト対象外（区分「その他」）の人：19時まで表示
    ・シフト対象の人：出勤中なら退勤まで表示（2026-11-06 追加）
    チェックは端末に覚え、退勤前チェック（#checks）と同じ記録を使うので、どちらでチェックしても連動する。
-   すべてチェックすると記録（api eveCheck）して消える。記録済みなら退勤前チェックも全部チェック済みで出す */
+   すべてチェックすると記録（api eveCheck）して消える。記録済みなら退勤前チェックも全部チェック済みで出す
+   2026-11-08：PCは、すべてチェックしても自動で記録・消さない。「反映」を押した時だけ記録し、
+   済ませた後も表示したまま（引き継ぎなど、その後も画面を使うため） */
 const EVE_FROM = 17, EVE_TO = 19;
 /** 塔婆の項目の横に「翌日開始○件（＝今日の退勤時に準備する分）、本日撤去○件」（2026-11-06。塔婆受付表.xlsx から1時間ごとに読んだ件数） */
 function tobaNote(item) {
@@ -2140,7 +2142,8 @@ function eveGet() {
 }
 function eveAll(got) { return (me.checklist || []).every(c => got.includes(c)); }
 function eveOn() {
-  if (!me || me.eveDone || preOpen || !(me.checklist || []).length || eveAll(eveGet())) return false;
+  if (!me || preOpen || !(me.checklist || []).length) return false;
+  if (!IS_PC && (me.eveDone || eveAll(eveGet()))) return false; // スマホは済ませたら消す（PCは表示したまま。2026-11-08）
   const h = new Date().getHours();
   if (me.noAttend) return h >= EVE_FROM && h < EVE_TO;
   return !!me.working && h >= EVE_FROM;
@@ -2158,7 +2161,7 @@ function drawEve() {
   const on = eveOn();
   $('eveBox').classList.toggle('hidden', !on);
   if (!on) { $('eveChecks').innerHTML = ''; return; }
-  $('eveNote').textContent = me.noAttend ? '（すべてチェックすると消えます。19時まで表示）' : ''; // シフト対象の人は説明なし（2026-11-06 ユーザー指定）
+  $('eveNote').textContent = !me.noAttend ? '' : IS_PC ? '（チェックしたら下のボタンで反映。19時まで表示）' : '（すべてチェックすると消えます。19時まで表示）'; // シフト対象の人は説明なし（2026-11-06 ユーザー指定）
   $('eveSaveBtn').classList.toggle('hidden', !IS_PC);
   eveBoxes($('eveChecks'), (c, on) => eveTick(c, on, true));
 }
@@ -2173,6 +2176,7 @@ async function eveTick(item, on, fromEve) {
   eveSetLocal(got);
   if (fromEve) drawChecks(); else drawEve(); // もう一方の表示も合わせる
   if (!fromEve || !eveAll(got)) return;
+  if (IS_PC) { if (!me.eveDone) show('すべてチェックしました。下のボタンを押すと反映されます'); return; } // PCはボタンを押した時だけ記録（2026-11-08）
   me.eveDone = true; drawEve(); drawChecks(); // すべてチェック → 消す（記録は裏で）
   try { await call('eveCheck', { done: me.checklist }); show('退勤前チェックをすべて済ませました'); }
   catch (e) { me.eveDone = false; drawEve(); drawChecks(); }

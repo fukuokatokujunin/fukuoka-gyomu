@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261108175632">
+<meta name="build" content="20261108180501">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -55,6 +55,7 @@
   label.chk { display:flex; gap:10px; align-items:center; padding:12px 4px; border-bottom:1px solid var(--line); font-size:16px; }
   label.chk input { width:22px; height:22px; margin:0; flex:none; }
   #hoBox { margin-top:14px; padding:12px; border-radius:10px; background:#fbefd9; border:1.5px solid #e2b866; }
+  #pcHoSlot #hoBox { margin-top:0; } /* PCの引き継ぎ事項（2026-11-08） */
   .cal { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; margin-top:8px; }
   .cal div.w { text-align:center; font-size:12px; color:var(--sub); }
   .day { aspect-ratio:1; border:1px solid var(--line); border-radius:8px; background:#fff; font-size:15px; display:flex; flex-direction:column; justify-content:center; align-items:center; cursor:pointer; }
@@ -526,6 +527,10 @@
         <strong>退勤前チェック</strong> <span class="sub" id="eveNote"></span>
         <div id="eveChecks"></div>
         <button class="hidden" id="eveSaveBtn" onclick="eveSave()">登録</button><!-- PCだけ（2026-11-06） -->
+      </div>
+      <div class="card hidden" id="pcHoCard"><!-- PCの引き継ぎ事項（2026-11-08。スマホは退勤の時に送る。#hoBox をここへ移して使う） -->
+        <div id="pcHoSlot"></div>
+        <button id="pcHoBtn" onclick="sendHandoverPc()">引き継ぎを送信</button>
       </div>
 
       <details class="card addbox hidden" id="addBox">
@@ -1145,9 +1150,15 @@ function render(s) {
   eveMerge(s.eveSaved);
   drawChecks();
   drawEve();
+  const hoKeep = $('hoTo').value;
   $('hoTo').innerHTML = '<option value="">宛先を選択</option><option value="all">全員</option>' +
     s.colleagues.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
-  $('hoText').value = '';
+  // PC：引き継ぎ事項を打刻画面に常に出す（勤務中・シフト対象外の人。2026-11-08）。読み直しで書きかけを消さない
+  if (IS_PC) {
+    if ($('hoBox').parentNode !== $('pcHoSlot')) $('pcHoSlot').appendChild($('hoBox'));
+    $('pcHoCard').classList.toggle('hidden', !(s.working || s.noAttend));
+    if ([...$('hoTo').options].some(o => o.value === hoKeep)) $('hoTo').value = hoKeep;
+  } else $('hoText').value = '';
 
   // タスク（勤務中のみ表示）
   $('v-clock').classList.toggle('working', showTasks());
@@ -2113,7 +2124,7 @@ addEventListener('beforeunload', e => { if (savePending) { e.preventDefault(); e
    チェックは端末に覚え、退勤前チェック（#checks）と同じ記録を使うので、どちらでチェックしても連動する。
    すべてチェックすると記録（api eveCheck）して消える。記録済みなら退勤前チェックも全部チェック済みで出す
    2026-11-08：PCは、すべてチェックしても自動で記録・消さない。「反映」を押した時だけ記録し、
-   済ませた後も表示したまま（引き継ぎなど、その後も画面を使うため） */
+   すべてチェックして「登録」を押した時に消える（途中までの「登録」は表示したまま。引き継ぎなど、その後も画面を使うため） */
 const EVE_FROM = 17, EVE_TO = 19;
 /** 塔婆の項目の横に「翌日開始○件（＝今日の退勤時に準備する分）、本日撤去○件」（2026-11-06。塔婆受付表.xlsx から1時間ごとに読んだ件数） */
 function tobaNote(item) {
@@ -2143,7 +2154,8 @@ function eveGet() {
 function eveAll(got) { return (me.checklist || []).every(c => got.includes(c)); }
 function eveOn() {
   if (!me || preOpen || !(me.checklist || []).length) return false;
-  if (!IS_PC && (me.eveDone || eveAll(eveGet()))) return false; // スマホは済ませたら消す（PCは表示したまま。2026-11-08）
+  if (me.eveDone) return false; // 済ませたら消す（PCは「登録」を押して済ませた時。2026-11-08）
+  if (!IS_PC && eveAll(eveGet())) return false; // スマホはすべてチェックで消す（PCは「登録」を押すまで表示）
   const h = new Date().getHours();
   if (me.noAttend) return h >= EVE_FROM && h < EVE_TO;
   return !!me.working && h >= EVE_FROM;
@@ -2702,6 +2714,19 @@ async function clockOut() {
     $('memo').value = ''; hoImages = []; drawHoImages();
     show('退勤しました。お疲れさまでした' + (handover ? '（引き継ぎを送信しました）' : ''));
   } finally { busy(false); }
+}
+
+/** PC：引き継ぎ事項を送る（退勤せずに。2026-11-08） */
+async function sendHandoverPc() {
+  const text = $('hoText').value.trim();
+  if (!text && !hoImages.length) { alert('引き継ぐ内容を入力してください'); return; }
+  if (!$('hoTo').value) { alert('引き継ぎの宛先を選んでください'); return; }
+  const btn = $('pcHoBtn'); btn.disabled = true; spinBtn(btn);
+  try {
+    await call('sendHandover', { to: $('hoTo').value, text, images: hoImages });
+    $('hoText').value = ''; $('hoTo').value = ''; hoImages = []; drawHoImages();
+    show('引き継ぎを送信しました');
+  } finally { btn.disabled = false; spinBtn(null); }
 }
 
 /* ---- 打刻用QRコード（管理者） ---- */

@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261108104041">
+<meta name="build" content="20261108172946">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -420,6 +420,14 @@
         <div class="modal center">
           <p id="askMsg" style="font-size:17px;font-weight:bold;margin:8px 0 16px;white-space:pre-line"></p>
           <div class="row"><button id="askYes">はい</button><button class="ghost" id="askNo">いいえ</button></div>
+        </div>
+      </div>
+
+      <!-- ボタンを選ぶ確認（3つ以上の選択肢。2026-11-08） -->
+      <div class="overlay hidden" id="chooseBox">
+        <div class="modal center">
+          <p id="chooseMsg" style="font-size:17px;font-weight:bold;margin:8px 0 16px;white-space:pre-line"></p>
+          <div id="chooseBtns"></div>
         </div>
       </div>
 
@@ -1207,6 +1215,22 @@ function ask(msg) {
     $('askMsg').textContent = msg; $('askBox').classList.remove('hidden');
     const end = v => { $('askBox').classList.add('hidden'); done(v); };
     $('askYes').onclick = () => end(true); $('askNo').onclick = () => end(false);
+  });
+}
+
+// ボタンを選ぶ確認。押したボタンの番号（最後のボタン＝やめる）を返す
+function choose(msg, labels) {
+  return new Promise(done => {
+    $('chooseMsg').textContent = msg;
+    const box = $('chooseBtns'); box.innerHTML = '';
+    labels.forEach((l, n) => {
+      const b = document.createElement('button'); b.textContent = l;
+      b.style.cssText = 'display:block;width:100%;margin:8px 0 0';
+      if (n === labels.length - 1) b.className = 'ghost';
+      b.onclick = () => { $('chooseBox').classList.add('hidden'); done(n); };
+      box.appendChild(b);
+    });
+    $('chooseBox').classList.remove('hidden');
   });
 }
 
@@ -2168,23 +2192,27 @@ async function eveSave() {
 setInterval(() => { if (me && !document.hidden) drawEve(); }, 60 * 1000); // 17時に出す（シフト対象外の人は19時に消す）
 
 async function doneTask(t, cb) {
-  // 同じ依頼の他の担当者がいても、完了になるのは自分の分だけ（2026-11-06 一人ずつ完了）
-  const mates = (t.mates || []).length ? `\n（完了になるのはあなたの分だけです。同じ依頼の ${nbs(t.mates)} の分は残ります）` : '';
-  if (!await ask('完了にしますか？' + mates)) { cb.checked = false; return; }
-  const left = (t.mates || []).length ? `\n\nまだ済んでいない担当：${nbs(t.mates)}` : '\n\nこの依頼の担当は全員済みました。';
+  // 同じ依頼のまだ済んでいない担当者がいる時は、自分の分だけか、全員の分も完了にするか選ぶ（2026-11-08。それまでは自分の分だけ）
+  let all = false;
+  if ((t.mates || []).length) {
+    const v = await choose(`完了にしますか？\n\n同じ依頼のまだ済んでいない担当：${nbs(t.mates)}`, ['自分の分だけ完了', `全員の分を完了（${nbs(t.mates)}の分も）`, 'やめる']);
+    if (v === 2) { cb.checked = false; return; }
+    all = v === 1;
+  } else if (!await ask('完了にしますか？')) { cb.checked = false; return; }
+  const left = all ? `\n\n同じ依頼の ${nbs(t.mates)} の分も完了にしました。` : (t.mates || []).length ? `\n\nまだ済んでいない担当：${nbs(t.mates)}` : '\n\nこの依頼の担当は全員済みました。';
   if (t.repeat && t.rule) { // 周期が決まっている繰り返し：次回の期日は自動（サーバーと同じ計算で先に表示）
     const today = ymd(new Date()), next = nextByRule(t.rule, t.due && t.due > today ? t.due : today);
     drawTasks(sortTasks(me.tasks.map(x => x.id === t.id ? Object.assign({}, x, { due: next, isNew: false }) : x)));
-    saveLater('tasks', 'doneTask', { id: t.id, due: t.due || '' });
+    saveLater('tasks', 'doneTask', { id: t.id, due: t.due || '', all });
     const [, m, d] = next.split('-').map(Number);
-    if (t.multi) notice('完了しました', `この個別業務は 🔁${t.ruleLabel || ruleLabel(t.rule)} で繰り返します（依頼の時に決めた繰り返し）。\nあなたの次回の期日は ${m}/${d} です。` + left);
+    if (t.multi) notice('完了しました', `この個別業務は 🔁${t.ruleLabel || ruleLabel(t.rule)} で繰り返します（依頼の時に決めた繰り返し）。\n${all ? '全員の' : 'あなたの'}次回の期日は ${m}/${d} です。` + left);
     else show(`完了しました。次回の期日は ${m}/${d} です`);
     return;
   }
-  if (t.repeat) { openTk(t, cb, false); return; }
+  if (t.repeat) { openTk(t, cb, false, all); return; }
   if (t.multi) { // 複数あての依頼で繰り返さない：繰り返すかは依頼の時に決めたので聞かない
     drawTasks(me.tasks.filter(x => x.id !== t.id));
-    saveLater('tasks', 'doneTask', { id: t.id, due: t.due || '' });
+    saveLater('tasks', 'doneTask', { id: t.id, due: t.due || '', all });
     notice('完了しました', 'この個別業務は繰り返しません（依頼の時に決めた繰り返し）。' + left);
     return;
   }
@@ -2239,8 +2267,8 @@ async function removeTask(t) {
   show('削除しました（7日間は「削除済み」から戻せます）');
 }
 /** 次回の期日と周期を選ぶ窓。conv＝繰り返しでない個別業務を、これから繰り返しにする（2026-11-06） */
-function openTk(t, cb, conv) {
-  tkCur = { t, cb, conv };
+function openTk(t, cb, conv, all) {
+  tkCur = { t, cb, conv, all }; // all＝同じ依頼の他の担当者の分も完了（2026-11-08）
   const tm = new Date(); tm.setDate(tm.getDate() + 1);
   $('tkDate').min = ymd(tm); $('tkDate').value = ymd(tm); // 空欄だとスマホで入力欄と分からないので翌日を仮に入れる
   $('tkKind').value = 'M'; delete $('tkKind').dataset.touched; // 周期は次回の期日から推測（選び直せる）
@@ -2264,14 +2292,14 @@ function doneRepeat(end) {
   let next = end || $('tkDate').value;
   if (!next) { alert('次回の期日を選んでください'); return; }
   if (!end && next <= ymd(new Date())) { alert('次回の期日は明日以降を選んでください'); return; }
-  const { t, conv } = tkCur;
+  const { t, conv, all } = tkCur;
   tkCur = null; $('tkPicker').classList.add('hidden');
   // 返事を待たずに一覧を直す（保存は裏で）
   const kind = end ? '' : $('tkKind').value, rule = end ? '' : ruleFromKind(kind, next);
   if (rule && !ruleMatch(rule, new Date(next + 'T00:00:00'))) next = nextByRule(rule, next); // 「平日」で土日を選んだ時など
   drawTasks(end ? me.tasks.filter(x => x.id !== t.id)
     : sortTasks(me.tasks.map(x => x.id === t.id ? Object.assign({}, x, { due: next, isNew: false, repeat: true, rule, ruleLabel: ruleLabel(rule) }) : x)));
-  saveLater('tasks', 'doneTask', { id: t.id, next: end || $('tkDate').value, kind, due: t.due || '', repeat: !!conv && !end });
+  saveLater('tasks', 'doneTask', { id: t.id, next: end || $('tkDate').value, kind, due: t.due || '', repeat: !!conv && !end, all: !!all });
   if (end) { show(conv ? '個別業務を完了しました' : '完了しました（今後は繰り返しません）'); return; }
   const [, m, d] = next.split('-').map(Number);
   show(`完了しました。次回期日は ${m}/${d}（${ruleLabel(rule)}）。次からは完了するだけで期日が入ります`);

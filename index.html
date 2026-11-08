@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261108181450">
+<meta name="build" content="20261109084359">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -1932,9 +1932,13 @@ function drawPush() {
       : 'アドレスバーの左のマーク（鍵など）を押して「通知」を「許可」にし、画面を読み込み直してください。Macは「システム設定」→「通知」でブラウザ（Chromeなど）の通知も許可してください。'],
     'ios-home': ['🔔 通知を受け取るには', 'iPhoneでは、ホーム画面に追加したアプリから開くと通知をオンにできます（Safariの共有ボタン →「ホーム画面に追加」）。'],
   }[st];
-  const hide = !me || !msg || later > ymd(new Date()); // later＝この日まで出さない
+  let asked = ''; try { asked = localStorage.getItem('pushAsked') || ''; } catch (e) {}
+  const today = ymd(new Date());
+  // later＝この日まで出さない。PCは一度出した端末には翌日から出さない（2026-11-09 ユーザー指定：毎朝出ていた）
+  const hide = !me || !msg || later > today || (IS_PC && asked && asked < today);
   $('pushBox').classList.toggle('hidden', hide);
   if (hide) return;
+  if (IS_PC && !asked) try { localStorage.setItem('pushAsked', today); } catch (e) {}
   $('pushTitle').textContent = msg[0]; $('pushText').textContent = msg[1];
   $('pushBtns').querySelector('button').classList.toggle('hidden', st !== 'off');
 }
@@ -1959,7 +1963,7 @@ async function pushSubscribe(force) {
 function pushSync() {
   drawPush();
   if (!PUSH_OK || !me || !me.pushKey || Notification.permission !== 'granted') return;
-  pushSubscribe(false).then(drawPush).catch(() => { pushFail = true; drawPush(); });
+  pushSubscribe(false).then(drawPush).catch(() => {}); // 許可済みで登録の確認に失敗した時は案内を出さない（次に開いた時にやり直す。2026-11-09）
 }
 async function enablePush() {
   try {

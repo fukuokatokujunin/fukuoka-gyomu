@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261108100332">
+<meta name="build" content="20261108100933">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -550,7 +550,7 @@
       <div class="overlay hidden" id="jaBox">
         <div class="modal" style="max-height:90vh;overflow-y:auto">
           <strong>寺内スケジュールに追加</strong>
-          <p class="sub" style="margin:4px 0 6px">みんなの打刻画面の寺内スケジュールに出ます。表示は期限の30日前から（発注・締切・予約などは60日前から）</p>
+          <p class="sub" style="margin:4px 0 6px">みんなの打刻画面の寺内スケジュールに出ます。表示は期限の3か月前から（1週間より先は折りたたみ。発注・締切・予約などは1か月より先なら★）</p>
           <label for="jaText" class="tklabel">内容</label>
           <textarea id="jaText" rows="3" maxlength="200"></textarea>
           <label for="jaDate" class="tklabel">📅 初回期限</label>
@@ -631,7 +631,7 @@
       <div class="overlay hidden" id="taBox">
         <div class="modal" style="max-height:90vh;overflow-y:auto">
           <strong>寺内スケジュールへ移す</strong>
-          <p class="sub" style="margin:4px 0 6px">みんなで進める寺内スケジュールに移します。あなたの個別業務からは消え、全員の画面に出ます（期限の30日前から。発注・締切・予約などは60日前から）。</p>
+          <p class="sub" style="margin:4px 0 6px">みんなで進める寺内スケジュールに移します。あなたの個別業務からは消え、全員の画面に出ます（期限の3か月前から）。</p>
           <p class="sub hidden" id="taOthers" style="margin:0 0 6px;color:#b45309"></p>
           <label for="taText" class="tklabel">内容</label>
           <textarea id="taText" rows="3"></textarea>
@@ -1180,6 +1180,8 @@ function showTasks() { return !!me && !me.noTasks; }
 
 // 近いものは常に表示し、先のものは折りたたむ（開閉状態は端末に覚える）
 /** 業務追加の登録中の行の印（2026-11-08。登録が終わると本物の行に置き換わる） */
+/** ★（早めに準備するもの）：1か月より先で、事前表示日数が1か月より長い予定（サーバーの annualItems_ と同じ。2026-11-08） */
+function annualEarly(a, left) { return left > 30 && (a.lead || 0) > 30; }
 function pendingTag() { const s = document.createElement('span'); s.className = 'pendtag'; s.textContent = '登録中…'; return s; }
 function foldRows(box, near, far, label, key) {
   near.forEach(r => box.appendChild(r));
@@ -1556,7 +1558,7 @@ async function saveEdit() {
     const d = rule && !ruleMatch(rule, new Date(date + 'T00:00:00')) ? nextByRule(rule, date) : date;
     const left = Math.round((new Date(d + 'T00:00:00') - new Date(today + 'T00:00:00')) / 864e5);
     drawAnnual(me.annual.map(x => !x.event && x.id === a.id ? Object.assign({}, x, text !== a.text ? { text, base: text, orig: '' } : {},
-      { date: d, key: d, left, moved: false, early: left > 30, rule, cycle: rule ? ruleLabel(rule) : '', once: repChanged ? rep === 'none' : a.once,
+      { date: d, key: d, left, moved: false, early: annualEarly(x, left), rule, cycle: rule ? ruleLabel(rule) : '', once: repChanged ? rep === 'none' : a.once,
         later: removeDups ? [] : x.later }) : x)); // 以降不要にした時は、同じ内容のほかの日付（このあと○/○にも）を外す
     saveLater('annual', 'editAnnual', Object.assign({ id: a.id, key: a.key, removeDups }, dateChanged || repChanged ? { date } : {}, text !== a.text ? { text } : {}, repChanged ? { cycle: rep } : {}));
     show(`${what}を直しました（全員の画面に反映されます）` + (removeDups ? '。同じ内容のほかの日付の予定は以降不要にしました（7日間は「削除済み」から戻せます）' : ''));
@@ -1787,9 +1789,9 @@ function doPostpone() {
     saveLater('tasks', 'postponeTask', { id: item.id, to });
   } else {
     const key = item.key || item.date, left = daysLeft(to);
-    // 表示の仕方はサーバー（annualSchedule_）と同じ。30＝表示する日数（ANNUAL_WINDOW_DAYS）
+    // 表示の仕方はサーバー（annualSchedule_）と同じ
     drawAnnual(sortBy(me.annual.map(a => !a.event && a.id === item.id
-      ? Object.assign({}, a, { date: to, key, left, early: left > 30, moved: key !== to }) : a), a => a.date));
+      ? Object.assign({}, a, { date: to, key, left, early: annualEarly(a, left), moved: key !== to }) : a), a => a.date));
     saveLater('annual', 'postponeAnnual', { id: item.id, key, to });
   }
   const [, m, d] = to.split('-').map(Number);
@@ -2397,7 +2399,7 @@ async function doJinaiAdd() {
   // 返事を待たずに一覧へ仮の行（登録中）を出し、登録は裏で（2026-11-08）
   p.rid = newRid();
   const d = rule && !ruleMatch(rule, new Date(p.date + 'T00:00:00')) ? nextByRule(rule, p.date) : p.date, left = daysLeft(d);
-  drawAnnual((me.annual || []).concat([{ id: 'tmp-' + p.rid, date: d, key: d, left, kind: p.kind, text: p.text, early: left > 30, moved: false,
+  drawAnnual((me.annual || []).concat([{ id: 'tmp-' + p.rid, date: d, key: d, left, kind: p.kind, text: p.text, early: false, moved: false,
     cycle: rule ? ruleLabel(rule) : '', rule, once: cycle === 'none', starters: [], notes: [], later: [] }]));
   show('寺内スケジュールに登録しています…（そのまま操作を続けられます）');
   saveLater('annual', 'addAnnualApp', p, { retry: true, pick: r => r.annual,

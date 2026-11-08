@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261106175813">
+<meta name="build" content="20261108095742">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -353,6 +353,9 @@
   #tasks .titem > div { min-width:0; }
   #tasks .titem > div > .sub > * { margin:2px 6px 2px 0; } /* 余白は右側に（左側だと折り返した段の先頭がずれる） */
   #tasks .titem > div > .sub > .rule { margin:4px 0 0; }
+  .titem.pending { opacity:.55; pointer-events:none; } /* 業務追加の登録中（2026-11-08） */
+  .pendtag { font-size:12px; color:var(--sub); margin-left:6px; }
+  #tasks .titem.my:not(.alert) { background:#eaf3fb; margin:0 -8px; padding-left:8px; padding-right:8px; } /* マイタスクは薄い青（2026-11-08。期日が来たら赤を優先） */
   #tasks .titem.alert { padding-left:5px; } /* 赤い線（3px）の分だけ詰めて、□と本文の位置をほかの行とそろえる */
   /* マイタスク（2026-11-06）：自分から自分だけに依頼した個別業務。行の右上（削除の列の上端）に印。
      チャコールの角に金の細線の内枠、中に「MY」の文字だけ（2026-11-06 人の形をやめた）。どの行も同じ形 */
@@ -970,12 +973,26 @@ const mlabel = ym => Number(ym.split('-')[1]) + '月';
 // GASの画面内なら google.script.run、外部（GitHub Pages）に置いた場合はWebアプリへPOST
 const API_URL = 'https://script.google.com/macros/s/AKfycbxGC61rsYaixzfniMtKk_hOAez4mIntPfGnTgTVC3KX8rqTGb6w0A7oK_iL34GZCXrDeA/exec';
 const inGas = typeof google !== 'undefined' && google.script && google.script.run;
-function rawCall(action, a, payload) {
+function rawCall(action, a, payload, ms) {
   if (inGas) return new Promise((ok, ng) => google.script.run.withSuccessHandler(ok).withFailureHandler(ng).api(action, a, payload || {}));
-  // text/plain にすると事前確認(CORS)なしで送れる
+  // text/plain にすると事前確認(CORS)なしで送れる。ms＝待つ上限（業務追加。2026-11-08）
+  const ac = ms && typeof AbortController !== 'undefined' ? new AbortController() : null;
+  const timer = ac ? setTimeout(() => ac.abort(), ms) : null;
+  // 通信が切れた・返事が壊れていた（GASの混雑など）時は net の印（送り直してよい失敗）
+  const netErr = () => Object.assign(new Error('通信できませんでした（電波の良い所でもう一度お試しください）'), { net: true });
   return fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ api: action, auth: a, payload: payload || {} }) })
-    .then(r => r.json()).then(j => { if (!j.ok) throw new Error(j.error); return j.result; });
+    body: JSON.stringify({ api: action, auth: a, payload: payload || {} }), signal: ac ? ac.signal : undefined })
+    .catch(() => { throw netErr(); })
+    .then(r => r.json().catch(() => { throw netErr(); }))
+    .then(j => { if (!j.ok) throw new Error(j.error); return j.result; })
+    .finally(() => clearTimeout(timer));
+}
+/** 業務追加の送信（2026-11-08）：通信が切れたら同じ印（p.rid）で2回まで送り直す（サーバーの onceByRid_ が二重に登録しない） */
+async function callRetry(action, p) {
+  for (let n = 0; ; n++) {
+    try { return await rawCall(action, auth, p, 60000); }
+    catch (e) { if (!e.net || n >= 2) throw e; await new Promise(ok => setTimeout(ok, 2000 * (n + 1))); }
+  }
 }
 // 打刻用QRの合言葉（?qr=…）。ブックマークで使い回せないようURLからは消し、1回打刻したら破棄する
 let stampQr = new URLSearchParams(location.search).get('qr') || '';
@@ -1162,6 +1179,8 @@ setInterval(checkUpdate, 30 * 60 * 1000);
 function showTasks() { return !!me && !me.noTasks; }
 
 // 近いものは常に表示し、先のものは折りたたむ（開閉状態は端末に覚える）
+/** 業務追加の登録中の行の印（2026-11-08。登録が終わると本物の行に置き換わる） */
+function pendingTag() { const s = document.createElement('span'); s.className = 'pendtag'; s.textContent = '登録中…'; return s; }
 function foldRows(box, near, far, label, key) {
   near.forEach(r => box.appendChild(r));
   if (!far.length) return;
@@ -1305,6 +1324,7 @@ function drawDone(kind, list) {
 
 /* ---- 寺内全体スケジュール（年間予定） ---- */
 function drawAnnual(list) {
+  list = sortBy(list, a => a.date); // 画面で先に直した時（期日の編集・追加など）も日付順に（2026-11-08。並びが崩れることがあった）
   me.annual = list;
   annualReq = null;
   try { localStorage.setItem('snapAnnual', JSON.stringify(list)); } catch (e) {}
@@ -1332,6 +1352,7 @@ function drawAnnual(list) {
     b.textContent = `${m}/${d}` + (a.left < 0 ? `（${-a.left}日過ぎています）` : a.left === 0 ? '（今日）' : `（あと${a.left}日）`);
     const meta = document.createElement('div'); meta.className = 'sub'; meta.appendChild(b);
     if (a.cycle) { const cy = document.createElement('div'); cy.className = 'rule rep'; cy.textContent = a.cycle; meta.appendChild(cy); } // 周期の予定（2026-11-04）
+    if (String(a.id).startsWith('tmp-')) { row.classList.add('pending'); meta.appendChild(pendingTag()); } // 登録中（2026-11-08）
     if (a.moved) { const [, om, od] = a.key.split('-').map(Number); b.textContent += `　延長（本来 ${om}/${od}）`; }
     if (!a.event) {
       meta.appendChild(ppButton(() => openPostpone('annual', a, a.date)));
@@ -1663,6 +1684,8 @@ function drawTasks(list) {
     const meta = document.createElement('div'); meta.className = 'sub';
     // マイタスク（2026-11-06）：自分から自分だけへの依頼（登録者が自分で、複数あての依頼でない）。右上に印を出し「○○より」は出さない
     const isMy = !!t.from && t.from === me.name && !t.multi && !(t.mates || []).length;
+    if (isMy) row.classList.add('my');
+    if (String(t.id).startsWith('tmp-')) { row.classList.add('pending'); meta.appendChild(pendingTag()); } // 登録中（2026-11-08）
     if (t.from === '寺内スケジュール') meta.textContent = '寺内スケジュールから';
     else if (t.from && !isMy) meta.appendChild(pn(`${t.from}より`));
     if ((t.mates || []).length) { // 複数あての依頼：担当者（2026-11-04。別の行にせず、依頼者と同じ行に。名前ごとに改行しない）
@@ -2037,12 +2060,17 @@ const SAVE_KIND = {
 let saveQueue = Promise.resolve(), savePending = 0;
 const pendingOf = { tasks: 0, annual: 0 };
 let editGen = 0; // 画面で操作（完了・削除・延長など）するたびに増やす。裏の読み直しの途中で増えたら、その結果は古いので使わない
-function saveLater(kind, action, p) {
+// o（業務追加。2026-11-08）：retry＝通信が切れたら送り直す、pick＝返事から一覧を取り出す、ok＝登録できた時、fail＝できなかった時（窓を開き直すなど）
+function saveLater(kind, action, p, o) {
+  o = o || {};
   editGen++;
   savePending++; pendingOf[kind]++;
   document.body.classList.add('saving');
-  const send = () => rawCall(action, auth, p).catch(e => {
-    show(`保存できませんでした：${e.message}`, true);
+  const send = () => (o.retry ? callRetry(action, p) : rawCall(action, auth, p)).then(r => {
+    if (o.ok) try { o.ok(r); } catch (e) {}
+    return o.pick ? o.pick(r) : r;
+  }).catch(e => {
+    if (o.fail) o.fail(e); else show(`保存できませんでした：${e.message}`, true);
     return rawCall(SAVE_KIND[kind].reload, auth).catch(() => null);
   });
   saveQueue = saveQueue.then(send, send).then(list => {
@@ -2312,16 +2340,25 @@ async function doRequest() {
   if (p.due && p.due < ymd(new Date())) { alert('過ぎた日付は選べません'); return; }
   if (['M', 'MN', 'Y'].includes(p.kind) && !p.due) { alert('毎月・毎年の繰り返しは、最初の期日を選んでください'); return; }
   $('rqBox').classList.add('hidden');
-  busy(true);
-  try {
-    await saveQueue; // 裏で保存中の分を先に送り終える
-    const r = await call('requestTask', p);
-    drawTasks(r.tasks);
-    const [, m, d] = (r.due || '').split('-').map(Number);
-    show(`個別業務を依頼しました：${nbs(r.names)}「${p.text.slice(0, 30)}」` + (r.due ? `（期日 ${m}/${d}）` : '') + (r.ruleLabel ? ` 🔁${r.ruleLabel}` : ''));
-  } catch (e) { $('rqBox').classList.remove('hidden'); } // 入れた内容を残して窓を開き直す
-  finally { busy(false); }
+  // 返事を待たずに一覧へ仮の行（登録中）を出し、登録は裏で（2026-11-08。以前は返事まで「反映中」で待たせていた）
+  p.rid = newRid();
+  if (p.ids.includes(Number(auth.id))) {
+    const today = ymd(new Date());
+    const rule = p.kind === 'none' ? '' : p.kind === 'W' && p.days.length ? 'W:' + p.days.slice().sort().join(',') : ruleFromKind(p.kind, p.due || today);
+    const due = rule ? (ruleMatch(rule, new Date((p.due || today) + 'T00:00:00')) ? (p.due || today) : nextByRule(rule, p.due || today)) : p.due;
+    drawTasks(sortTasks((me.tasks || []).concat([{ id: 'tmp-' + p.rid, text: p.text, due, from: me.name, repeat: !!rule, rule, ruleLabel: rule ? ruleLabel(rule) : '',
+      multi: p.ids.length > 1, mates: [], isNew: false, images: [] }])));
+  }
+  show('個別業務を登録しています…（そのまま操作を続けられます）');
+  saveLater('tasks', 'requestTask', p, { retry: true, pick: r => r.tasks,
+    ok: r => {
+      const [, m, d] = (r.due || '').split('-').map(Number);
+      show(`個別業務を依頼しました：${nbs(r.names)}「${p.text.slice(0, 30)}」` + (r.due ? `（期日 ${m}/${d}）` : '') + (r.ruleLabel ? ` 🔁${r.ruleLabel}` : ''));
+    },
+    fail: e => { show(`個別業務を登録できませんでした：${e.message}`, true); $('rqBox').classList.remove('hidden'); } }); // 入れた内容を残して窓を開き直す
 }
+/** 送信の印（送り直した時にサーバーが同じ登録と分かるように） */
+function newRid() { return auth.id + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8); }
 function openJinaiAdd() {
   const today = ymd(new Date());
   $('jaText').value = ''; $('jaDate').value = ''; $('jaDate').min = today;
@@ -2357,14 +2394,15 @@ async function doJinaiAdd() {
   $('jaBox').classList.add('hidden');
   const rule = jaRule(cycle, p.date); // 周期の時は、寺内に同じ内容の予定があれば以降不要にするか確かめる（寺内へ移す時と同じ）
   if (rule) p.removeDups = await askRemoveDups({ texts: [p.text] }, ruleLabel(rule));
-  busy(true);
-  try {
-    await saveQueue;
-    const r = await call('addAnnualApp', p);
-    drawAnnual(r.annual);
-    show('寺内スケジュールに追加しました：' + r.msg.replace(/\n/g, ' '));
-  } catch (e) { $('jaBox').classList.remove('hidden'); }
-  finally { busy(false); }
+  // 返事を待たずに一覧へ仮の行（登録中）を出し、登録は裏で（2026-11-08）
+  p.rid = newRid();
+  const d = rule && !ruleMatch(rule, new Date(p.date + 'T00:00:00')) ? nextByRule(rule, p.date) : p.date, left = daysLeft(d);
+  drawAnnual((me.annual || []).concat([{ id: 'tmp-' + p.rid, date: d, key: d, left, kind: p.kind, text: p.text, early: left > 30, moved: false,
+    cycle: rule ? ruleLabel(rule) : '', rule, once: cycle === 'none', starters: [], notes: [], later: [] }]));
+  show('寺内スケジュールに登録しています…（そのまま操作を続けられます）');
+  saveLater('annual', 'addAnnualApp', p, { retry: true, pick: r => r.annual,
+    ok: r => show('寺内スケジュールに追加しました' + (r.msg ? '：' + r.msg.replace(/\n/g, ' ') : '')),
+    fail: e => { show(`寺内スケジュールに登録できませんでした：${e.message}`, true); $('jaBox').classList.remove('hidden'); } });
 }
 
 /** 周期にする時、同じ内容のほかの日付の予定を以降不要にするか確かめる（2026-11-04）。なければ聞かずに false */

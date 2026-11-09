@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261109152005">
+<meta name="build" content="20261109162157">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -1309,7 +1309,6 @@ function drawRemoved(kind, list) {
     const row = document.createElement('div'); row.className = 'titem';
     const body = document.createElement('div'); body.style.flex = '1';
     const t = document.createElement('div'); t.className = 't' + (a.repeat ? ' rep' : '');
-    if (a.kind) { const k = document.createElement('span'); k.className = 'kind'; k.textContent = a.kind; t.appendChild(k); }
     t.append(linked(a.text));
     const m = document.createElement('div'); m.className = 'sub';
     m.textContent = `${a.at} ${kind === 'annual' ? '以降不要' : '削除'}`;
@@ -1376,8 +1375,7 @@ function drawAnnual(list) {
     }
     const body = document.createElement('div'); body.style.flex = '1';
     const txt = document.createElement('div'); txt.className = 't';
-    const k = document.createElement('span'); k.className = 'kind'; k.textContent = a.kind;
-    txt.append(k, a.early ? '★ ' : '', linked(a.text));
+    txt.append(a.early ? '★ ' : '', linked(a.text)); // 区分（発注・準備など）の表記は出さない（2026-11-09。データ・入力欄は残す）
     const [, m, d] = a.date.split('-').map(Number);
     const b = document.createElement('span');
     b.className = 'due' + (a.left <= 0 ? ' over' : a.left <= 7 ? ' soon' : ''); // 期日が来たら赤

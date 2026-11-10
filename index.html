@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261110092601">
+<meta name="build" content="20261110093930">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -345,6 +345,9 @@
   #annualBox .head button.hbtn.on, #taskBox .head button.hbtn.on { background:#222629; color:#fff; border-bottom-color:#222629; opacity:1; }
   /* 寺内スケジュールの進捗（Ver1.2）：時系列のつながり（左の線と点） */
   button.pp.nt { background:#fff; color:#222629; border:1px solid #222629; margin-left:6px; } button.pp.nt::before { display:none; }
+  /* 進捗が書き込まれた予定は「進捗」を薄い青で明滅（2026-11-10） */
+  button.pp.nt.has { animation:ntBlink 1.6s ease-in-out infinite; }
+  @keyframes ntBlink { 50% { background:#bfdcf5; } }
   .ntlast { margin-top:4px; font-size:12px; color:var(--sub); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; border-left:2px solid #c9b88f; padding-left:6px; }
   .annual .titem > div { min-width:0; } /* 最新の書き込みの1行が長くても、行の幅を広げない */
   /* 個別業務の行（2026-11-04）：担当者の名前が長くても本文の幅を広げない（ゴミ箱が枠の外へ押し出されないように）。
@@ -1397,6 +1400,7 @@ function drawAnnual(list) {
       meta.appendChild(stButton(a));
       const nb = document.createElement('button'); nb.className = 'pp nt';
       nb.textContent = (a.notes || []).length ? `進捗 ${a.notes.length}` : '進捗';
+      if ((a.notes || []).length) nb.classList.add('has'); // 進捗があれば薄い青で明滅（2026-11-10）
       nb.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); openNotes(a); }; // 行はlabelなのでチェックが入らないように
       meta.appendChild(nb);
       const eb = document.createElement('button'); eb.className = 'pp nt'; eb.textContent = '編集';

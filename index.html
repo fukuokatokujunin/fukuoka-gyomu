@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261109162157">
+<meta name="build" content="20261110092601">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -703,6 +703,13 @@
           <button class="ghost" onclick="closeNotes()">閉じる</button>
         </div>
       </div>
+      <div class="overlay hidden" id="nearBox">
+        <div class="modal" style="max-height:85vh;overflow-y:auto">
+          <strong>期日が近い個別業務があります</strong>
+          <div id="nearList"></div>
+          <button class="ghost" onclick="$('nearBox').classList.add('hidden')">確認しました</button>
+        </div>
+      </div>
       <div class="overlay hidden" id="morningBox">
         <div class="modal center">
           <strong>おはようございます</strong>
@@ -1169,6 +1176,7 @@ function render(s) {
     (annualReq || rawCall('annual', auth)).then(drawAnnual).catch(() => { $('annual').innerHTML = '<p class="sub">読み込めませんでした（更新を押してください）</p>'; });
   }
   morningCheck();
+  nearCheck();
   alarmCheck();
 }
 
@@ -1646,6 +1654,52 @@ function morningCheck() {
   if (!IS_PC || stale || !me || me.noAttend) return;
   let last = ''; try { last = localStorage.getItem('morning') || ''; } catch (e) {}
   if (last !== ymd(new Date())) $('morningBox').classList.remove('hidden');
+}
+/* 期日が近い個別業務（2026-11-10）：起動時に知らせる（端末ごと）
+   ・期日の2週間前（8〜14日前）になったら1回だけ（同じ個別業務・同じ期日では二度出さない）
+   ・1週間前（7日前）からは完了するまで毎日1回「あと○日です」（今日・過ぎた分も）
+   毎日・平日・毎週の繰り返しはいつも近いので除く。日をまたいで開いたままでも、日付が変わった後の最初の読込で出す */
+let nearDay = '';
+function nearItems(list, today) {
+  const t0 = new Date(today + 'T00:00:00');
+  return (list || []).filter(t => t.due && !String(t.id).startsWith('tmp-') && !/^(D|WD|W:)/.test(t.rule || ''))
+    .map(t => ({ t, left: Math.round((new Date(t.due + 'T00:00:00') - t0) / 864e5) }))
+    .filter(x => x.left <= 14);
+}
+function nearCheck() {
+  const today = ymd(new Date());
+  if (stale || !me || !showTasks() || nearDay === today) return;
+  nearDay = today;
+  let warned = [], daily = {};
+  try { warned = JSON.parse(localStorage.getItem('near2w') || '[]'); daily = JSON.parse(localStorage.getItem('near1w') || '{}'); } catch (e) {}
+  const seen = daily.day === today ? daily.ids || [] : [];
+  const key = x => x.t.id + '|' + x.t.due;
+  const show2w = [], show1w = [];
+  nearItems(me.tasks, today).forEach(x => {
+    if (x.left > 7) { if (!warned.includes(key(x))) show2w.push(x); }
+    else if (!seen.includes(String(x.t.id))) show1w.push(x);
+  });
+  if (!show2w.length && !show1w.length) return;
+  try {
+    localStorage.setItem('near2w', JSON.stringify(warned.concat(show2w.map(key)).slice(-200)));
+    localStorage.setItem('near1w', JSON.stringify({ day: today, ids: seen.concat(show1w.map(x => String(x.t.id))) }));
+  } catch (e) {}
+  $('nearList').innerHTML = '';
+  show1w.concat(show2w).forEach(x => {
+    const div = document.createElement('div'); div.className = 'newitem';
+    const [, m, d] = x.t.due.split('-').map(Number);
+    const head = document.createElement('div'); head.style.fontWeight = 'bold';
+    head.style.color = x.left <= 7 ? 'var(--ng)' : 'var(--warn)';
+    head.textContent = x.left > 7 ? `期日まで2週間を切りました（あと${x.left}日）`
+      : x.left > 0 ? `期日まであと${x.left}日です` : x.left === 0 ? '今日が期日です' : `期日を${-x.left}日過ぎています`;
+    const txt = document.createElement('div'); txt.className = 't'; txt.append(linked(x.t.text));
+    const meta = document.createElement('div'); meta.className = 'sub';
+    meta.textContent = `期日 ${m}/${d}` + (x.t.from && x.t.from !== me.name ? `　${x.t.from === '寺内スケジュール' ? '寺内スケジュールから' : nb(x.t.from) + 'より'}` : '');
+    const b = document.createElement('button'); b.textContent = 'この個別業務へ移動';
+    b.onclick = () => { $('nearBox').classList.add('hidden'); jumpTo(`#tasks [data-id="${x.t.id}"]`); };
+    div.append(head, txt, meta, b); $('nearList').appendChild(div);
+  });
+  $('nearBox').classList.remove('hidden');
 }
 function closeMorning() {
   try { localStorage.setItem('morning', ymd(new Date())); } catch (e) {}

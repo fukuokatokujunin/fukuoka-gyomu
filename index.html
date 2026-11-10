@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261110093930">
+<meta name="build" content="20261110181722">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -702,7 +702,7 @@
             <div class="thumbs" id="ntThumbs"></div>
             <button onclick="addNote()">書き足す</button>
           </div>
-          <p class="sub" id="ntNotYet" style="margin:6px 0 0">書き足せるのは着手している人だけです（「未着手」から着手してください）</p>
+          <p class="sub" id="ntNotYet" style="margin:6px 0 0"></p>
           <button class="ghost" onclick="closeNotes()">閉じる</button>
         </div>
       </div>
@@ -1633,6 +1633,8 @@ function drawNotes() {
   const mine = myStart(a);
   $('ntForm').classList.toggle('hidden', !mine);
   $('ntNotYet').classList.toggle('hidden', mine);
+  // 説明は一覧のボタンの表示に合わせる（だれか着手していれば「進行中」から参加、だれもいなければ「未着手」から着手。2026-11-10）
+  $('ntNotYet').textContent = '書き足せるのは着手している人だけです' + ((a.starters || []).length ? '（「進行中」を押して参加してください）' : '（「未着手」を押して着手してください）');
   $('ntList').scrollTop = $('ntList').scrollHeight; // 新しい書き込みが見えるように
 }
 async function addNote() {

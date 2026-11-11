@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261111133402">
+<meta name="build" content="20261111135959">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -124,24 +124,24 @@
   .titem .t { white-space:pre-wrap; word-break:break-word; }
   .pn { white-space:nowrap; } /* 名前は途中で改行しない（2026-11-04） */
   /* 業務追加（2026-11-04）：勤務中の下。折りたたみ（開閉は端末に記憶）。アイコンはほかと同じ黒地に白の線（絵文字は使わない） */
-  details.addbox { padding-top:0; padding-bottom:0; }
-  details.addbox > summary { cursor:pointer; list-style:none; padding:16px 0; display:flex; justify-content:space-between; align-items:center; gap:10px;
+  details.foldbox { padding-top:0; padding-bottom:0; }
+  details.foldbox > summary { cursor:pointer; list-style:none; padding:16px 0; display:flex; justify-content:space-between; align-items:center; gap:10px;
     font-family:"Shippori Mincho","Hiragino Mincho ProN","Yu Mincho",serif; font-size:16px; font-weight:500; letter-spacing:.2em; }
-  details.addbox > summary::-webkit-details-marker { display:none; }
-  details.addbox > summary::after { content:''; flex:none; width:22px; height:22px; background:#222629 no-repeat center / 10px
+  details.foldbox > summary::-webkit-details-marker { display:none; }
+  details.foldbox > summary::after { content:''; flex:none; width:22px; height:22px; background:#222629 no-repeat center / 10px
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' fill='none' stroke='white' stroke-width='1.5'%3E%3Cpath d='M1 3l4 4 4-4'/%3E%3C/svg%3E"); transition:transform .3s; }
-  details.addbox[open] > summary::after { transform:rotate(180deg); }
-  details.addbox .hobody { padding-bottom:18px; } /* 引き継ぎ事項（2026-11-08 業務追加と同じ折りたたみ） */
-  details.addbox .hobody select { margin-top:0; }
-  details.addbox .addbtns { display:flex; gap:10px; padding-bottom:18px; }
-  details.addbox .addbtns button { flex:1; min-width:0; margin:0; display:flex; align-items:center; gap:10px; padding:5px 10px 5px 5px; background:#fff; color:#222629;
+  details.foldbox[open] > summary::after { transform:rotate(180deg); }
+  details.foldbox .hobody { padding-bottom:18px; } /* 引き継ぎ事項（2026-11-08 業務追加と同じ折りたたみ） */
+  details.foldbox .hobody select { margin-top:0; }
+  details.foldbox .newbtns { display:flex; gap:10px; padding-bottom:18px; }
+  details.foldbox .newbtns button { flex:1; min-width:0; margin:0; display:flex; align-items:center; gap:10px; padding:5px 10px 5px 5px; background:#fff; color:#222629;
     border:1px solid #222629; border-radius:0; font-size:13px; font-weight:400; letter-spacing:.1em; text-align:left; line-height:1.4; }
-  details.addbox .addbtns button::before { content:''; flex:none; width:30px; height:30px; background:#222629 no-repeat center / 18px; }
-  details.addbox .addbtns button.req::before { background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='1.8' stroke-linejoin='round'%3E%3Cpath d='M5 3h10l4 4v14H5z'/%3E%3Cpath d='M9 11h6M9 15h6'/%3E%3C/svg%3E"); }
-  details.addbox .addbtns button.jin::before { background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='1.8' stroke-linejoin='round'%3E%3Cpath d='M2 9l10-5 10 5'/%3E%3Cpath d='M5 9v10M19 9v10M3 20h18M10 20v-5h4v5'/%3E%3C/svg%3E"); }
-  details.addbox .addbtns button:active { background:#f0f0f0; transform:translateY(1px); }
-  @media (min-width:900px) { details.addbox .addbtns button.jin { order:-1; } } /* PCは「寺内スケジュールに追加」を左に（2026-11-04） */
-  details.addbox .addbtns .nw { display:inline-block; white-space:nowrap; } /* 狭い画面では言葉の切れ目（「寺内スケジュール／に追加」）で折り返す */
+  details.foldbox .newbtns button::before { content:''; flex:none; width:30px; height:30px; background:#222629 no-repeat center / 18px; }
+  details.foldbox .newbtns button.req::before { background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='1.8' stroke-linejoin='round'%3E%3Cpath d='M5 3h10l4 4v14H5z'/%3E%3Cpath d='M9 11h6M9 15h6'/%3E%3C/svg%3E"); }
+  details.foldbox .newbtns button.jin::before { background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='1.8' stroke-linejoin='round'%3E%3Cpath d='M2 9l10-5 10 5'/%3E%3Cpath d='M5 9v10M19 9v10M3 20h18M10 20v-5h4v5'/%3E%3C/svg%3E"); }
+  details.foldbox .newbtns button:active { background:#f0f0f0; transform:translateY(1px); }
+  @media (min-width:900px) { details.foldbox .newbtns button.jin { order:-1; } } /* PCは「寺内スケジュールに追加」を左に（2026-11-04） */
+  details.foldbox .newbtns .nw { display:inline-block; white-space:nowrap; } /* 狭い画面では言葉の切れ目（「寺内スケジュール／に追加」）で折り返す */
   .whos { display:flex; flex-wrap:wrap; gap:6px 14px; margin:4px 0; }
   .whos label { display:flex; align-items:center; gap:4px; white-space:nowrap; font-size:15px; }
   .whos input { width:20px; height:20px; margin:0; }
@@ -390,9 +390,10 @@
   .rule.rep::before { width:15px; height:15px; margin-right:6px; background-size:10px; vertical-align:-2px; } /* 周期の行の繰り返しアイコン（小さめ） */
   .tklabel .rep::before { vertical-align:-3px; }
   /* 管理画面（2026-11-02 簡素化）：上段に月・状態・提出状況、タブで分け、次にやることだけ大きく */
-  .adhead { display:flex; flex-wrap:wrap; align-items:center; gap:8px 14px; padding:18px 20px; }
-  .adhead select { width:auto; margin:0; font-size:17px; }
-  .adhead .chips { flex:1 1 100%; }
+  /* 2026-11-11：クラス名を adhead → admtop に（「ad」で始まる名前は広告を消す仕組みに広告と見なされ、スマホで月の選択の枠が消えていた。addbox・addbtns・adesc も改名） */
+  .admtop { display:flex; flex-wrap:wrap; align-items:center; gap:8px 14px; padding:18px 20px; }
+  .admtop select { width:auto; margin:0; font-size:17px; }
+  .admtop .chips { flex:1 1 100%; }
   .atabs { display:flex; gap:0; margin:-8px 0 22px; border-bottom:1px solid rgba(255,255,255,.6); overflow-x:auto; }
   .atabs .atab { flex:1; width:auto; margin:0; padding:12px 6px; font-size:14px; letter-spacing:.1em; white-space:nowrap;
     background:rgba(34,38,41,.35); color:#fff; border-bottom:3px solid transparent; }
@@ -411,14 +412,14 @@
   details.help dt { font-weight:700; margin-top:10px; } details.help dd { margin:2px 0 0; color:var(--sub); line-height:1.7; }
   /* ===== スマホの下部タブ（2026-11-11）：業務追加・個別業務・寺内スケジュール・引き継ぎ（管理者は管理）。
      TOPはインフォと勤務中の枠（申し送り・退勤前チェックを含む）だけにし、各機能はタブで切り替える。同じタブをもう一度押すとTOPへ ===== */
-  #tabbar, .mobhead, #mobBack, .adesc { display:none; }
+  #tabbar, .mobhead, #mobBack, .btndesc { display:none; }
   @media (max-width:899px) {
     /* 2026-11-11：画面の角が丸い機種で左右の下が見切れたので、上げて内側に寄せ、角を丸める */
     body.mob.tabs #tabbar { display:flex; position:fixed; left:12px; right:12px; bottom:calc(24px + env(safe-area-inset-bottom)); z-index:8; height:66px;
       border-radius:20px; overflow:hidden; background:rgba(34,38,41,.95); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); box-shadow:0 12px 32px rgba(0,0,0,.35); }
     #tabbar button { flex:1 1 0; width:auto; min-width:0; margin:0; padding:0; background:none; border:0; color:rgba(255,255,255,.55); position:relative;
       display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; font-size:10px; font-weight:400; letter-spacing:.06em; transition:color .25s; }
-    #tabbar button.wide { flex-grow:1.5; }
+    #tabbar button.wide { flex-grow:1.8; } /* ホームを足して6つでも「寺内スケジュール」が1行に収まるように */
     #tabbar button:hover { opacity:1; }
     #tabbar button span { white-space:nowrap; line-height:1; }
     #tabbar svg { width:23px; height:23px; fill:none; stroke:currentColor; stroke-width:1.5; stroke-linejoin:round; stroke-linecap:round; }
@@ -447,16 +448,16 @@
     body.mob.tabs #v-clock:not([data-tab=home]) #outBox { display:none; }
     body.mob.tabs #v-clock:not([data-tab=home]) #mobBack { display:block; order:-1; align-self:flex-start; }
     /* 業務追加・引き継ぎはタブの中では開いたまま。見出しは寺内スケジュール・個別業務と同じ形 */
-    body.mob.tabs details.addbox > summary { display:none; }
+    body.mob.tabs details.foldbox > summary { display:none; }
     body.mob.tabs .mobhead { display:block; padding:24px 0 14px; margin-bottom:18px; border-bottom:1px solid var(--ink); }
     body.mob.tabs .mobhead h3 { margin:0; font-size:16px; }
     body.mob.tabs .mobhead h3::before { content:attr(data-en); display:block; font-family:"Noto Sans JP",sans-serif; font-size:10px; font-weight:500; letter-spacing:.4em; color:var(--sub); margin-bottom:6px; }
-    body.mob.tabs #addBox .addbtns { flex-direction:column; gap:12px; padding-bottom:24px; }
-    body.mob.tabs #addBox .addbtns button { gap:16px; padding:10px 14px 10px 10px; font-size:15px; letter-spacing:.15em; }
-    body.mob.tabs #addBox .addbtns button::before { width:46px; height:46px; background-size:24px; }
-    body.mob.tabs .adesc { display:block; margin-top:4px; font-size:11px; color:var(--sub); letter-spacing:.05em; }
+    body.mob.tabs #addBox .newbtns { flex-direction:column; gap:12px; padding-bottom:24px; }
+    body.mob.tabs #addBox .newbtns button { gap:16px; padding:10px 14px 10px 10px; font-size:15px; letter-spacing:.15em; }
+    body.mob.tabs #addBox .newbtns button::before { width:46px; height:46px; background-size:24px; }
+    body.mob.tabs .btndesc { display:block; margin-top:4px; font-size:11px; color:var(--sub); letter-spacing:.05em; }
   }
-  @media (max-width:360px) { #tabbar button { font-size:9px; letter-spacing:0; } }
+  @media (max-width:360px) { #tabbar button { font-size:9px; letter-spacing:0; } #tabbar svg { width:21px; height:21px; } }
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Shippori+Mincho:wght@400;500;600&display=swap" rel="stylesheet">
@@ -579,16 +580,16 @@
         <button class="hidden" id="eveSaveBtn" onclick="eveSave()">登録</button><!-- PCだけ（2026-11-06） -->
       </div>
 
-      <details class="card addbox hidden" id="addBox">
+      <details class="card foldbox hidden" id="addBox">
         <summary>業務追加</summary>
         <div class="mobhead"><h3 data-en="ADD">業務追加</h3></div>
-        <div class="addbtns">
-          <button class="req" onclick="openRequest()"><span><span class="nw">個別業務</span><span class="nw">を依頼</span><small class="adesc">自分や他の人にお願いする</small></span></button>
-          <button class="jin" onclick="openJinaiAdd()"><span><span class="nw">寺内スケジュール</span><span class="nw">に追加</span><small class="adesc">みんなで進める予定を登録する</small></span></button>
+        <div class="newbtns">
+          <button class="req" onclick="openRequest()"><span><span class="nw">個別業務</span><span class="nw">を依頼</span><small class="btndesc">自分や他の人にお願いする</small></span></button>
+          <button class="jin" onclick="openJinaiAdd()"><span><span class="nw">寺内スケジュール</span><span class="nw">に追加</span><small class="btndesc">みんなで進める予定を登録する</small></span></button>
         </div>
       </details>
       <!-- 引き継ぎ事項（2026-11-08 退勤前チェックから独立。業務追加と同じ折りたたみ。PC・スマホとも業務追加の下） -->
-      <details class="card addbox hidden" id="hoCard">
+      <details class="card foldbox hidden" id="hoCard">
         <summary>引き継ぎ事項</summary>
         <div class="mobhead"><h3 data-en="HANDOVER">引き継ぎ事項</h3></div>
         <div class="hobody">
@@ -841,7 +842,7 @@
     <section id="v-admin" class="hidden">
       <button class="ghost back" onclick="view('clock')">← TOPに戻る</button>
       <!-- 上段：対象月・状態・希望の提出状況（どのタブでも共通） -->
-      <div class="card adhead">
+      <div class="card admtop">
         <select id="ym" onchange="loadAdmin()"></select>
         <span id="status" class="badge"></span>
         <div class="chips" id="subm"></div>
@@ -986,6 +987,7 @@
 </main>
 <!-- スマホの下部タブ（2026-11-11）。アイコンはほかと同じ細い線（選んでいるタブは金の線） -->
 <nav id="tabbar">
+  <button data-t="home" onclick="mobTap('home')"><svg viewBox="0 0 24 24"><path d="M4 10.5L12 4l8 6.5V20H4z"/><path d="M10 20v-5.5h4V20"/></svg><span>ホーム</span></button><!-- TOPへ（2026-11-11） -->
   <button data-t="add" onclick="mobTap('add')"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16"/><path d="M12 8.5v7M8.5 12h7"/></svg><span>業務追加</span></button>
   <button data-t="task" onclick="mobTap('task')"><svg viewBox="0 0 24 24"><path d="M3.5 6.5l1.5 1.5 2.5-3M3.5 12.5l1.5 1.5 2.5-3M3.5 18.5l1.5 1.5 2.5-3M11 7h9.5M11 13h9.5M11 19h9.5"/></svg><span>個別業務</span><i></i></button>
   <button data-t="annual" class="wide" onclick="mobTap('annual')"><svg viewBox="0 0 24 24"><path d="M2 9l10-5 10 5M5 9v10M19 9v10M3 20h18M10 20v-5h4v5"/></svg><span>寺内スケジュール</span><i></i></button>
@@ -1297,13 +1299,14 @@ function mobBar() {
   if (mobTab !== 'home' && !mobAvail(mobTab)) mobTab = 'home'; // 退勤で引き継ぎが使えなくなった時など
   $('v-clock').dataset.tab = mobTab;
   const today = ymd(new Date());
-  // 印（2026-11-11）：赤＝新着・期日が来た分・届いた申し送り（明滅）、金＝期日が近い分（起動時に知らせる2週間以内）だけの時。数字は両方の合計
+  // 印（2026-11-11）：赤＝新着・期日が来た分・届いた申し送り（明滅）、金＝期日が近い分だけの時。数字は両方の合計。
+  // 期日が近い＝1週間以内（繰り返しも含む）。画面の期日の枠（黄・赤）と同じ数え方（2週間以内・毎日毎週を除く数え方は画面と数が合わないのでやめた）
+  const wk = ymd(new Date(new Date(today + 'T00:00:00').getTime() + 7 * 864e5));
   const tk = showTasks() ? (me.tasks || []).filter(x => !String(x.id).startsWith('tmp-')) : [];
-  const nearIds = nearItems(tk, today).map(x => x.t.id);
   const tkHot = tk.filter(x => x.isNew || (x.due && x.due <= today)).length;
   const an = (me.annual || []).filter(a => !a.event && !String(a.id).startsWith('tmp-'));
   const badge = {
-    task: { n: tk.filter(x => x.isNew || (x.due && x.due <= today) || nearIds.includes(x.id)).length, hot: tkHot > 0 },
+    task: { n: tk.filter(x => x.isNew || (x.due && x.due <= wk)).length, hot: tkHot > 0 },
     annual: { n: an.filter(a => a.left <= 7).length, hot: an.some(a => a.left <= 0) }, // 1週間以内（期日が来た分は赤）
     ho: { n: (me.handovers || []).length, hot: true }, // 届いた申し送り
   };

@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261110181722">
+<meta name="build" content="20261111091814">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -868,6 +868,15 @@
           <button onclick="reconcile()">実績確認（予定と実績の差異）</button>
           <span class="sub">シフトの予定と、ハーモスの実際の打刻を昨日分まで照らし合わせ、「出勤予定なのに打刻なし」「休み予定なのに打刻あり」の日を一覧表示します。シフトは自動では直しません。</span>
         </div>
+        <!-- 打刻・チェックの取り消し（2026-11-11 Revert.gs）：誤操作を人ごとに今日の分だけ戻す -->
+        <div class="card">
+          <strong>今日の打刻・チェックを戻す（誤操作の取り消し）</strong> <button class="ghost rqreload" onclick="loadRevert()">更新</button>
+          <span class="sub">間違えて押した操作を、人ごとに今日の分だけ元に戻します。<br>
+            ・<b>退勤打刻を取消</b>：勤務中に戻します（ハーモスへ送った退勤は消えないので、もう一度退勤した後にハーモスの退勤時刻を確認してください）<br>
+            ・<b>チェックを戻す</b>：退勤前チェックをすべて未チェックに戻します<br>
+            ・<b>確認をもう一度出す</b>：起動時の確認（朝の確認・期日が近い個別業務）と打刻のお知らせを、次に画面を開いた時にもう一度出します</span>
+          <div id="revList"></div>
+        </div>
       </div>
 
       <div id="at-info" class="hidden">
@@ -1178,6 +1187,7 @@ function render(s) {
     $('annual').innerHTML = '<p class="sub">読み込み中…</p>';
     (annualReq || rawCall('annual', auth)).then(drawAnnual).catch(() => { $('annual').innerHTML = '<p class="sub">読み込めませんでした（更新を押してください）</p>'; });
   }
+  reaskApply(s.reask); // 管理者が確認をもう一度出す時（2026-11-11）
   morningCheck();
   nearCheck();
   alarmCheck();
@@ -2936,6 +2946,7 @@ function adminTab(t) {
   document.querySelectorAll('.atab').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
   ['shift', 'req', 'actual', 'info', 'etc'].forEach(x => $('at-' + x).classList.toggle('hidden', x !== t));
   if (t === 'etc') loadPwList();
+  if (t === 'actual') loadRevert();
   try { localStorage.setItem('adminTab', t); } catch (e) {}
 }
 async function testNotify() {
@@ -3165,6 +3176,44 @@ function drawPwList(list) {
     }
     box.appendChild(row);
   });
+}
+
+/* 管理画面「実績確認」：今日の打刻・チェックを戻す（2026-11-11。Revert.gs） */
+async function loadRevert() {
+  try { drawRevert(await call('adminRevertList')); } catch (e) {}
+}
+function drawRevert(list) {
+  const box = $('revList'); box.innerHTML = '';
+  list.forEach(p => {
+    const row = document.createElement('div'); row.className = 'pwrow'; row.style.flexWrap = 'wrap';
+    const t = document.createElement('div'); t.style.flex = '1'; t.textContent = p.name + ' ';
+    const st = document.createElement('small'); st.className = 'sub';
+    st.textContent = [p.noAttend ? '' : p.outAt ? `退勤済み ${p.outAt}` : p.working ? '勤務中' : '勤務外',
+      p.eveDone ? '退勤前チェック済み' : p.evePart ? `退勤前チェック ${p.evePart}件` : ''].filter(Boolean).join('・');
+    t.appendChild(st); row.appendChild(t);
+    const btn = (label, q, action) => {
+      const b = document.createElement('button'); b.className = 'sec'; b.textContent = label;
+      b.onclick = async () => {
+        if (!await ask(q)) return;
+        busy(true);
+        try { const r = await call(action, { id: p.id }); drawRevert(r.list); notice('元に戻しました', r.msg); } finally { busy(false); }
+      };
+      row.appendChild(b);
+    };
+    if (p.outAt) btn('退勤打刻を取消', `${p.name}さんの退勤打刻（${p.outAt}）を取り消して、勤務中に戻しますか？`, 'adminRevertOut');
+    if (p.eveDone || p.evePart) btn('チェックを戻す', `${p.name}さんの今日の退勤前チェックを、すべて未チェックに戻しますか？`, 'adminRevertEve');
+    btn('確認をもう一度出す', `${p.name}さんの起動時の確認（朝の確認・期日が近い個別業務）と打刻のお知らせを、もう一度出しますか？`, 'adminReask');
+    box.appendChild(row);
+  });
+}
+/** 管理者が「確認をもう一度出す」を押した（今日の分で、この端末でまだ受けていなければ）：「確認しました」の記録を忘れる */
+function reaskApply(t) {
+  if (!t || !auth || t < new Date(ymd(new Date()) + 'T00:00:00').getTime()) return;
+  const k = 'reask:' + auth.id;
+  let seen = 0; try { seen = Number(localStorage.getItem(k) || 0); } catch (e) {}
+  if (t <= seen) return;
+  try { ['morning', 'near2w', 'near1w', 'alarm:in', 'alarm:out'].forEach(x => localStorage.removeItem(x)); localStorage.setItem(k, String(t)); } catch (e) {}
+  nearDay = '';
 }
 
 /* ---- 起動 ---- */

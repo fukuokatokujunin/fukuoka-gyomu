@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261111143211">
+<meta name="build" content="20261111154224">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -506,7 +506,12 @@
   .scw.sun .dl, .scw.sun .dl small { color:#9b3a2e; } .scw.sat .dl, .scw.sat .dl small { color:var(--an); }
   .scw .items { flex:1; min-width:0; display:flex; flex-direction:column; gap:5px; }
   .scw .chip, #calDay .chip { font-size:13px; white-space:normal; word-break:break-all; padding:5px 10px; line-height:1.6; letter-spacing:.04em; }
-  .scw .chip[data-go], #calDay .chip[data-go] { cursor:pointer; }
+  .chip.full { display:flex; align-items:center; gap:10px; }
+  .chip.full .ct { flex:1; min-width:0; }
+  #calBox .calgo { flex:none; padding:6px 10px; font-size:11px; letter-spacing:.1em; white-space:nowrap; background:#222629; color:#fff; }
+  #calBox .calgo::after { content:''; display:inline-block; width:8px; height:8px; margin-left:6px; vertical-align:0; background:no-repeat center / contain
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' fill='none' stroke='white' stroke-width='1.4'%3E%3Cpath d='M0 5h9M6 2l3 3-3 3'/%3E%3C/svg%3E"); }
+  @media (max-width:599px) { #calBox .calgo { padding:6px 8px; font-size:10px; letter-spacing:.05em; } }
   .chip small { display:block; font-size:10px; opacity:.75; letter-spacing:.1em; }
   .scw .none { font-size:12px; color:#b9bdbf; line-height:2; }
   #calDay { margin-top:14px; padding-top:12px; border-top:1px solid var(--ink); display:flex; flex-direction:column; gap:6px; }
@@ -641,7 +646,7 @@
         <div class="callegend"><span class="an">寺内スケジュール</span><span class="tk">個別業務</span></div>
         <div id="calBody"></div>
         <div id="calDay" class="hidden"></div>
-        <p class="sub calnote">寺内スケジュールは3か月先までの予定を表示しています。項目を押すと一覧のその項目へ移動します</p>
+        <p class="sub calnote">寺内スケジュールは3か月先までの予定を表示しています。「この予定を選択」で一覧のその項目へ移動します</p>
       </div>
 
       <details class="card foldbox hidden" id="addBox">
@@ -2036,9 +2041,15 @@ function scChip(x, full) {
   const c = document.createElement('div');
   c.className = 'chip ' + x.kind + (x.evt ? ' evt' : '');
   if (full) {
+    c.classList.add('full');
+    const ct = document.createElement('div'); ct.className = 'ct';
     const k = document.createElement('small'); k.textContent = x.kind === 'tk' ? '個別業務' : x.evt ? '行事' : '寺内スケジュール';
-    c.append(k, x.text);
-    if (x.sel) { c.dataset.go = '1'; c.onclick = ev => { ev.stopPropagation(); jumpTo(x.sel); }; }
+    ct.append(k, x.text); c.appendChild(ct);
+    if (x.sel) { // 「この予定を選択」で一覧のその項目へ（2026-11-11。行事は一覧の項目がないので出さない）
+      const go = document.createElement('button'); go.className = 'calgo'; go.textContent = 'この予定を選択';
+      go.onclick = ev => { ev.stopPropagation(); jumpTo(x.sel); };
+      c.appendChild(go);
+    }
   } else c.textContent = x.text;
   c.title = x.text;
   return c;

@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261111154224">
+<meta name="build" content="20261111154813">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -646,7 +646,7 @@
         <div class="callegend"><span class="an">寺内スケジュール</span><span class="tk">個別業務</span></div>
         <div id="calBody"></div>
         <div id="calDay" class="hidden"></div>
-        <p class="sub calnote">寺内スケジュールは3か月先までの予定を表示しています。「この予定を選択」で一覧のその項目へ移動します</p>
+        <p class="sub calnote">寺内スケジュールは3か月先までの予定を表示しています。「選択」で一覧のその項目へ移動します</p>
       </div>
 
       <details class="card foldbox hidden" id="addBox">
@@ -2045,8 +2045,8 @@ function scChip(x, full) {
     const ct = document.createElement('div'); ct.className = 'ct';
     const k = document.createElement('small'); k.textContent = x.kind === 'tk' ? '個別業務' : x.evt ? '行事' : '寺内スケジュール';
     ct.append(k, x.text); c.appendChild(ct);
-    if (x.sel) { // 「この予定を選択」で一覧のその項目へ（2026-11-11。行事は一覧の項目がないので出さない）
-      const go = document.createElement('button'); go.className = 'calgo'; go.textContent = 'この予定を選択';
+    if (x.sel) { // 「選択」で一覧のその項目へ（2026-11-11。行事は一覧の項目がないので出さない）
+      const go = document.createElement('button'); go.className = 'calgo'; go.textContent = '選択';
       go.onclick = ev => { ev.stopPropagation(); jumpTo(x.sel); };
       c.appendChild(go);
     }

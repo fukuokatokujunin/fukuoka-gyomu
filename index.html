@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261111135959">
+<meta name="build" content="20261111141854">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -444,7 +444,7 @@
     body.mob.tabs #v-clock:not([data-tab=add]) #addBox, body.mob.tabs #v-clock:not([data-tab=ho]) #hoCard,
     body.mob.tabs #v-clock:not([data-tab=home]) #deadline, body.mob.tabs #v-clock:not([data-tab=home]) #infos,
     body.mob.tabs #v-clock:not([data-tab=home]) #pushBox, body.mob.tabs #v-clock:not([data-tab=home]):not([data-tab=ho]) #handBox, /* 届いた申し送りはTOPと引き継ぎタブに */
-    body.mob.tabs #v-clock:not([data-tab=home]) #clockCard, body.mob.tabs #v-clock:not([data-tab=home]) #eveBox,
+    body.mob.tabs #v-clock:not([data-tab=home]) #clockCard, body.mob.tabs #v-clock:not([data-tab=home]) #eveBox, body.mob.tabs #v-clock:not([data-tab=home]) #calBox,
     body.mob.tabs #v-clock:not([data-tab=home]) #outBox { display:none; }
     body.mob.tabs #v-clock:not([data-tab=home]) #mobBack { display:block; order:-1; align-self:flex-start; }
     /* 業務追加・引き継ぎはタブの中では開いたまま。見出しは寺内スケジュール・個別業務と同じ形 */
@@ -458,6 +458,60 @@
     body.mob.tabs .btndesc { display:block; margin-top:4px; font-size:11px; color:var(--sub); letter-spacing:.05em; }
   }
   @media (max-width:360px) { #tabbar button { font-size:9px; letter-spacing:0; } #tabbar svg { width:21px; height:21px; } }
+  /* ===== 予定カレンダー（2026-11-11）：寺内スケジュール＝藍、個別業務＝代赭（たいしゃ）。行事は藍の枠だけ ===== */
+  #calBox { --an:#2f4d6b; --anbg:#e8eef4; --tk:#a0552f; --tkbg:#f6ebe2; }
+  #calBox button { width:auto; margin:0; padding:0; font-size:13px; font-weight:400; color:var(--ink); background:transparent; letter-spacing:.1em; border:0; }
+  #calBox .calhead { display:flex; justify-content:space-between; align-items:flex-end; gap:10px; padding-bottom:14px; border-bottom:1px solid var(--ink); margin-bottom:14px; }
+  #calBox .calhead h3 { margin:0; font-size:16px; }
+  #calBox .calhead h3::before { content:'CALENDAR'; display:block; font-family:"Noto Sans JP",sans-serif; font-size:10px; font-weight:500; letter-spacing:.4em; color:var(--sub); margin-bottom:6px; }
+  #calBox .calmode { flex:none; display:flex; border:1px solid var(--ink); }
+  #calBox .calmode button { padding:6px 16px; font-size:12px; letter-spacing:.2em; }
+  #calBox .calmode button.on { background:#222629; color:#fff; }
+  #calBox .calnav { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+  #calBox .calnav b { flex:1; text-align:center; font-family:"Shippori Mincho","Hiragino Mincho ProN","Yu Mincho",serif; font-weight:500; font-size:17px; letter-spacing:.12em; white-space:nowrap; }
+  #calBox .calnav .arw { width:38px; height:34px; border:1px solid var(--line); font-size:18px; line-height:1; letter-spacing:0; }
+  #calBox .calnav .tdy { padding:4px 2px; border-bottom:1px solid var(--ink); font-size:12px; }
+  .callegend { display:flex; gap:16px; justify-content:flex-end; font-size:11px; color:var(--sub); margin-bottom:8px; letter-spacing:.05em; }
+  .callegend span::before { content:''; display:inline-block; width:10px; height:10px; margin-right:5px; vertical-align:-1px; }
+  .callegend .an::before { background:var(--an); } .callegend .tk::before { background:var(--tk); }
+  /* 月表示 */
+  .scgrid { display:grid; grid-template-columns:repeat(7, minmax(0,1fr)); border-top:1px solid var(--line); border-left:1px solid var(--line); }
+  .scgrid .w { text-align:center; font-size:11px; color:var(--sub); padding:5px 0; border-right:1px solid var(--line); border-bottom:1px solid var(--line); background:#f5f5f3; letter-spacing:0; }
+  .scgrid .w.sun { color:#9b3a2e; } .scgrid .w.sat { color:var(--an); }
+  .scd { min-width:0; min-height:96px; padding:3px; box-sizing:border-box; border-right:1px solid var(--line); border-bottom:1px solid var(--line); background:#fff; cursor:pointer;
+    display:flex; flex-direction:column; gap:2px; overflow:hidden; transition:background .2s; }
+  .scd:hover { background:#fbfaf7; }
+  .scd.out { background:#f5f5f3; } .scd.out > * { opacity:.45; }
+  .scd .n { align-self:flex-start; min-width:22px; height:22px; line-height:22px; text-align:center; font-size:12px; letter-spacing:0; }
+  .scd.sun .n { color:#9b3a2e; } .scd.sat .n { color:var(--an); }
+  .scd.today .n { background:#222629; color:#fff; }
+  .scd.sel { box-shadow:inset 0 0 0 2px #8a7b5c; }
+  .chip { display:block; min-width:0; font-size:11px; line-height:1.55; padding:0 4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; letter-spacing:.02em; border-left:3px solid; }
+  .chip.an { background:var(--anbg); border-color:var(--an); color:var(--an); }
+  .chip.tk { background:var(--tkbg); border-color:var(--tk); color:var(--tk); }
+  .chip.evt { background:transparent; box-shadow:inset 0 0 0 1px var(--anbg); }
+  .scd .more { font-size:10px; color:var(--sub); letter-spacing:0; padding-left:3px; white-space:nowrap; }
+  @media (max-width:599px) {
+    .scd { min-height:68px; padding:2px 1px; gap:1px; }
+    .scd .n { font-size:11px; min-width:20px; height:20px; line-height:20px; }
+    .chip { font-size:9px; line-height:1.5; padding:0 2px; border-left-width:2px; letter-spacing:0; text-overflow:clip; }
+    .callegend { justify-content:flex-start; }
+  }
+  /* 週表示・選んだ日の一覧 */
+  .scw { display:flex; gap:12px; padding:12px 6px; border-bottom:1px solid var(--line); }
+  .scw:first-child { border-top:1px solid var(--line); }
+  .scw.today { background:#f6f4ee; }
+  .scw .dl { flex:none; width:64px; font-family:"Shippori Mincho","Hiragino Mincho ProN","Yu Mincho",serif; font-size:18px; letter-spacing:.05em; line-height:1.2; }
+  .scw .dl small { display:block; font-family:"Noto Sans JP",sans-serif; font-size:11px; color:var(--sub); letter-spacing:.1em; margin-top:2px; }
+  .scw.sun .dl, .scw.sun .dl small { color:#9b3a2e; } .scw.sat .dl, .scw.sat .dl small { color:var(--an); }
+  .scw .items { flex:1; min-width:0; display:flex; flex-direction:column; gap:5px; }
+  .scw .chip, #calDay .chip { font-size:13px; white-space:normal; word-break:break-all; padding:5px 10px; line-height:1.6; letter-spacing:.04em; }
+  .scw .chip[data-go], #calDay .chip[data-go] { cursor:pointer; }
+  .chip small { display:block; font-size:10px; opacity:.75; letter-spacing:.1em; }
+  .scw .none { font-size:12px; color:#b9bdbf; line-height:2; }
+  #calDay { margin-top:14px; padding-top:12px; border-top:1px solid var(--ink); display:flex; flex-direction:column; gap:6px; }
+  #calDay > b { font-family:"Shippori Mincho","Hiragino Mincho ProN","Yu Mincho",serif; font-weight:500; font-size:15px; letter-spacing:.12em; margin-bottom:2px; }
+  #calBox .calnote { font-size:11px; margin:12px 0 0; letter-spacing:.04em; }
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Shippori+Mincho:wght@400;500;600&display=swap" rel="stylesheet">
@@ -578,6 +632,16 @@
         <strong>退勤前チェック</strong> <span class="sub" id="eveNote"></span>
         <div id="eveChecks"></div>
         <button class="hidden" id="eveSaveBtn" onclick="eveSave()">登録</button><!-- PCだけ（2026-11-06） -->
+      </div>
+      <!-- 予定カレンダー（2026-11-11）：勤務中の枠の下。寺内スケジュールと個別業務の期日を月・週で見る（PC・スマホのTOP） -->
+      <div class="card" id="calBox">
+        <div class="calhead"><h3>予定カレンダー</h3>
+          <div class="calmode"><button data-m="month" onclick="scMode('month')">月</button><button data-m="week" onclick="scMode('week')">週</button></div></div>
+        <div class="calnav"><button class="arw" onclick="scMove(-1)" aria-label="前へ">‹</button><b id="calTitle"></b><button class="arw" onclick="scMove(1)" aria-label="次へ">›</button><button class="tdy" onclick="scToday()">今日</button></div>
+        <div class="callegend"><span class="an">寺内スケジュール</span><span class="tk">個別業務</span></div>
+        <div id="calBody"></div>
+        <div id="calDay" class="hidden"></div>
+        <p class="sub calnote">寺内スケジュールは3か月先までの予定を表示しています。項目を押すと一覧のその項目へ移動します</p>
       </div>
 
       <details class="card foldbox hidden" id="addBox">
@@ -1565,6 +1629,7 @@ function drawAnnual(list) {
     (a.left >= 14 ? far : near).push(row);
   });
   foldRows($('annual'), near, far, '2週間以上先の予定', 'annual');
+  scDraw(); // 予定カレンダー（2026-11-11）
   if (typeof dueMode !== 'undefined' && dueMode) setTimeout(refreshDue, 0);
   if (stCur && !$('stBox').classList.contains('hidden')) drawStart();
   if (ntCur && !$('ntBox').classList.contains('hidden')) drawNotes();
@@ -1948,8 +2013,101 @@ function drawTasks(list) {
     (left !== null && left > 3 ? far : near).push(row); // 期日なし・超過・3日以内は常に表示
   });
   foldRows($('tasks'), near, far, '4日以降先の個別業務', 'tasks');
+  scDraw(); // 予定カレンダー（2026-11-11）
   drawNew(list);
   if (typeof dueMode !== 'undefined' && dueMode) setTimeout(refreshDue, 0);
+}
+
+/* ---- 予定カレンダー（2026-11-11）：勤務中の枠の下に、寺内スケジュール（藍）と個別業務（代赭）の期日を月・週で表示 ----
+   寺内スケジュールは画面に出ている分（3か月先まで。同じ内容のほかの回 later も）、個別業務は期日のある自分の分。
+   日付・項目を押すとその日の一覧／一覧のその項目へ。月・週の選択は端末に覚える */
+let scView = 'month', scBase = null, scSel = null;
+try { if (localStorage.getItem('calView') === 'week') scView = 'week'; } catch (e) {}
+const scDate = s => new Date(s + 'T00:00:00');
+/** 日付ごとの項目 { 'YYYY-MM-DD': [{ kind:'an'|'tk', text, evt, sel }] }（寺内スケジュールが先、個別業務が後） */
+function scItems() {
+  const map = {}, add = (d, x) => { if (d) (map[d] = map[d] || []).push(x); };
+  ((me && me.annual) || []).forEach(a => [a.date].concat(a.later || []).forEach(d =>
+    add(d, { kind: 'an', text: a.text, evt: !!a.event, sel: a.event ? '' : `#annual [data-aid="${a.id}"]` })));
+  if (me && showTasks()) (me.tasks || []).forEach(t => add(t.due, { kind: 'tk', text: t.text, evt: false, sel: `#tasks [data-id="${t.id}"]` }));
+  return map;
+}
+function scChip(x, full) {
+  const c = document.createElement('div');
+  c.className = 'chip ' + x.kind + (x.evt ? ' evt' : '');
+  if (full) {
+    const k = document.createElement('small'); k.textContent = x.kind === 'tk' ? '個別業務' : x.evt ? '行事' : '寺内スケジュール';
+    c.append(k, x.text);
+    if (x.sel) { c.dataset.go = '1'; c.onclick = ev => { ev.stopPropagation(); jumpTo(x.sel); }; }
+  } else c.textContent = x.text;
+  c.title = x.text;
+  return c;
+}
+function scMode(m) {
+  scView = m === 'week' ? 'week' : 'month';
+  try { localStorage.setItem('calView', scView); } catch (e) {}
+  if (scView === 'week' && scSel) scBase = scSel; // 月表示で選んだ日の週を開く
+  scDraw();
+}
+function scMove(n) {
+  const b = scDate(scBase || ymd(new Date()));
+  scBase = ymd(scView === 'week' ? new Date(b.getFullYear(), b.getMonth(), b.getDate() + 7 * n) : new Date(b.getFullYear(), b.getMonth() + n, 1));
+  scSel = null;
+  scDraw();
+}
+function scToday() { scBase = ymd(new Date()); scSel = scView === 'month' ? scBase : null; scDraw(); }
+function scPick(d) { scSel = scSel === d ? null : d; scDraw(); }
+function scDraw() {
+  if (!me || !$('calBox')) return;
+  const today = ymd(new Date());
+  if (!scBase) scBase = today;
+  const map = scItems(), b = scDate(scBase), W = '日月火水木金土';
+  document.querySelectorAll('#calBox .calmode button').forEach(x => x.classList.toggle('on', x.dataset.m === scView));
+  const body = $('calBody'); body.innerHTML = '';
+  const wcls = w => w === 0 ? ' sun' : w === 6 ? ' sat' : '';
+  if (scView === 'month') {
+    const y = b.getFullYear(), m = b.getMonth();
+    $('calTitle').textContent = `${y}年${m + 1}月`;
+    const g = document.createElement('div'); g.className = 'scgrid';
+    W.split('').forEach((w, i) => { const h = document.createElement('div'); h.className = 'w' + wcls(i); h.textContent = w; g.appendChild(h); });
+    const first = new Date(y, m, 1), last = new Date(y, m + 1, 0);
+    const cells = first.getDay() + last.getDate() + (6 - last.getDay());
+    const lim = matchMedia('(max-width:599px)').matches ? 2 : 3; // 1日に出す件数（残りは「+n」）
+    for (let i = 0; i < cells; i++) {
+      const dt = new Date(y, m, 1 - first.getDay() + i), d = ymd(dt), list = map[d] || [];
+      const c = document.createElement('div');
+      c.className = 'scd' + wcls(dt.getDay()) + (dt.getMonth() !== m ? ' out' : '') + (d === today ? ' today' : '') + (d === scSel ? ' sel' : '');
+      const n = document.createElement('span'); n.className = 'n'; n.textContent = dt.getDate(); c.appendChild(n);
+      const show = list.length > lim ? lim - 1 : lim; // 「+n」の分も1行使う
+      list.slice(0, show).forEach(x => c.appendChild(scChip(x, false)));
+      if (list.length > show) { const mo = document.createElement('span'); mo.className = 'more'; mo.textContent = `+${list.length - show}`; c.appendChild(mo); }
+      c.onclick = () => scPick(d);
+      g.appendChild(c);
+    }
+    body.appendChild(g);
+  } else {
+    const s = new Date(b.getFullYear(), b.getMonth(), b.getDate() - b.getDay()), e = new Date(s.getFullYear(), s.getMonth(), s.getDate() + 6);
+    $('calTitle').textContent = `${s.getFullYear()}年 ${s.getMonth() + 1}/${s.getDate()} 〜 ${e.getMonth() + 1}/${e.getDate()}`;
+    for (let i = 0; i < 7; i++) {
+      const dt = new Date(s.getFullYear(), s.getMonth(), s.getDate() + i), d = ymd(dt), list = map[d] || [];
+      const r = document.createElement('div'); r.className = 'scw' + wcls(i) + (d === today ? ' today' : '');
+      const dl = document.createElement('div'); dl.className = 'dl'; dl.textContent = `${dt.getMonth() + 1}/${dt.getDate()}`;
+      const w = document.createElement('small'); w.textContent = d === today ? `今日（${W[i]}）` : `${W[i]}曜日`; dl.appendChild(w);
+      const it = document.createElement('div'); it.className = 'items';
+      if (list.length) list.forEach(x => it.appendChild(scChip(x, true)));
+      else { const no = document.createElement('span'); no.className = 'none'; no.textContent = '予定なし'; it.appendChild(no); }
+      r.append(dl, it); body.appendChild(r);
+    }
+  }
+  // 月表示で選んだ日の一覧
+  const day = $('calDay'), on = scView === 'month' && !!scSel;
+  day.classList.toggle('hidden', !on); day.innerHTML = '';
+  if (on) {
+    const dt = scDate(scSel), list = map[scSel] || [];
+    const h = document.createElement('b'); h.textContent = `${dt.getMonth() + 1}月${dt.getDate()}日（${W[dt.getDay()]}）の予定`; day.appendChild(h);
+    if (list.length) list.forEach(x => day.appendChild(scChip(x, true)));
+    else { const no = document.createElement('span'); no.className = 'sub'; no.textContent = '予定はありません'; day.appendChild(no); }
+  }
 }
 
 /* INFO（管理画面で追加したお知らせ）。締切のお知らせの下に1件ずつ並べる */

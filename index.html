@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261111091814">
+<meta name="build" content="20261111105024">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -409,6 +409,50 @@
   details.help { margin-top:14px; font-size:14px; }
   details.help summary { cursor:pointer; color:var(--sub); }
   details.help dt { font-weight:700; margin-top:10px; } details.help dd { margin:2px 0 0; color:var(--sub); line-height:1.7; }
+  /* ===== スマホの下部タブ（2026-11-11）：業務追加・個別業務・寺内スケジュール・引き継ぎ（管理者は管理）。
+     TOPはインフォと勤務中の枠（申し送り・退勤前チェックを含む）だけにし、各機能はタブで切り替える。同じタブをもう一度押すとTOPへ ===== */
+  #tabbar, .mobhead, #mobBack, .adesc { display:none; }
+  @media (max-width:899px) {
+    body.mob.tabs #tabbar { display:flex; position:fixed; left:10px; right:10px; bottom:calc(10px + env(safe-area-inset-bottom)); z-index:8; height:66px;
+      background:rgba(34,38,41,.95); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); box-shadow:0 12px 32px rgba(0,0,0,.35); }
+    #tabbar button { flex:1 1 0; width:auto; min-width:0; margin:0; padding:0; background:none; border:0; color:rgba(255,255,255,.55); position:relative;
+      display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; font-size:10px; font-weight:400; letter-spacing:.06em; transition:color .25s; }
+    #tabbar button.wide { flex-grow:1.5; }
+    #tabbar button:hover { opacity:1; }
+    #tabbar button span { white-space:nowrap; line-height:1; }
+    #tabbar svg { width:23px; height:23px; fill:none; stroke:currentColor; stroke-width:1.5; stroke-linejoin:round; stroke-linecap:round; }
+    #tabbar button::before { content:''; position:absolute; top:0; left:50%; width:0; height:2px; background:#c9b88f; transform:translateX(-50%); transition:width .3s ease; }
+    #tabbar button.on { color:#fff; } #tabbar button.on::before { width:30px; }
+    #tabbar button.on svg { stroke:#c9b88f; }
+    #tabbar button.off { opacity:.35; }
+    #tabbar i { position:absolute; top:7px; left:calc(50% + 5px); min-width:17px; height:17px; padding:0 4px; box-sizing:border-box; background:#9b3a2e; color:#fff;
+      border:1.5px solid #222629; font-style:normal; font-size:9px; line-height:14px; letter-spacing:0; text-align:center; }
+    #tabbar i:empty { display:none; }
+    body.mob.tabs main { padding-bottom:110px; }
+    body.mob.tabs #btnAdmin { display:none !important; } /* 管理は下のタブから */
+    body.mob.tabs #newPop, body.mob.tabs #saveBar { bottom:calc(88px + env(safe-area-inset-bottom)); }
+    body.mob.tabs #dueBar { bottom:calc(140px + env(safe-area-inset-bottom)); }
+    body.mob.tabs.saving #newPop { bottom:calc(142px + env(safe-area-inset-bottom)); }
+    body.mob.tabs.saving #dueBar { bottom:calc(194px + env(safe-area-inset-bottom)); }
+    /* 選んでいるタブの枠だけ出す（TOP＝home はインフォ・勤務中の枠） */
+    body.mob.tabs #v-clock:not([data-tab=annual]) #annualBox, body.mob.tabs #v-clock:not([data-tab=task]) #taskBox,
+    body.mob.tabs #v-clock:not([data-tab=add]) #addBox, body.mob.tabs #v-clock:not([data-tab=ho]) #hoCard,
+    body.mob.tabs #v-clock:not([data-tab=home]) #deadline, body.mob.tabs #v-clock:not([data-tab=home]) #infos,
+    body.mob.tabs #v-clock:not([data-tab=home]) #pushBox, body.mob.tabs #v-clock:not([data-tab=home]) #handBox,
+    body.mob.tabs #v-clock:not([data-tab=home]) #clockCard, body.mob.tabs #v-clock:not([data-tab=home]) #eveBox,
+    body.mob.tabs #v-clock:not([data-tab=home]) #outBox { display:none; }
+    body.mob.tabs #v-clock:not([data-tab=home]) #mobBack { display:block; order:-1; align-self:flex-start; }
+    /* 業務追加・引き継ぎはタブの中では開いたまま。見出しは寺内スケジュール・個別業務と同じ形 */
+    body.mob.tabs details.addbox > summary { display:none; }
+    body.mob.tabs .mobhead { display:block; padding:24px 0 14px; margin-bottom:18px; border-bottom:1px solid var(--ink); }
+    body.mob.tabs .mobhead h3 { margin:0; font-size:16px; }
+    body.mob.tabs .mobhead h3::before { content:attr(data-en); display:block; font-family:"Noto Sans JP",sans-serif; font-size:10px; font-weight:500; letter-spacing:.4em; color:var(--sub); margin-bottom:6px; }
+    body.mob.tabs #addBox .addbtns { flex-direction:column; gap:12px; padding-bottom:24px; }
+    body.mob.tabs #addBox .addbtns button { gap:16px; padding:10px 14px 10px 10px; font-size:15px; letter-spacing:.15em; }
+    body.mob.tabs #addBox .addbtns button::before { width:46px; height:46px; background-size:24px; }
+    body.mob.tabs .adesc { display:block; margin-top:4px; font-size:11px; color:var(--sub); letter-spacing:.05em; }
+  }
+  @media (max-width:360px) { #tabbar button { font-size:9px; letter-spacing:0; } }
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Shippori+Mincho:wght@400;500;600&display=swap" rel="stylesheet">
@@ -493,7 +537,8 @@
 
   <div id="app" class="hidden">
     <!-- 打刻（トップ） -->
-    <section id="v-clock">
+    <section id="v-clock" data-tab="home">
+      <button class="ghost back" id="mobBack" onclick="mobGo('home')">← TOPに戻る</button><!-- スマホの下部タブで開いた時（2026-11-11） -->
       <aside class="card annual" id="annualBox">
         <div class="head"><h3>寺内スケジュール <span class="sub" id="annualCount"></span></h3>
           <span><button class="hbtn" data-box="annualDoneBox" onclick="toggleDone('annual')">完了済み</button><button class="hbtn" data-box="annualRmBox" onclick="toggleRemoved('annual')">削除済み</button><button class="hbtn" id="annualReload" onclick="reloadAnnual()">更新</button></span></div>
@@ -532,14 +577,16 @@
 
       <details class="card addbox hidden" id="addBox">
         <summary>業務追加</summary>
+        <div class="mobhead"><h3 data-en="ADD">業務追加</h3></div>
         <div class="addbtns">
-          <button class="req" onclick="openRequest()"><span><span class="nw">個別業務</span><span class="nw">を依頼</span></span></button>
-          <button class="jin" onclick="openJinaiAdd()"><span><span class="nw">寺内スケジュール</span><span class="nw">に追加</span></span></button>
+          <button class="req" onclick="openRequest()"><span><span class="nw">個別業務</span><span class="nw">を依頼</span><small class="adesc">自分や他の人にお願いする</small></span></button>
+          <button class="jin" onclick="openJinaiAdd()"><span><span class="nw">寺内スケジュール</span><span class="nw">に追加</span><small class="adesc">みんなで進める予定を登録する</small></span></button>
         </div>
       </details>
       <!-- 引き継ぎ事項（2026-11-08 退勤前チェックから独立。業務追加と同じ折りたたみ。PC・スマホとも業務追加の下） -->
       <details class="card addbox hidden" id="hoCard">
         <summary>引き継ぎ事項</summary>
+        <div class="mobhead"><h3 data-en="HANDOVER">引き継ぎ事項</h3></div>
         <div class="hobody">
           <select id="hoTo"></select>
           <textarea id="hoText" rows="3" placeholder="引き継ぐ内容を入力"></textarea>
@@ -933,6 +980,14 @@
   </div>
   <p class="ver">業務管理システム <span id="ver"></span></p>
 </main>
+<!-- スマホの下部タブ（2026-11-11）。アイコンはほかと同じ細い線（選んでいるタブは金の線） -->
+<nav id="tabbar">
+  <button data-t="add" onclick="mobTap('add')"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16"/><path d="M12 8.5v7M8.5 12h7"/></svg><span>業務追加</span></button>
+  <button data-t="task" onclick="mobTap('task')"><svg viewBox="0 0 24 24"><path d="M3.5 6.5l1.5 1.5 2.5-3M3.5 12.5l1.5 1.5 2.5-3M3.5 18.5l1.5 1.5 2.5-3M11 7h9.5M11 13h9.5M11 19h9.5"/></svg><span>個別業務</span><i></i></button>
+  <button data-t="annual" class="wide" onclick="mobTap('annual')"><svg viewBox="0 0 24 24"><path d="M2 9l10-5 10 5M5 9v10M19 9v10M3 20h18M10 20v-5h4v5"/></svg><span>寺内スケジュール</span><i></i></button>
+  <button data-t="ho" onclick="mobTap('ho')"><svg viewBox="0 0 24 24"><path d="M3.5 4.5h17v11.5H9l-5.5 4z"/><path d="M8.5 10.5h7M12.5 7.5l3 3-3 3"/></svg><span>引き継ぎ</span></button>
+  <button data-t="admin" onclick="mobTap('admin')"><svg viewBox="0 0 24 24"><path d="M3.5 7h10M18.5 7h2M3.5 17h3M10.5 17h10"/><circle cx="16" cy="7" r="2.5"/><circle cx="8.5" cy="17" r="2.5"/></svg><span>管理</span></button>
+</nav>
 
 <script>
 let auth = null, me = null, req = {}, names = [], ov = null, cur = 'clock';
@@ -990,11 +1045,12 @@ function drawDueBar(list) {
 function jumpTo(sel) {
   const row = document.querySelector(sel);
   if (!row) return;
+  mobShow(row); // スマホは入っているタブを開く（2026-11-11）
   const fold = row.closest('details'); if (fold) fold.open = true;
   row.scrollIntoView({ behavior: 'smooth', block: 'center' });
   row.classList.add('flash'); setTimeout(() => row.classList.remove('flash'), 2500);
 }
-const $ = id => document.getElementById(id);
+const $ =id => document.getElementById(id);
 const APP_VERSION = 'Ver1.3'; // 改修の区切り（Ver1.3＝2026-11-06 Slack廃止・プッシュ通知・業務追加・17時の退勤前チェックなど。Ver1.2＝2026-11-03 寺内⇔個別業務・打刻のお知らせ・引き継ぎの画像・希望確認）
 document.getElementById('ver').textContent = APP_VERSION;
 const LABEL = { 1:'出', 2:'公', 5:'有', 6:'前', 7:'後', 17:'出' };
@@ -1053,7 +1109,7 @@ document.addEventListener('pointerdown', e => { const b = e.target.closest && e.
 document.addEventListener('keydown', e => { const b = document.activeElement; if ((e.key === 'Enter' || e.key === ' ') && b && b.tagName === 'BUTTON') { lastTap = b; lastTapAt = Date.now(); } }, true);
 function spinBtn(b) {
   document.querySelectorAll('button.loading').forEach(x => x.classList.remove('loading', 'lrel', 'sm'));
-  if (!b || !b.isConnected) return;
+  if (!b || !b.isConnected || b.closest('#tabbar')) return; // 下部タブの中では回さない（画面中央の「反映中…」だけ）
   b.classList.add('loading');
   if (getComputedStyle(b).position === 'static') b.classList.add('lrel');
   if (b.offsetWidth < 90) b.classList.add('sm'); // 小さいボタンは文字を隠して真ん中で回す
@@ -1092,6 +1148,8 @@ function view(v) {
   $('btnReq').classList.toggle('hidden', v === 'req' || me.noAttend);
   $('btnAdmin').classList.toggle('hidden', v === 'admin' || !me.admin);
   $('main').classList.toggle('wide', v === 'admin');
+  if (v !== 'clock') mobTab = 'home'; // 管理・シフト希望から戻った時はTOP
+  mobBar();
   show('');
   if (v === 'req') loadReq();
   if (v === 'admin') {
@@ -1188,6 +1246,7 @@ function render(s) {
     (annualReq || rawCall('annual', auth)).then(drawAnnual).catch(() => { $('annual').innerHTML = '<p class="sub">読み込めませんでした（更新を押してください）</p>'; });
   }
   reaskApply(s.reask); // 管理者が確認をもう一度出す時（2026-11-11）
+  mobBar();
   morningCheck();
   nearCheck();
   alarmCheck();
@@ -1197,6 +1256,55 @@ function render(s) {
 const IS_PC = !/iPhone|iPad|iPod|Android|Mobile/i.test(navigator.userAgent) &&
   !(navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent)) && // iPadOSはMacと名乗る
   !matchMedia('(pointer:coarse)').matches;
+/* ---- スマホの下部タブ（2026-11-11）：TOP（home）＝インフォ・勤務中の枠。add＝業務追加、task＝個別業務、annual＝寺内スケジュール、ho＝引き継ぎ、admin＝管理 ---- */
+const MOB_TABS = !IS_PC && matchMedia('(max-width:899px)').matches; // スマホ（iPadの横向きなど広い画面は従来の並び）
+var mobTab = 'home';
+if (MOB_TABS) document.body.classList.add('mob');
+function mobOn() { return MOB_TABS && document.body.classList.contains('tabs'); }
+function mobAvail(t) {
+  if (!me) return false;
+  if (t === 'add' || t === 'task') return showTasks();
+  if (t === 'ho') return !!(me.working || me.noAttend); // 引き継ぎは勤務中・シフト対象外の人
+  if (t === 'admin') return !!me.admin;
+  return true;
+}
+/** 下のタブを押した時。選んでいるタブをもう一度押すとTOPへ */
+function mobTap(t) {
+  if (t === 'admin') { if (cur !== 'admin') view('admin'); else view('clock'); return; }
+  if (!mobAvail(t)) { if (t === 'ho') show('引き継ぎは出勤してから使えます'); return; }
+  mobGo(cur === 'clock' && mobTab === t ? 'home' : t);
+}
+function mobGo(t) {
+  mobTab = mobAvail(t) ? t : 'home';
+  if (cur !== 'clock') view('clock'); else mobBar();
+  window.scrollTo(0, 0);
+}
+/** 移動先（個別業務の行・申し送りなど）が入っているタブを開く */
+function mobShow(el) {
+  if (!mobOn() || !el) return;
+  const p = el.closest('#taskBox, #annualBox, #addBox, #hoCard');
+  const t = p ? { taskBox: 'task', annualBox: 'annual', addBox: 'add', hoCard: 'ho' }[p.id] : 'home';
+  if (cur !== 'clock' || t !== mobTab) mobGo(t);
+}
+/** タブの表示（使えるタブ・選んでいるタブ・件数の印）。描き直しのたびに呼ぶ */
+function mobBar() {
+  if (!MOB_TABS || !me) return;
+  document.body.classList.add('tabs');
+  if (mobTab !== 'home' && !mobAvail(mobTab)) mobTab = 'home'; // 退勤で引き継ぎが使えなくなった時など
+  $('v-clock').dataset.tab = mobTab;
+  const today = ymd(new Date());
+  const badge = { // 赤い印：新着・期日が来た個別業務、期日が来た寺内スケジュール
+    task: showTasks() ? (me.tasks || []).filter(x => x.isNew || (x.due && x.due <= today)).length : 0,
+    annual: (me.annual || []).filter(a => !a.event && a.left <= 0).length,
+  };
+  document.querySelectorAll('#tabbar button').forEach(b => {
+    const t = b.dataset.t;
+    b.classList.toggle('hidden', (t === 'add' || t === 'task' || t === 'admin') && !mobAvail(t));
+    b.classList.toggle('off', t === 'ho' && !mobAvail(t));
+    b.classList.toggle('on', t === 'admin' ? cur === 'admin' : cur === 'clock' && t === mobTab);
+    const i = b.querySelector('i'); if (i) i.textContent = badge[t] ? (badge[t] > 99 ? '99+' : badge[t]) : '';
+  });
+}
 // 改修を公開したら、ホーム画面アプリでも自動で新しい画面に切り替える。
 // 公開時に埋め込む版番号（meta build）と、公開中のページの版番号を比べ、違えば読み込み直す
 const BUILD = (document.querySelector('meta[name=build]') || {}).content || '';
@@ -1382,6 +1490,7 @@ function drawAnnual(list) {
   try { localStorage.setItem('snapAnnual', JSON.stringify(list)); } catch (e) {}
   const n = list.filter(a => !a.event).length;
   $('annualCount').textContent = n ? `${n}件` : '';
+  mobBar();
   $('annual').innerHTML = list.length ? '' : '<p class="sub">直近の予定はありません</p>';
   const near = [], far = [];
   list.forEach(a => {
@@ -1770,6 +1879,7 @@ function drawTasks(list) {
   me.tasks = list;
   saveSnap(me); // 完了・延長したものが次に開いた時に一瞬戻って見えないように
   $('taskCount').textContent = list.length ? `${list.length}件` : '';
+  mobBar(); // スマホの下部タブの件数の印（2026-11-11）
   $('tasks').innerHTML = list.length ? '' : '<p class="sub">未完了の個別業務はありません</p>';
   const today = ymd(new Date());
   const near = [], far = [];
@@ -1931,6 +2041,7 @@ async function seeNew(id) {
   drawTasks(me.tasks); // 先に画面を更新して裏で記録
   const row = document.querySelector(`#tasks [data-id="${id}"]`);
   if (row) {
+    mobShow(row);
     const fold = row.closest('details'); if (fold) fold.open = true;
     row.scrollIntoView({ behavior: 'smooth', block: 'center' });
     row.classList.add('flash'); setTimeout(() => row.classList.remove('flash'), 2500);
@@ -2416,6 +2527,7 @@ function taRepHint() { repHint($('taRep').value, $('taDate').value, taCur && taC
 /* 業務追加（2026-11-04）：個別業務を依頼・寺内スケジュールに追加（Slackの /task・/jinai は廃止）。折りたたみの開閉は端末に記憶 */
 (() => {
   const d = $('addBox');
+  if (MOB_TABS) { d.open = $('hoCard').open = true; return; } // スマホは下部タブで開くので折りたたまない（2026-11-11）
   try { d.open = localStorage.getItem('addOpen') === '1'; } catch (e) {}
   d.addEventListener('toggle', () => { try { localStorage.setItem('addOpen', d.open ? '1' : '0'); } catch (e) {} });
   // 引き継ぎ事項（2026-11-08）：開閉は端末に記憶。PC・スマホとも業務追加の下
@@ -2762,6 +2874,7 @@ async function clockOut() {
   const left = me.handovers;
   if (left.length) {
     alert(`未確認の申し送りが ${left.length}件 あります。\n画面上部の申し送りで「確認した」にチェックしてください。`);
+    mobShow($('handBox'));
     $('handBox').scrollIntoView({ behavior: 'smooth' });
     return;
   }
@@ -2791,7 +2904,7 @@ async function clockOut() {
 async function sendHandover() {
   const text = $('hoText').value.trim();
   if (!text && !hoImages.length) { alert('引き継ぐ内容を入力してください'); return false; }
-  if (!$('hoTo').value) { alert('引き継ぎの宛先を選んでください'); $('hoCard').open = true; return false; }
+  if (!$('hoTo').value) { alert('引き継ぎの宛先を選んでください'); $('hoCard').open = true; mobShow($('hoCard')); return false; }
   const btn = $('hoBtn'); btn.disabled = true; busy(true);
   try {
     await call('sendHandover', { to: $('hoTo').value, text, images: hoImages });

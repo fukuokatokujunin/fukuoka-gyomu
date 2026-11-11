@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261111154813">
+<meta name="build" content="20261111160941">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -1126,7 +1126,7 @@ function jumpTo(sel) {
   row.classList.add('flash'); setTimeout(() => row.classList.remove('flash'), 2500);
 }
 const $ =id => document.getElementById(id);
-const APP_VERSION = 'Ver1.3'; // 改修の区切り（Ver1.3＝2026-11-06 Slack廃止・プッシュ通知・業務追加・17時の退勤前チェックなど。Ver1.2＝2026-11-03 寺内⇔個別業務・打刻のお知らせ・引き継ぎの画像・希望確認）
+const APP_VERSION = 'Ver2.0'; // 改修の区切り（Ver2.0＝2026-11-11 スマホの下部タブ・予定カレンダー・打刻とチェックの取り消し・寺内スケジュール3か月先までなど。Ver1.3＝2026-11-06 Slack廃止・プッシュ通知・業務追加・17時の退勤前チェックなど。Ver1.2＝2026-11-03 寺内⇔個別業務・打刻のお知らせ・引き継ぎの画像・希望確認）
 document.getElementById('ver').textContent = APP_VERSION;
 const LABEL = { 1:'出', 2:'公', 5:'有', 6:'前', 7:'後', 17:'出' };
 const mlabel = ym => Number(ym.split('-')[1]) + '月';

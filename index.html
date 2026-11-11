@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261111163709">
+<meta name="build" content="20261111173655">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -495,11 +495,19 @@
   .chip.an { background:var(--anbg); border-color:var(--an); color:var(--an); }
   .chip.tk { background:var(--tkbg); border-color:var(--tk); color:var(--tk); }
   .chip.evt { background:transparent; box-shadow:inset 0 0 0 1px var(--anbg); }
+  /* 期間の帯（開始日のある項目。2026-11-11）：日をまたいでつながって見えるように左右の余白へはみ出す。始まり＝左の線、終わり＝右の線 */
+  .chip.rng { border-left-width:0; margin:0 -3px; padding-left:7px; }
+  .chip.rng.rs { border-left-width:3px; margin-left:0; padding-left:4px; }
+  .chip.rng.re { margin-right:0; border-right:3px solid; }
+  .chip.sp { visibility:hidden; }
+  .chip small .rg { display:inline-block; white-space:nowrap; margin-left:.6em; }
+  .period { margin-right:6px; }
   .scd .more { font-size:10px; color:var(--sub); letter-spacing:0; padding-left:3px; white-space:nowrap; }
   @media (max-width:599px) {
     .scd { min-height:68px; padding:2px 1px; gap:1px; }
     .scd .n { font-size:11px; min-width:20px; height:20px; line-height:20px; }
     .chip { font-size:9px; line-height:1.5; padding:0 2px; border-left-width:2px; letter-spacing:0; text-overflow:clip; }
+    .chip.rng { margin:0 -1px; padding-left:3px; } .chip.rng.rs { border-left-width:2px; margin-left:0; padding-left:2px; } .chip.rng.re { margin-right:0; border-right-width:2px; }
     .callegend { justify-content:flex-start; }
   }
   /* 週表示・選んだ日の一覧 */
@@ -651,7 +659,7 @@
         <div class="callegend"><span class="an">寺内スケジュール</span><span class="tk">個別業務</span></div>
         <div id="calBody"></div>
         <div id="calDay" class="hidden"></div>
-        <p class="sub calnote">寺内スケジュールは3か月先までの予定を表示しています。「選択」で一覧のその項目へ移動します</p>
+        <p class="sub calnote">寺内スケジュールは3か月先までの予定を表示しています。開始日のある予定は開始日から期日まで帯で表示します。「選択」で一覧のその項目へ移動します</p>
       </div>
 
       <details class="card foldbox hidden" id="addBox">
@@ -681,7 +689,9 @@
           <textarea id="rqText" rows="3" maxlength="200"></textarea>
           <span class="tklabel">担当 <small class="sub">（複数可）</small></span>
           <div class="whos" id="rqWho"></div>
-          <label for="rqDue" class="tklabel">📅 期日 <small class="sub">（なくても可）</small></label>
+          <label for="rqStart" class="tklabel">🚩 開始日 <small class="sub">（なくても可。入れると開始日から期日まで一覧の上の方に出ます）</small></label>
+          <input type="date" id="rqStart" class="tkdate">
+          <label for="rqDue" class="tklabel">📅 期日 <small class="sub">（必須）</small></label>
           <input type="date" id="rqDue" class="tkdate">
           <label for="rqRep" class="tklabel"><span class="rep"></span>繰り返し <small class="sub" id="rqRepNote"></small></label>
           <select id="rqRep" class="tkdate" onchange="$('rqDaysWrap').classList.toggle('hidden', this.value !== 'W')">
@@ -700,7 +710,9 @@
           <p class="sub" style="margin:4px 0 6px">みんなの打刻画面の寺内スケジュールに出ます。表示は期限の3か月前から（2週間より先は折りたたみ。発注・締切・予約などは1か月より先なら★）</p>
           <label for="jaText" class="tklabel">内容</label>
           <textarea id="jaText" rows="3" maxlength="200"></textarea>
-          <label for="jaDate" class="tklabel">📅 初回期限</label>
+          <label for="jaStart" class="tklabel">🚩 開始日 <small class="sub">（なくても可。入れると開始日から期限まで一覧の上の方に出ます。繰り返す時は毎回、期限の同じ日数前から）</small></label>
+          <input type="date" id="jaStart" class="tkdate">
+          <label for="jaDate" class="tklabel">📅 初回期限 <small class="sub">（必須）</small></label>
           <input type="date" id="jaDate" class="tkdate" onchange="jaRepHint()">
           <label for="jaRep" class="tklabel"><span class="rep"></span>繰り返し</label>
           <select id="jaRep" class="tkdate" onchange="jaRepHint()">
@@ -1581,8 +1593,8 @@ function drawAnnual(list) {
   $('annualCount').textContent = n ? `${n}件` : '';
   mobBar();
   $('annual').innerHTML = list.length ? '' : '<p class="sub">直近の予定はありません</p>';
-  const near = [], far = [];
-  list.forEach(a => {
+  const near = [], far = [], today = ymd(new Date());
+  periodFirst(list, today).forEach(a => { // 開始日から期限までの分を上へ（2026-11-11）
     const row = document.createElement('div'); // 行全体は反応させない（□・ボタンだけ。Ver1.2）
     row.className = 'titem' + (a.early ? ' early' : '') + (a.event ? ' evt' : '') + (!a.event && a.left <= 0 ? ' alert' : '');
     if (a.event) {
@@ -1599,7 +1611,9 @@ function drawAnnual(list) {
     const b = document.createElement('span');
     b.className = 'due' + (a.left <= 0 ? ' over' : a.left <= 7 ? ' soon' : ''); // 期日が来たら赤
     b.textContent = `${m}/${d}` + (a.left < 0 ? `（${-a.left}日過ぎています）` : a.left === 0 ? '（今日）' : `（あと${a.left}日）`);
-    const meta = document.createElement('div'); meta.className = 'sub'; meta.appendChild(b);
+    const meta = document.createElement('div'); meta.className = 'sub';
+    if (a.start) meta.appendChild(periodTag(a.start, a.date, today)); // 開始日（2026-11-11）
+    meta.appendChild(b);
     if (a.cycle) { const cy = document.createElement('div'); cy.className = 'rule rep'; cy.textContent = a.cycle; meta.appendChild(cy); } // 周期の予定（2026-11-04）
     if (String(a.id).startsWith('tmp-')) { row.classList.add('pending'); meta.appendChild(pendingTag()); } // 登録中（2026-11-08）
     if (a.moved) { const [, om, od] = a.key.split('-').map(Number); b.textContent += `　延長（本来 ${om}/${od}）`; }
@@ -1637,7 +1651,7 @@ function drawAnnual(list) {
       wrap.append(cap, del); row.appendChild(wrap);
     }
     if (!a.event) row.dataset.aid = a.id;
-    (a.left >= 14 ? far : near).push(row);
+    (a.left >= 14 && !inPeriod(a.start, a.date, today) ? far : near).push(row);
   });
   foldRows($('annual'), near, far, '2週間以上先の予定', 'annual');
   scDraw(); // 予定カレンダー（2026-11-11）
@@ -1704,7 +1718,7 @@ async function startAsk(a, title) {
     $('tbOk').onclick = () => {
       const text = $('tbText').value.trim(), due = $('tbDate').value;
       if (!text) { alert('内容を入れてください'); return; }
-      done({ text, due, annualId: a.id }); // どの予定から足したか（以降不要にした時に一緒に消すため。2026-11-04）
+      done({ text, due, annualId: a.id, start: a.start && a.start < due ? a.start : '' }); // 開始日は寺内スケジュールのものを引き継ぐ（2026-11-11）。どの予定から足したか（以降不要にした時に一緒に消すため。2026-11-04）
     };
     $('tbOnly').onclick = () => done('only'); // 個別業務には入れない（2026-11-11）
     $('tbNo').onclick = () => done(null);
@@ -1713,7 +1727,7 @@ async function startAsk(a, title) {
   if (!r) return false;
   if (r === 'only') return 'only';
   // 返事を待たずに個別業務へ足す（保存は裏で。保存後に正しいIDの一覧に置き換わる）
-  drawTasks(sortTasks((me.tasks || []).concat([{ id: 'tmp-' + Date.now(), text: r.text, due: r.due, from: '寺内スケジュール', repeat: false, isNew: false, images: [] }])));
+  drawTasks(sortTasks((me.tasks || []).concat([{ id: 'tmp-' + Date.now(), text: r.text, due: r.due, start: r.start, from: '寺内スケジュール', repeat: false, isNew: false, images: [] }])));
   saveLater('tasks', 'addMyTask', r);
   return 'add';
 }
@@ -1990,7 +2004,7 @@ function drawTasks(list) {
   $('tasks').innerHTML = list.length ? '' : '<p class="sub">未完了の個別業務はありません</p>';
   const today = ymd(new Date());
   const near = [], far = [];
-  list.forEach(t => {
+  periodFirst(list, today).forEach(t => { // 開始日から期日までの分を上へ（2026-11-11）
     let left = null;
     const row = document.createElement('div'); row.className = 'titem'; // 行全体は反応させない（□・ボタンだけ。Ver1.2）
     const cb = document.createElement('input'); cb.type = 'checkbox';
@@ -2016,6 +2030,7 @@ function drawTasks(list) {
       const b = document.createElement('span');
       b.className = 'due' + (left <= 0 ? ' over' : left <= 7 ? ' soon' : '');
       b.textContent = `期日 ${m}/${d}` + (left < 0 ? `（${-left}日超過）` : left === 0 ? '（今日）' : '');
+      if (t.start) meta.appendChild(periodTag(t.start, t.due, today)); // 開始日（2026-11-11）
       meta.appendChild(b);
     }
     meta.appendChild(ppButton(() => openPostpone('task', t, t.due)));
@@ -2038,7 +2053,7 @@ function drawTasks(list) {
       const cap = document.createElement('small'); cap.textContent = '削除';
       wrap.append(cap, del); row.appendChild(wrap);
     }
-    (left !== null && left > 3 ? far : near).push(row); // 期日なし・超過・3日以内は常に表示
+    (left !== null && left > 3 && !inPeriod(t.start, t.due, today) ? far : near).push(row); // 期日なし・超過・3日以内・開始日を過ぎた分は常に表示
   });
   foldRows($('tasks'), near, far, '4日以降先の個別業務', 'tasks');
   scDraw(); // 予定カレンダー（2026-11-11）
@@ -2052,29 +2067,78 @@ function drawTasks(list) {
 let scView = 'month', scBase = null, scSel = null;
 try { if (localStorage.getItem('calView') === 'week') scView = 'week'; } catch (e) {}
 const scDate = s => new Date(s + 'T00:00:00');
-/** 日付ごとの項目 { 'YYYY-MM-DD': [{ kind:'an'|'tk', text, evt, sel }] }（寺内スケジュールが先、個別業務が後） */
+/** 日付ごとの項目 { 'YYYY-MM-DD': [{ kind:'an'|'tk', text, evt, sel, start, end, both }] }（寺内スケジュールが先、個別業務が後）。
+ *  開始日のある項目（2026-11-11）は開始日から期日までの毎日に同じ項目（同じオブジェクト）を入れる＝期間表記。
+ *  重複の解消（2026-11-11）：①同じ内容の回が同じ日に2つあっても1つだけ ②寺内スケジュールに着手して個別業務にも入れた分は、
+ *  期日が同じなら寺内スケジュールの1つにまとめる（「個別業務にも追加」と出す） */
+const scNorm = t => String(t || '').replace(/[\s　・、。,.「」『』【】★☆◆●○※\-－ー~〜]/g, '');
 function scItems() {
-  const map = {}, add = (d, x) => { if (d) (map[d] = map[d] || []).push(x); };
-  ((me && me.annual) || []).forEach(a => [a.date].concat(a.later || []).forEach(d =>
-    add(d, { kind: 'an', text: a.text, evt: !!a.event, sel: a.event ? '' : `#annual [data-aid="${a.id}"]` })));
-  if (me && showTasks()) (me.tasks || []).forEach(t => add(t.due, { kind: 'tk', text: t.text, evt: false, sel: `#tasks [data-id="${t.id}"]` }));
+  const map = {}, put = (d, x) => (map[d] = map[d] || []).push(x);
+  const add = x => {
+    if (!x.end) return;
+    if (x.start && x.start < x.end) { for (let d = x.start; d <= x.end; d = ymd(new Date(scDate(d).getTime() + 36 * 36e5))) put(d, x); }
+    else { x.start = ''; put(x.end, x); }
+  };
+  const byId = {}, byNorm = {};
+  ((me && me.annual) || []).forEach(a => {
+    const st = Object.assign({ [a.date]: a.start || '' }, a.laterStart || {});
+    [...new Set([a.date].concat(a.later || []))].forEach(d => {
+      const x = { kind: 'an', text: a.text, evt: !!a.event, sel: a.event ? '' : `#annual [data-aid="${a.id}"]`, start: st[d] || '', end: d };
+      add(x);
+      if (!a.event) { byId[a.id + '|' + d] = x; byNorm[scNorm(a.text) + '|' + d] = byNorm[scNorm(a.text) + '|' + d] || x; }
+    });
+  });
+  if (me && showTasks()) (me.tasks || []).forEach(t => {
+    if (!t.due) return;
+    const same = (t.annualId && byId[t.annualId + '|' + t.due]) || (t.from === '寺内スケジュール' && byNorm[scNorm(t.text) + '|' + t.due]);
+    if (same) { same.both = true; return; } // 寺内スケジュールと同じ予定（着手して個別業務にも入れた分）
+    add({ kind: 'tk', text: t.text, evt: false, sel: `#tasks [data-id="${t.id}"]`, start: t.start || '', end: t.due });
+  });
   return map;
 }
-function scChip(x, full) {
+/** 月表示の1週（7日）の並び：期間の項目が毎日同じ段に並ぶように段を割り当てる。戻り値＝日ごとの段の配列（空きは null） */
+function scLanes(days, map) {
+  const items = [];
+  days.forEach(d => (map[d] || []).forEach(x => { if (!items.includes(x)) items.push(x); }));
+  const span = x => days.map((d, i) => (map[d] || []).includes(x) ? i : -1).filter(i => i >= 0);
+  // 期間の項目を先に（始まりの早い順・長い順）、1日だけの項目は後
+  const order = items.map((x, k) => ({ x, k, s: span(x) })).sort((a, b) =>
+    (b.s.length > 1) - (a.s.length > 1) || (a.s.length > 1 ? a.s[0] - b.s[0] || b.s.length - a.s.length : 0) || a.k - b.k);
+  const lanes = [];
+  order.forEach(({ x, s }) => {
+    let L = lanes.findIndex(l => s.every(i => !l[i]));
+    if (L < 0) { lanes.push(Array(7).fill(null)); L = lanes.length - 1; }
+    s.forEach(i => { lanes[L][i] = x; });
+  });
+  return days.map((d, i) => {
+    const col = lanes.map(l => l[i]);
+    while (col.length && !col[col.length - 1]) col.pop(); // 下の空きは詰める
+    return col;
+  });
+}
+function scChip(x, full, d, first) {
   const c = document.createElement('div');
   c.className = 'chip ' + x.kind + (x.evt ? ' evt' : '');
+  const range = x.start ? `${mdOf(x.start)}〜${mdOf(x.end)}` : '';
   if (full) {
     c.classList.add('full');
     const ct = document.createElement('div'); ct.className = 'ct';
-    const k = document.createElement('small'); k.textContent = x.kind === 'tk' ? '個別業務' : x.evt ? '行事' : '寺内スケジュール';
+    const k = document.createElement('small');
+    k.textContent = (x.kind === 'tk' ? '個別業務' : x.evt ? '行事' : '寺内スケジュール') + (x.both ? '（個別業務にも追加）' : '');
+    if (range) { const r = document.createElement('span'); r.className = 'rg'; r.textContent = `期間 ${range}`; k.append(' ', r); } // 期間（2026-11-11）
     ct.append(k, x.text); c.appendChild(ct);
     if (x.sel) { // 「選択」で一覧のその項目へ（2026-11-11。行事は一覧の項目がないので出さない）
       const go = document.createElement('button'); go.className = 'calgo'; go.textContent = '選択';
       go.onclick = ev => { ev.stopPropagation(); jumpTo(x.sel); };
       c.appendChild(go);
     }
+  } else if (x.start) { // 月表示の期間の帯：前の日に出ていない時（始まりの日・週の初めなど。first）だけ文字を出す
+    c.classList.add('rng');
+    if (d === x.start) c.classList.add('rs');
+    if (d === x.end) c.classList.add('re');
+    c.textContent = first ? x.text : ' ';
   } else c.textContent = x.text;
-  c.title = x.text;
+  c.title = x.text + (range ? `（${range}）` : '');
   return c;
 }
 function scMode(m) {
@@ -2106,15 +2170,24 @@ function scDraw() {
     W.split('').forEach((w, i) => { const h = document.createElement('div'); h.className = 'w' + wcls(i); h.textContent = w; g.appendChild(h); });
     const first = new Date(y, m, 1), last = new Date(y, m + 1, 0);
     const cells = first.getDay() + last.getDate() + (6 - last.getDay());
-    const lim = matchMedia('(max-width:599px)').matches ? 2 : 3; // 1日に出す件数（残りは「+n」）
+    const lim = matchMedia('(max-width:599px)').matches ? 2 : 3; // 1日に出す段の数（残りは「+n」）
+    let lanes = [], prev = new Set(); // prev＝前の日に出した帯（続きの日は文字を出さない）
     for (let i = 0; i < cells; i++) {
-      const dt = new Date(y, m, 1 - first.getDay() + i), d = ymd(dt), list = map[d] || [];
+      const dt = new Date(y, m, 1 - first.getDay() + i), d = ymd(dt);
+      if (i % 7 === 0) prev = new Set(); // 週の初めは文字を出し直す
+      if (i % 7 === 0) lanes = scLanes([0, 1, 2, 3, 4, 5, 6].map(k => ymd(new Date(y, m, 1 - first.getDay() + i + k))), map); // 週ごとに段を決める
       const c = document.createElement('div');
       c.className = 'scd' + wcls(dt.getDay()) + (dt.getMonth() !== m ? ' out' : '') + (d === today ? ' today' : '') + (d === scSel ? ' sel' : '');
       const n = document.createElement('span'); n.className = 'n'; n.textContent = dt.getDate(); c.appendChild(n);
-      const show = list.length > lim ? lim - 1 : lim; // 「+n」の分も1行使う
-      list.slice(0, show).forEach(x => c.appendChild(scChip(x, false)));
-      if (list.length > show) { const mo = document.createElement('span'); mo.className = 'more'; mo.textContent = `+${list.length - show}`; c.appendChild(mo); }
+      const col = lanes[i % 7], show = col.length > lim ? lim - 1 : lim; // 「+n」の分も1行使う
+      const now = new Set();
+      col.slice(0, show).forEach(x => {
+        if (x) { c.appendChild(scChip(x, false, d, !prev.has(x))); now.add(x); }
+        else { const sp = document.createElement('div'); sp.className = 'chip sp'; sp.textContent = '\u00a0'; c.appendChild(sp); } // 期間の帯をそろえるための空き
+      });
+      const rest = col.slice(show).filter(Boolean).length;
+      if (rest) { const mo = document.createElement('span'); mo.className = 'more'; mo.textContent = `+${rest}`; c.appendChild(mo); }
+      prev = now;
       c.onclick = () => scPick(d);
       g.appendChild(c);
     }
@@ -2470,6 +2543,21 @@ let tkCur = null; // 次回期日を選んでいる繰り返しタスク
 // 日付の近い順（サーバーと同じ並べ方）。個別業務の期日なしは最後
 const sortBy = (list, key) => list.slice().sort((a, b) => key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0);
 const sortTasks = list => sortBy(list, t => t.due || '9999');
+/* 開始日（2026-11-11）：開始日を入れた個別業務・寺内スケジュールは、開始日から期日（期限）までの間は一覧の上の方へ（折りたたみにも入れない）。
+   色（黄・赤）・知らせはこれまでどおり期日で決まる */
+const inPeriod = (start, due, today) => !!start && !!due && start <= today && today <= due;
+function periodFirst(list, today) {
+  const a = [], b = [];
+  list.forEach(x => (inPeriod(x.start, x.due || x.date, today) ? a : b).push(x));
+  return a.concat(b);
+}
+const mdOf = s => { const [, m, d] = String(s).split('-').map(Number); return `${m}/${d}`; };
+/** 一覧の「開始 ○/○」（期間中なら「〜期間中」）。色は付けない */
+function periodTag(start, due, today) {
+  const t = document.createElement('span'); t.className = 'period';
+  t.textContent = `開始 ${mdOf(start)}` + (inPeriod(start, due, today) ? '（期間中）' : '');
+  return t;
+}
 const daysLeft = date => Math.round((new Date(date + 'T00:00:00') - new Date(ymd(new Date()) + 'T00:00:00')) / 864e5);
 // 個別業務・寺内スケジュールの済み・延長などの保存：一覧は返事を待たずに先に直し、保存は裏で順番に送る（続けて操作しても待たない）。
 // 種類ごとに送り終えたら最後の結果で一覧を最新にする。保存できなかった時は知らせて、一覧をシートの内容に戻す。
@@ -2742,7 +2830,7 @@ function taRepHint() { repHint($('taRep').value, $('taDate').value, taCur && taC
   h.addEventListener('toggle', () => { try { localStorage.setItem('hoOpen', h.open ? '1' : '0'); } catch (e) {} });
 })();
 function openRequest() {
-  $('rqText').value = ''; $('rqDue').value = ''; $('rqDue').min = ymd(new Date());
+  $('rqText').value = ''; $('rqDue').value = ''; $('rqDue').min = ymd(new Date()); $('rqStart').value = '';
   $('rqRep').value = ''; $('rqDaysWrap').classList.add('hidden');
   $('rqWho').innerHTML = '';
   (me.taskPeople || []).forEach(p => {
@@ -2765,15 +2853,16 @@ function rqRepNote() {
   $('rqRepNote').textContent = n > 1 ? '（担当が複数の時は必須。完了した人から一人ずつ消え、完了の時にこの繰り返しをお知らせします）' : '（選ばなければ繰り返さない）';
 }
 async function doRequest() {
-  const p = { text: $('rqText').value.replace(/\s+/g, ' ').trim(), due: $('rqDue').value, kind: $('rqRep').value,
+  const p = { text: $('rqText').value.replace(/\s+/g, ' ').trim(), due: $('rqDue').value, start: $('rqStart').value, kind: $('rqRep').value,
     ids: [...$('rqWho').querySelectorAll('input:checked')].map(c => Number(c.value)),
     days: [...$('rqDays').querySelectorAll('input:checked')].map(c => Number(c.value)) };
   if (!p.text) { alert('内容を入れてください'); return; }
   if (!p.ids.length) { alert('担当を選んでください'); return; }
   if (!p.kind && p.ids.length > 1) { alert('担当が複数の時は、繰り返すかどうか（繰り返し方）を選んでください'); return; }
   if (!p.kind) p.kind = 'none';
-  if (p.due && p.due < ymd(new Date())) { alert('過ぎた日付は選べません'); return; }
-  if (['M', 'MN', 'Y'].includes(p.kind) && !p.due) { alert('毎月・毎年の繰り返しは、最初の期日を選んでください'); return; }
+  if (!p.due) { alert('期日を選んでください'); return; } // 期日は必須（2026-11-11）
+  if (p.due < ymd(new Date())) { alert('過ぎた日付は選べません'); return; }
+  if (p.start && p.start > p.due) { alert('開始日は期日より前の日を選んでください'); return; }
   $('rqBox').classList.add('hidden');
   // 返事を待たずに一覧へ仮の行（登録中）を出し、登録は裏で（2026-11-08。以前は返事まで「反映中」で待たせていた）
   p.rid = newRid();
@@ -2781,7 +2870,7 @@ async function doRequest() {
     const today = ymd(new Date());
     const rule = p.kind === 'none' ? '' : p.kind === 'W' && p.days.length ? 'W:' + p.days.slice().sort().join(',') : ruleFromKind(p.kind, p.due || today);
     const due = rule ? (ruleMatch(rule, new Date((p.due || today) + 'T00:00:00')) ? (p.due || today) : nextByRule(rule, p.due || today)) : p.due;
-    drawTasks(sortTasks((me.tasks || []).concat([{ id: 'tmp-' + p.rid, text: p.text, due, from: me.name, repeat: !!rule, rule, ruleLabel: rule ? ruleLabel(rule) : '',
+    drawTasks(sortTasks((me.tasks || []).concat([{ id: 'tmp-' + p.rid, text: p.text, due, start: p.start && p.start < due ? p.start : '', from: me.name, repeat: !!rule, rule, ruleLabel: rule ? ruleLabel(rule) : '',
       multi: p.ids.length > 1, mates: [], isNew: false, images: [] }])));
   }
   show('個別業務を登録しています…（そのまま操作を続けられます）');
@@ -2796,7 +2885,7 @@ async function doRequest() {
 function newRid() { return auth.id + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8); }
 function openJinaiAdd() {
   const today = ymd(new Date());
-  $('jaText').value = ''; $('jaDate').value = ''; $('jaDate').min = today;
+  $('jaText').value = ''; $('jaDate').value = ''; $('jaDate').min = today; $('jaStart').value = '';
   $('jaRep').value = 'Y';
   $('jaDays').innerHTML = '';
   '日月火水木金土'.split('').forEach((w, i) => {
@@ -2821,18 +2910,19 @@ function jaRepHint() {
 }
 async function doJinaiAdd() {
   const cycle = $('jaRep').value;
-  const p = { text: $('jaText').value.replace(/\s+/g, ' ').trim(), date: $('jaDate').value, kind: $('jaKind').value,
+  const p = { text: $('jaText').value.replace(/\s+/g, ' ').trim(), date: $('jaDate').value, start: $('jaStart').value, kind: $('jaKind').value,
     repeat: cycle !== 'none', cycle, days: cycle === 'W' ? jaDaysSel() : [] };
   if (!p.text) { alert('内容を入れてください'); return; }
   if (!p.date) { alert('初回期限を選んでください'); return; }
   if (p.date < ymd(new Date())) { alert('過ぎた日付は選べません'); return; }
+  if (p.start && p.start > p.date) { alert('開始日は初回期限より前の日を選んでください'); return; }
   $('jaBox').classList.add('hidden');
   const rule = jaRule(cycle, p.date); // 周期の時は、寺内に同じ内容の予定があれば以降不要にするか確かめる（寺内へ移す時と同じ）
   if (rule) p.removeDups = await askRemoveDups({ texts: [p.text] }, ruleLabel(rule));
   // 返事を待たずに一覧へ仮の行（登録中）を出し、登録は裏で（2026-11-08）
   p.rid = newRid();
   const d = rule && !ruleMatch(rule, new Date(p.date + 'T00:00:00')) ? nextByRule(rule, p.date) : p.date, left = daysLeft(d);
-  drawAnnual((me.annual || []).concat([{ id: 'tmp-' + p.rid, date: d, key: d, left, kind: p.kind, text: p.text, early: false, moved: false,
+  drawAnnual((me.annual || []).concat([{ id: 'tmp-' + p.rid, date: d, key: d, left, start: p.start && p.start < d ? p.start : '', kind: p.kind, text: p.text, early: false, moved: false,
     cycle: rule ? ruleLabel(rule) : '', rule, once: cycle === 'none', starters: [], notes: [], later: [] }]));
   show('寺内スケジュールに登録しています…（そのまま操作を続けられます）');
   saveLater('annual', 'addAnnualApp', p, { retry: true, pick: r => r.annual,

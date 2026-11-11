@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261111173655">
+<meta name="build" content="20261111175545">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -744,7 +744,6 @@
           <button class="ghost" onclick="openPre(false)">閉じる</button>
         </div>
         <div id="checks"></div>
-        <textarea id="memo" rows="2" placeholder="未完了がある場合は理由を記入"></textarea>
         <button class="out" onclick="clockOut()">チェックして退勤</button>
         <p class="sub center">今日もお疲れ様でした！</p>
       </div>
@@ -3181,17 +3180,17 @@ async function clockOut() {
     if (!await sendHandover()) return;
   }
   const done = [...document.querySelectorAll('#checks input:checked')].map(x => x.dataset.item);
-  // 退勤のカメラは、チェックがすべて済んでから（夕方のチェック・退勤前チェックのどちらで済ませても可）。未完了は理由のメモが必要
-  if (!eveAll(done) && !$('memo').value.trim()) { alert('退勤前チェックがすべて済んでいません。\nすべてチェックするか、未完了の理由をメモに記入してください。'); return; }
+  // 退勤のカメラは、チェックがすべて済んでから（夕方のチェック・退勤前チェックのどちらで済ませても可）。
+  // 2026-11-11：未完了の理由のメモ欄は廃止（後で使わないため）。全部チェックするまで退勤できない
+  if (!eveAll(done)) { alert('退勤前チェックがすべて済んでいません。\nすべてチェックしてから退勤してください。'); return; }
   let qr;
   try { qr = await scanQr('退勤：QRコードを写してください'); } catch (e) { show(e.message, true); return; }
   if (!qr) return;
   busy(true); show('退勤を記録しています…');
   try {
-    const r = await call('clockOut', { qr, done, memo: $('memo').value });
+    const r = await call('clockOut', { qr, done });
     preOpen = false;
     render(r);
-    $('memo').value = '';
     show('退勤しました。お疲れさまでした');
   } finally { busy(false); }
 }

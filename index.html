@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261111161318">
+<meta name="build" content="20261111163149">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -760,12 +760,13 @@
         <div class="modal" style="max-height:90vh;overflow-y:auto">
           <strong id="tbTitle">着手しますか？</strong>
           <div class="sub" id="tbWho" style="margin:4px 0 0"></div>
-          <p class="sub" style="margin:4px 0 6px">寺内スケジュールは「進行中」になり、同じ内容があなたの個別業務に入ります。個別業務の内容と期日を確かめてください。</p>
+          <p class="sub" style="margin:4px 0 6px">寺内スケジュールは「進行中」になります。同じ内容をあなたの個別業務にも入れるかを選んでください（入れる時は内容と期日を確かめてください）。</p>
           <label for="tbText" class="tklabel">内容</label>
           <textarea id="tbText" rows="3"></textarea>
           <label for="tbDate" class="tklabel">📅 期日（個別業務）</label>
           <input type="date" id="tbDate" class="tkdate">
           <button id="tbOk">はい（個別業務にも追加）</button>
+          <button class="sec" id="tbOnly">はい（個別業務には追加しない）</button><!-- 転記するかを選ぶ（2026-11-11） -->
           <button class="ghost" id="tbNo">いいえ</button>
         </div>
       </div>
@@ -1674,7 +1675,8 @@ function setStart(a, on) {
 }
 async function openStart(a) {
   if (!(a.starters || []).length) {
-    if (await startAsk(a, '着手しますか？')) { setStart(a, true); show(showTasks() ? '着手にしました。個別業務にも追加しました' : '着手にしました'); }
+    const r = await startAsk(a, '着手しますか？');
+    if (r) { setStart(a, true); show(r === 'add' ? '着手にしました。個別業務にも追加しました' : '着手にしました'); }
     return;
   }
   stCur = a.id; drawStart(); $('stBox').classList.remove('hidden'); // 進行中：一覧だけ（参加は「参加」ボタンから。2026-11-11）
@@ -1682,16 +1684,17 @@ async function openStart(a) {
 /** 参加（2026-11-11）：「参加」ボタン・一覧の「参加する」から */
 async function joinStart(a) {
   if (myStart(a)) return;
-  if (await startAsk(a, '参加しますか？')) { setStart(a, true); show(showTasks() ? '参加しました。個別業務にも追加しました' : '参加しました'); }
+  const r = await startAsk(a, '参加しますか？');
+  if (r) { setStart(a, true); show(r === 'add' ? '参加しました。個別業務にも追加しました' : '参加しました'); }
 }
-/* 着手・参加の確認（2026-11-03）：同じ内容を自分の個別業務にも入れる。内容と期日は個別業務用に確かめて直せる。
+/* 着手・参加の確認（2026-11-03）：同じ内容を自分の個別業務にも入れる（2026-11-11 から「はい（個別業務には追加しない）」も選べる）。内容と期日は個別業務用に確かめて直せる。
    個別業務の対象外の人（落合さん）はこれまでどおり「はい／いいえ」だけ */
 async function startAsk(a, title) {
   if (!showTasks()) {
     $('askBox').classList.toggle('low', title !== '着手しますか？'); // 参加の時は一覧が見えるように下に出す
     const yes = await ask(title);
     $('askBox').classList.remove('low');
-    return yes;
+    return yes ? 'only' : false; // 戻り値：false＝やめる、'only'＝着手・参加だけ、'add'＝個別業務にも追加（2026-11-11）
   }
   $('tbTitle').textContent = title;
   $('tbWho').textContent = (a.starters || []).length ? 'いま着手している人：' + nbs(a.starters.map(p => p.name)) : ''; // 参加の時は窓で一覧が隠れるのでここにも出す
@@ -1704,14 +1707,16 @@ async function startAsk(a, title) {
       if (!text) { alert('内容を入れてください'); return; }
       done({ text, due, annualId: a.id }); // どの予定から足したか（以降不要にした時に一緒に消すため。2026-11-04）
     };
+    $('tbOnly').onclick = () => done('only'); // 個別業務には入れない（2026-11-11）
     $('tbNo').onclick = () => done(null);
   });
   $('tbBox').classList.add('hidden');
   if (!r) return false;
+  if (r === 'only') return 'only';
   // 返事を待たずに個別業務へ足す（保存は裏で。保存後に正しいIDの一覧に置き換わる）
   drawTasks(sortTasks((me.tasks || []).concat([{ id: 'tmp-' + Date.now(), text: r.text, due: r.due, from: '寺内スケジュール', repeat: false, isNew: false, images: [] }])));
   saveLater('tasks', 'addMyTask', r);
-  return true;
+  return 'add';
 }
 function drawStart() {
   const a = me.annual.find(x => !x.event && x.id === stCur);

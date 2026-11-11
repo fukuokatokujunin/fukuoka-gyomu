@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261111163149">
+<meta name="build" content="20261111163709">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -752,7 +752,6 @@
           <div class="sub" id="stText" style="margin:4px 0 10px"></div>
           <div id="stList"></div>
           <p class="sub" style="margin:10px 0 0">自分の名前を押すと、着手を取り消せます</p>
-          <button class="hidden" id="stJoin" onclick="const a = me.annual.find(x => !x.event && x.id === stCur); closeStart(); if (a) joinStart(a);">参加する</button><!-- 2026-11-11 -->
           <button class="ghost" onclick="closeStart()">閉じる</button>
         </div>
       </div>
@@ -1731,7 +1730,6 @@ function drawStart() {
     $('stList').appendChild(b);
   });
   if (!a.starters.length) $('stList').innerHTML = '<p class="sub">着手している人はいません</p>';
-  $('stJoin').classList.toggle('hidden', !a.starters.length || myStart(a)); // まだ参加していなければ「参加する」（2026-11-11）
 }
 function closeStart() { stCur = null; $('stBox').classList.add('hidden'); }
 

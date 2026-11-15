@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261115100850">
+<meta name="build" content="20261115101749">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -3621,7 +3621,8 @@ function drawSaido() {
   $('btnSaido').disabled = !n;
   const l = p.last;
   $('sdLast').textContent = !l ? '' : l.error ? `前回（${l.at}・${l.by}・${mlabel(l.ym)}分）：失敗しました（${l.error}）`
-    : `前回の作成：${l.at}（${l.by}）${mlabel(l.ym)}分 ${l.made}枠を作成${l.exists ? `・登録済み ${l.exists}枠` : ''}${l.left ? `・残り ${l.left}枠（もう一度押してください）` : ''}`;
+    : `前回の作成：${l.at}（${l.by}）${mlabel(l.ym)}分 ${l.made}枠を作成${l.exists ? `・登録済み ${l.exists}枠` : ''}` +
+      (!l.left ? '' : l.cont ? `・残り ${l.left}枠（${l.cont}分後に自動で続きを作成します）` : `・残り ${l.left}枠（もう一度押してください）`);
 }
 function sdToggle(k) { if (sdOff[k]) delete sdOff[k]; else sdOff[k] = true; drawSaido(); }
 function sdToggleAdd(k) { if (sdAdd[k]) delete sdAdd[k]; else sdAdd[k] = true; drawSaido(); }
@@ -3636,14 +3637,16 @@ function sdToggleDay(date) {
 async function saidoCreate() {
   const p = sdPlan; if (!p) return;
   const add = Object.keys(sdAdd).length, n = p.nNew - Object.keys(sdOff).length + add;
-  if (!n || !await ask(`${mlabel(p.ym)}のお済度枠（★）を ${n}枠${add ? `（うち追加 ${add}枠）` : ''}、Googleカレンダーに作成しますか？\n（1〜2分かかります）`)) return;
+  if (!n || !await ask(`${mlabel(p.ym)}のお済度枠（★）を ${n}枠${add ? `（うち追加 ${add}枠）` : ''}、Googleカレンダーに作成しますか？\n（これまでの★枠と同じく、時刻ごとの繰り返し予定で作ります）`)) return;
   busy(true);
   try {
     sdPlan = await call('adminSaidoCreate', { ym: p.ym, skip: Object.keys(sdOff), add: Object.keys(sdAdd) }); sdOff = {}; sdAdd = {};
     const l = sdPlan.last || {};
     notice('お済度枠を作成しました', `${mlabel(p.ym)}分 ${l.made || 0}枠をGoogleカレンダーに作成しました。` +
       (l.recolored ? `\n色が付いていなかった★ ${l.recolored}枠をピーコックに直しました。` : '') +
-      (l.left ? `\n時間がかかったため ${l.left}枠が残っています。もう一度「反映」を押してください。` : ''));
+      (!l.left ? '' : l.cont
+        ? `\n${l.limited ? 'Googleカレンダーの制限（短時間に作れる予定の数）' : '時間'}のため ${l.left}枠が残っています。${l.cont}分後に自動で続きを作成します（この画面を閉じてもかまいません）。`
+        : `\n${l.left}枠が残っています。しばらくしてからもう一度「反映」を押してください。`));
   } finally { busy(false); drawSaido(); }
 }
 

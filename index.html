@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261115092332">
+<meta name="build" content="20261115093252">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -405,6 +405,10 @@
   .rule { margin-top:4px; font-size:12px; color:var(--sub); letter-spacing:.04em; }
   .rule.rep::before { width:15px; height:15px; margin-right:6px; background-size:10px; vertical-align:-2px; } /* 周期の行の繰り返しアイコン（小さめ） */
   .tklabel .rep::before { vertical-align:-3px; }
+  /* 期日・開始日のアイコン（2026-11-15。繰り返しと同じ黒い四角＋白い線） */
+  .ico-due::before, .ico-start::before { content:''; display:inline-block; width:18px; height:18px; margin:0 8px 0 0; vertical-align:-3px; background:#222629 no-repeat center / 12px; }
+  .ico-due::before { background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2.2' stroke-linecap='square'%3E%3Crect x='3' y='5' width='18' height='16'/%3E%3Cpath d='M3 10h18M8 2v5M16 2v5'/%3E%3C/svg%3E"); }
+  .ico-start::before { background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2.2' stroke-linecap='square'%3E%3Cpath d='M5 22V3M5 4h13l-3 4.5 3 4.5H5'/%3E%3C/svg%3E"); }
   /* 管理画面（2026-11-02 簡素化）：上段に月・状態・提出状況、タブで分け、次にやることだけ大きく */
   /* 2026-11-11：クラス名を adhead → admtop に（「ad」で始まる名前は広告を消す仕組みに広告と見なされ、スマホで月の選択の枠が消えていた。addbox・addbtns・adesc も改名） */
   .admtop { display:flex; flex-wrap:wrap; align-items:center; gap:8px 14px; padding:18px 20px; }
@@ -700,9 +704,9 @@
           <textarea id="rqText" rows="3" maxlength="200"></textarea>
           <span class="tklabel">担当 <small class="sub">（複数可）</small></span>
           <div class="whos" id="rqWho"></div>
-          <label for="rqStart" class="tklabel">🚩 開始日 <small class="sub">（なくても可。入れると開始日から期日まで一覧の上の方に出ます）</small></label>
+          <label for="rqStart" class="tklabel"><span class="ico-start"></span>開始日 <small class="sub">（なくても可。入れると開始日から期日まで一覧の上の方に出ます）</small></label>
           <input type="date" id="rqStart" class="tkdate">
-          <label for="rqDue" class="tklabel">📅 期日 <small class="sub">（必須）</small></label>
+          <label for="rqDue" class="tklabel"><span class="ico-due"></span>期日 <small class="sub">（必須）</small></label>
           <input type="date" id="rqDue" class="tkdate">
           <label for="rqRep" class="tklabel"><span class="rep"></span>繰り返し <small class="sub" id="rqRepNote"></small></label>
           <select id="rqRep" class="tkdate" onchange="$('rqDaysWrap').classList.toggle('hidden', this.value !== 'W')">
@@ -721,9 +725,9 @@
           <p class="sub" style="margin:4px 0 6px">みんなの打刻画面の寺内スケジュールに出ます。表示は期限の3か月前から（2週間より先は折りたたみ。発注・締切・予約などは1か月より先なら★）</p>
           <label for="jaText" class="tklabel">内容</label>
           <textarea id="jaText" rows="3" maxlength="200"></textarea>
-          <label for="jaStart" class="tklabel">🚩 開始日 <small class="sub">（なくても可。入れると開始日から期限まで一覧の上の方に出ます。繰り返す時は毎回、期限の同じ日数前から）</small></label>
+          <label for="jaStart" class="tklabel"><span class="ico-start"></span>開始日 <small class="sub">（なくても可。入れると開始日から期限まで一覧の上の方に出ます。繰り返す時は毎回、期限の同じ日数前から）</small></label>
           <input type="date" id="jaStart" class="tkdate">
-          <label for="jaDate" class="tklabel">📅 初回期限 <small class="sub">（必須）</small></label>
+          <label for="jaDate" class="tklabel"><span class="ico-due"></span>初回期限 <small class="sub">（必須）</small></label>
           <input type="date" id="jaDate" class="tkdate" onchange="jaRepHint()">
           <label for="jaRep" class="tklabel"><span class="rep"></span>繰り返し</label>
           <select id="jaRep" class="tkdate" onchange="jaRepHint()">
@@ -784,7 +788,7 @@
           <p class="sub" style="margin:4px 0 6px">寺内スケジュールは「進行中」になります。同じ内容をあなたの個別業務にも入れるかを選んでください（入れる時は内容と期日を確かめてください）。</p>
           <label for="tbText" class="tklabel">内容</label>
           <textarea id="tbText" rows="3"></textarea>
-          <label for="tbDate" class="tklabel">📅 期日（個別業務）</label>
+          <label for="tbDate" class="tklabel"><span class="ico-due"></span>期日（個別業務）</label>
           <input type="date" id="tbDate" class="tkdate">
           <button id="tbOk">はい（個別業務にも追加）</button>
           <button class="sec" id="tbOnly">はい（個別業務には追加しない）</button><!-- 転記するかを選ぶ（2026-11-11） -->
@@ -798,7 +802,7 @@
           <p class="sub hidden" id="taOthers" style="margin:0 0 6px;color:#b45309"></p>
           <label for="taText" class="tklabel">内容</label>
           <textarea id="taText" rows="3"></textarea>
-          <label for="taDate" class="tklabel">📅 初回期限</label>
+          <label for="taDate" class="tklabel"><span class="ico-due"></span>初回期限</label>
           <input type="date" id="taDate" class="tkdate" onchange="taRepHint()">
           <label for="taRep" class="tklabel"><span class="rep"></span>繰り返し</label>
           <select id="taRep" class="tkdate" onchange="taRepHint()">
@@ -819,10 +823,10 @@
           <p class="sub" id="edNote" style="margin:4px 0 6px"></p>
           <textarea id="edText" rows="3" maxlength="200"></textarea>
           <p class="sub" id="edFrom" style="margin:4px 0 0"></p>
-          <label for="edDate" class="tklabel">📅 期日</label>
+          <label for="edDate" class="tklabel"><span class="ico-due"></span>期日</label>
           <input type="date" id="edDate" class="tkdate" onchange="edRepHint()">
           <p class="sub" id="edDateNote" style="margin:4px 0 0"></p>
-          <label for="edStart" class="tklabel">🚩 開始日 <small class="sub">（なくても可。空にすると開始日なし）</small></label><!-- 編集の窓から開始日（2026-11-15） -->
+          <label for="edStart" class="tklabel"><span class="ico-start"></span>開始日 <small class="sub">（なくても可。空にすると開始日なし）</small></label><!-- 編集の窓から開始日（2026-11-15） -->
           <input type="date" id="edStart" class="tkdate">
           <p class="sub" id="edStartNote" style="margin:4px 0 0"></p>
           <div class="hidden" id="edWhoWrap"><!-- 個別業務の担当の付け外し（2026-11-06） -->
@@ -876,7 +880,7 @@
         <div class="modal">
           <strong>期日を延長</strong>
           <div class="sub" id="ppText" style="margin:4px 0 6px"></div>
-          <label for="ppDate" class="tklabel">📅 延長後の期日</label>
+          <label for="ppDate" class="tklabel"><span class="ico-due"></span>延長後の期日</label>
           <input type="date" id="ppDate" class="tkdate">
           <p class="sub" style="margin:6px 0">今回の分だけ延長します（次回は本来の期日で表示されます）</p>
           <button onclick="doPostpone()">この日に延長</button>
@@ -903,7 +907,7 @@
         <div class="modal">
           <strong><span class="rep"></span><span id="tkTitle">次回の期日と繰り返しを選んで完了</span></strong>
           <div class="sub" id="tkText" style="margin:4px 0 6px"></div>
-          <label for="tkDate" class="tklabel">📅 次回の期日（タップして日付を選ぶ）</label>
+          <label for="tkDate" class="tklabel"><span class="ico-due"></span>次回の期日（タップして日付を選ぶ）</label>
           <input type="date" id="tkDate" class="tkdate" onchange="guessKind()">
           <label for="tkKind" class="tklabel"><span class="rep"></span>これからの繰り返し</label>
           <select id="tkKind" class="tkdate" onchange="this.dataset.touched = '1'">

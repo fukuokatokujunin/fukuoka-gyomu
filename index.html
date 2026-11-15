@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261115093732">
+<meta name="build" content="20261115094150">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -92,12 +92,15 @@
   .rqc { display:block; margin-top:2px; padding:1px 4px; border-radius:4px; font-size:12px; line-height:1.35; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .rqb { margin-top:3px; font-size:10px; color:var(--sub); line-height:1.3; }
   @media (max-width: 600px) { .rqd { min-height:64px; padding:2px; } .rqc { font-size:10px; padding:1px 2px; white-space:normal; } .rqb { font-size:9px; } }
-  /* お済度枠（2026-11-15）：ピーコック＝新しく作る枠／灰＝登録済み／点線＝外す枠 */
+  /* お済度枠（2026-11-15）：ピーコック＝新しく作る枠／灰＝登録済み／取り消し線＝外す枠／点線＝決まりにない空き枠（押すと追加） */
   .sdc { display:block; width:100%; margin:2px 0 0; padding:1px 3px; border-radius:4px; font-size:12px; line-height:1.35; text-align:left; font-weight:500;
     border:1px solid #039be5; background:#039be5; color:#fff; box-shadow:none; letter-spacing:0; cursor:pointer; }
   .sdc.ex { background:#eef0f2; border-color:#eef0f2; color:var(--sub); cursor:default; }
-  .sdc.off { background:#fff; color:var(--sub); border-style:dashed; text-decoration:line-through; }
+  .sdc.off { background:#fff; color:var(--sub); border-color:var(--line); text-decoration:line-through; }
+  .sdc.xt { background:transparent; color:#7cc4ea; border:1px dotted #7cc4ea; font-weight:400; }
+  .sdc.xt.on { background:#039be5; color:#fff; border:2px dotted #01579b; padding:0 2px; font-weight:500; }
   .sdn { cursor:pointer; } .sdn small { color:var(--sub) !important; }
+  .sdinfo { font-size:10px; line-height:1.3; color:var(--warn); margin-top:2px; word-break:break-all; }
   .sdlg i { display:inline-block; width:12px; height:12px; border-radius:3px; vertical-align:-1px; margin-right:3px; }
   .sdsum { margin:8px 0; font-size:14px; } .sdlast { font-size:12px; color:var(--sub); margin-top:6px; }
   @media (max-width: 600px) { .sdc { font-size:10px; padding:1px 2px; } }
@@ -1056,8 +1059,11 @@
           <span class="sub sdlg" style="display:block;margin:4px 0 8px">
             <span class="lg"><i style="background:#039be5"></i>新しく作る枠</span>
             <span class="lg"><i style="background:#eef0f2"></i>登録済み（作らない）</span>
-            <span class="lg"><i style="border:1px dashed var(--sub)"></i>外す枠</span>
-            <span style="display:block;margin-top:4px">枠を押すと、その枠だけ外せます（もう一度押すと戻ります）。日付を押すと、その日の枠をまとめて外す／戻すことができます。</span></span>
+            <span class="lg"><i style="border:1px solid var(--line)"></i><s>外す枠</s></span>
+            <span class="lg"><i style="border:1px dotted #7cc4ea"></i>空き枠（押すと追加）</span>
+            <span style="display:block;margin-top:4px">枠を押すと、その枠だけ外せます（もう一度押すと戻ります）。日付を押すと、その日の枠をまとめて外す／戻すことができます。<br>
+              点線の空き枠（木金・第1／最終日曜の11〜13時など、決まりで入らない時刻）を押すと、例外的にその枠を追加できます。<br>
+              日付の下のオレンジの文字は、カレンダーの「住職」を含む予定です。</span></span>
           <div class="rqcal" id="sdCal"></div>
         </div>
       </div>
@@ -3573,7 +3579,7 @@ function drawAdmin(o) {
   drawReqView(o);
 }
 /* ---- お済度枠（2026-11-15 Saido.gs）：翌月の★枠をプレビューしてから反映 ---- */
-let sdPlan = null, sdOff = {};
+let sdPlan = null, sdOff = {}, sdAdd = {}; // sdOff＝外す枠、sdAdd＝決まりにない時刻に例外的に足す枠
 const sdT = t => t.replace(/^0/, '');
 const sdEsc = t => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 function sdMonths() {
@@ -3589,7 +3595,7 @@ function sdMonths() {
 async function loadSaido() {
   sdMonths();
   $('sdSum').textContent = '読み込み中…'; $('sdCal').innerHTML = ''; $('btnSaido').disabled = true;
-  try { sdPlan = await call('adminSaidoPlan', { ym: $('sdYm').value }); sdOff = {}; drawSaido(); }
+  try { sdPlan = await call('adminSaidoPlan', { ym: $('sdYm').value }); sdOff = {}; sdAdd = {}; drawSaido(); }
   catch (e) { $('sdSum').textContent = '読み込めませんでした'; }
 }
 function drawSaido() {
@@ -3597,19 +3603,19 @@ function drawSaido() {
   let h = '日月火水木金土'.split('').map((w, i) => `<div class="rqw${i === 0 ? ' sun' : i === 6 ? ' sat' : ''}">${w}</div>`).join('');
   h += '<div class="rqd blank"></div>'.repeat(p.days[0].w);
   p.days.forEach(d => {
-    const tip = [d.sunNote].concat(d.events).filter(Boolean).join('・');
     const chips = d.slots.map(s => {
       const k = `${d.date} ${s.t}`;
       if (s.st === 'exists') return `<button class="sdc ex" title="${sdEsc(s.title)}" disabled>${sdT(s.t)} 済</button>`;
+      if (s.st === 'extra') return `<button class="sdc xt${sdAdd[k] ? ' on' : ''}" title="${sdAdd[k] ? '追加する枠（押すと取りやめ）' : '決まりにない枠（押すと追加）'}" onclick="sdToggleAdd('${k}')">${sdT(s.t)}${sdAdd[k] ? ' 追加' : ''}</button>`;
       return `<button class="sdc${sdOff[k] ? ' off' : ''}" onclick="sdToggle('${k}')">${sdT(s.t)}</button>`;
     }).join('');
-    const sk = d.skipped.length ? `<div class="rqb">${d.skipped.map(sdT).join('・')} なし</div>` : '';
+    const info = d.events.map(t => `<div class="sdinfo">${sdEsc(t)}</div>`).join('');
     h += `<div class="rqd${d.events.length ? ' ev' : ''}"><div class="rqn sdn${d.w === 0 ? ' sun' : d.w === 6 ? ' sat' : ''}" onclick="sdToggleDay('${d.date}')">${d.d}` +
-      `${tip ? `<small>${sdEsc(tip)}</small>` : ''}</div>${chips}${sk}</div>`;
+      `${d.sunNote ? `<small>${d.sunNote}</small>` : ''}</div>${info}${chips}</div>`;
   });
   $('sdCal').innerHTML = h;
-  const off = Object.keys(sdOff).length, n = p.nNew - off;
-  $('sdSum').textContent = `${mlabel(p.ym)}：新しく作る ${n}枠／登録済み ${p.nExists}枠${off ? `／外す ${off}枠` : ''}`;
+  const off = Object.keys(sdOff).length, add = Object.keys(sdAdd).length, n = p.nNew - off + add;
+  $('sdSum').textContent = `${mlabel(p.ym)}：新しく作る ${n}枠${add ? `（うち追加 ${add}枠）` : ''}／登録済み ${p.nExists}枠${off ? `／外す ${off}枠` : ''}`;
   $('btnSaido').textContent = n ? `Googleカレンダーに反映（${n}枠）` : '新しく作る枠はありません';
   $('btnSaido').disabled = !n;
   const l = p.last;
@@ -3617,6 +3623,7 @@ function drawSaido() {
     : `前回の作成：${l.at}（${l.by}）${mlabel(l.ym)}分 ${l.made}枠を作成${l.exists ? `・登録済み ${l.exists}枠` : ''}${l.left ? `・残り ${l.left}枠（もう一度押してください）` : ''}`;
 }
 function sdToggle(k) { if (sdOff[k]) delete sdOff[k]; else sdOff[k] = true; drawSaido(); }
+function sdToggleAdd(k) { if (sdAdd[k]) delete sdAdd[k]; else sdAdd[k] = true; drawSaido(); }
 function sdToggleDay(date) {
   const d = sdPlan.days.find(x => x.date === date);
   const ks = d.slots.filter(s => s.st === 'new').map(s => `${date} ${s.t}`);
@@ -3627,11 +3634,11 @@ function sdToggleDay(date) {
 }
 async function saidoCreate() {
   const p = sdPlan; if (!p) return;
-  const n = p.nNew - Object.keys(sdOff).length;
-  if (!n || !await ask(`${mlabel(p.ym)}のお済度枠（★）を ${n}枠、Googleカレンダーに作成しますか？\n（1〜2分かかります）`)) return;
+  const add = Object.keys(sdAdd).length, n = p.nNew - Object.keys(sdOff).length + add;
+  if (!n || !await ask(`${mlabel(p.ym)}のお済度枠（★）を ${n}枠${add ? `（うち追加 ${add}枠）` : ''}、Googleカレンダーに作成しますか？\n（1〜2分かかります）`)) return;
   busy(true);
   try {
-    sdPlan = await call('adminSaidoCreate', { ym: p.ym, skip: Object.keys(sdOff) }); sdOff = {};
+    sdPlan = await call('adminSaidoCreate', { ym: p.ym, skip: Object.keys(sdOff), add: Object.keys(sdAdd) }); sdOff = {}; sdAdd = {};
     const l = sdPlan.last || {};
     notice('お済度枠を作成しました', `${mlabel(p.ym)}分 ${l.made || 0}枠をGoogleカレンダーに作成しました。` +
       (l.left ? `\n時間がかかったため ${l.left}枠が残っています。もう一度「反映」を押してください。` : ''));

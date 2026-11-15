@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261111175545">
+<meta name="build" content="20261115091041">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -78,6 +78,8 @@
   a.btnlink { display:block; text-align:center; padding:14px; margin-top:10px; border-radius:10px; border:1px solid var(--line); background:#fff; color:var(--ink); font-weight:600; text-decoration:none; }
   .day.base { background:#f3f4f6; } .day.base small { color:var(--sub); font-weight:400; }
   .day.work { background:#ecfdf5; border-color:var(--ok); } .day.work small { color:var(--ok); }
+  .day.lock { cursor:default; opacity:.7; } /* 締切を過ぎた月（見るだけ。2026-11-15） */
+  .reqmonths { display:flex; gap:6px; margin-bottom:10px; } .reqmonths button { flex:1; margin:0; padding:8px 4px; font-size:13px; }
   .day em { font-style:normal; font-size:9px; color:var(--ng); line-height:1; }
   table.grid td.bs { box-shadow:inset 0 -3px 0 #9ca3af; }
   table.grid td.rq { position:relative; }
@@ -908,12 +910,14 @@
     <section id="v-req" class="hidden">
       <button class="ghost back" onclick="view('clock')">← TOPに戻る</button>
       <div class="card">
+        <div class="reqmonths hidden" id="reqMonths"></div>
         <strong id="reqTitle"></strong>
         <div class="notice caution" id="reqNote">休みは交代要員を確保した上で申請してください</div>
+        <div class="notice caution hidden" id="reqLocked"></div>
         <p class="sub" id="reqHelp"></p>
         <div class="cal" id="cal"></div>
-        <button onclick="saveReq()">提出する</button>
-        <p class="sub">日付をタップして希望を選んでください。何も選ばずに提出すると「希望なし」になります</p>
+        <button id="btnReqSave" onclick="saveReq()">提出する</button>
+        <p class="sub" id="reqHowto">日付をタップして希望を選んでください。何も選ばずに提出すると「希望なし」になります</p>
       </div>
       <div class="overlay hidden" id="rqPicker" onclick="if (event.target === this) this.classList.add('hidden')">
         <div class="modal">
@@ -1275,14 +1279,7 @@ function render(s) {
   $('btnLogout').classList.remove('hidden');
   $('btnMenu').classList.remove('hidden');
   $('who').textContent = s.name;
-  // 締切アナウンス：希望受付月の前月15日（設定値）まで
-  const [y, m] = s.requestMonth.split('-').map(Number);
-  const dlMonth = m === 1 ? 12 : m - 1;
-  $('deadline').innerHTML = '';
-  const t = document.createElement('span');
-  t.className = 'info'; t.textContent = `${m}月の休み希望は ${dlMonth}月${s.deadline}日 までに提出してください`;
-  const a = document.createElement('a'); a.textContent = '提出 ›'; a.onclick = () => view('req');
-  $('deadline').append(t, a);
+  drawDeadline();
   drawInfos(s.infos || []);
 
   // 申し送り
@@ -3237,20 +3234,71 @@ const REQ_LABEL = { '公休': '公休希望', '有休': '有給希望', '午前�
 const isPart = () => me.type === 'パート';
 const baseDays = () => isPart() ? me.baseWork : me.baseOff;
 
-async function loadReq() {
-  const ym = me.requestMonth;
+/* 締切の自動切替（2026-11-15）：締切日（前月15日）を過ぎたら、画面を開いたままでも
+   打刻画面のお知らせ・希望の入力画面を次の月に切り替える。締切を過ぎた月は見るだけ（変更不可。サーバーも拒否） */
+// いま受け付けている月 open と、締切を過ぎた翌月 closed（締切日まではなし）。サーバーの requestMonth_ と同じ決まり
+function reqMonths() {
+  const d = new Date(), add = d.getDate() <= me.deadline ? 1 : 2;
+  const f = n => ymd(new Date(d.getFullYear(), d.getMonth() + n, 1)).slice(0, 7);
+  return { open: f(add), closed: add === 2 ? f(1) : '' };
+}
+const dlLabel = ym => { const m = Number(ym.split('-')[1]); return `${m === 1 ? 12 : m - 1}月${me.deadline}日`; };
+let dlShown = '', reqYm = '', reqOpenAt = ''; // お知らせに出している月／入力画面の月／入力画面を開いた時の受付月
+function drawDeadline() {
+  const ym = dlShown = reqMonths().open;
+  $('deadline').innerHTML = '';
+  const t = document.createElement('span');
+  t.className = 'info'; t.textContent = `${mlabel(ym)}の休み希望は ${dlLabel(ym)} までに提出してください`;
+  const a = document.createElement('a'); a.textContent = '提出 ›'; a.onclick = () => view('req');
+  $('deadline').append(t, a);
+}
+const reqLocked = () => reqYm !== reqMonths().open;
+setInterval(reqTick, 60 * 1000);
+document.addEventListener('visibilitychange', reqTick);
+function reqTick() {
+  if (!me || me.noAttend || document.hidden) return;
+  const { open } = reqMonths();
+  if (open !== dlShown) drawDeadline();
+  if (cur === 'req' && reqOpenAt && reqOpenAt !== open) { // 入力中に締切を過ぎた
+    const ym = reqYm;
+    $('rqPicker').classList.add('hidden');
+    loadReq(ym);
+    if (ym === reqMonths().closed) show(`${mlabel(ym)}の希望の締切（${dlLabel(ym)}）を過ぎました。これ以降は変更できません`, true);
+  }
+}
+
+// ym：締切を過ぎた月を見る時だけ渡す（省略は受付中の月）
+async function loadReq(ym) {
+  const { open, closed } = reqMonths();
+  if (!ym || ym !== closed) ym = open;
+  reqYm = ym; reqOpenAt = open;
+  const locked = ym !== open;
   const [y, m] = ym.split('-').map(Number);
-  $('reqTitle').textContent = `${y}年${m}月 の希望（締切 ${m === 1 ? 12 : m - 1}月${me.deadline}日）`;
-  $('reqNote').classList.toggle('hidden', isPart());
+  $('reqMonths').innerHTML = '';
+  if (closed) [closed, open].forEach(x => {
+    const b = document.createElement('button');
+    b.className = x === ym ? '' : 'sec';
+    b.textContent = mlabel(x) + (x === closed ? '（締切済み）' : '（受付中）');
+    b.onclick = () => loadReq(x);
+    $('reqMonths').appendChild(b);
+  });
+  $('reqMonths').classList.toggle('hidden', !closed);
+  $('reqTitle').textContent = `${y}年${m}月 の希望（締切 ${dlLabel(ym)}${locked ? '・締切済み' : ''}）`;
+  $('reqLocked').textContent = `締切を過ぎたため変更できません（見るだけ）。変更が必要な時は管理者に連絡してください`;
+  $('reqLocked').classList.toggle('hidden', !locked);
+  $('reqNote').classList.toggle('hidden', isPart() || locked);
+  $('btnReqSave').classList.toggle('hidden', locked);
+  $('reqHowto').classList.toggle('hidden', locked);
   $('reqHelp').textContent = '';
   $('cal').innerHTML = '<p class="sub">読み込み中…</p>';
-  const [list, base] = await Promise.all([call('getRequest', { ym }), call('requestBase')]);
+  const [list, base] = await Promise.all([call('getRequest', { ym }), call('requestBase', { ym })]);
+  if (reqYm !== ym) return; // 読込中に月を切り替えた
   Object.assign(me, base); // 基本公休日・祝日など（ログインを軽くするためここで読む）
   req = {}; list.forEach(r => req[r.date] = r.kind);
   drawCal();
 }
 function drawCal() {
-  const ym = me.requestMonth;
+  const ym = reqYm, lock = reqLocked();
   const [y, m] = ym.split('-').map(Number);
   const first = new Date(y, m - 1, 1).getDay(), n = new Date(y, m, 0).getDate();
   let h = '日月火水木金土'.split('').map(w => `<div class="w">${w}</div>`).join('');
@@ -3263,12 +3311,14 @@ function drawCal() {
     else if (req[ds]) { cls += ' set'; label = REQ_LABEL[req[ds]]; }
     else if (isBase && isPart()) { cls += ' work'; label = '出勤(基本)'; }
     else if (isBase) { cls += ' base'; label = '公休(基本)'; }
-    h += `<div class="${cls}" onclick="pickReq('${ds}')">${d}${sp ? `<em>${sp.length > 4 ? '祝' : sp}</em>` : ''}<small>${label}</small></div>`;
+    if (lock) cls += ' lock';
+    h += `<div class="${cls}"${lock ? '' : ` onclick="pickReq('${ds}')"`}>${d}${sp ? `<em>${sp.length > 4 ? '祝' : sp}</em>` : ''}<small>${label}</small></div>`;
   }
   $('cal').innerHTML = h;
 }
 /** 日付をタップ → 選択肢を表示 */
 function pickReq(ds) {
+  if (reqLocked()) return;
   const isBase = baseDays().includes(ds);
   let opts;
   if (isPart()) {
@@ -3291,9 +3341,12 @@ function pickReq(ds) {
   $('rqPicker').classList.remove('hidden');
 }
 async function saveReq() {
+  const ym = reqYm;
+  if (reqLocked()) { loadReq(ym); show(`${mlabel(ym)}の希望は締切（${dlLabel(ym)}）を過ぎたため変更できません。管理者に連絡してください`, true); return; }
   const items = Object.entries(req).map(([date, kind]) => ({ date, kind }));
   busy(true);
-  try { await call('saveRequest', { ym: me.requestMonth, items }); show(`${mlabel(me.requestMonth)}の希望を提出しました（${items.length}件）`); }
+  try { await call('saveRequest', { ym, items }); show(`${mlabel(ym)}の希望を提出しました（${items.length}件）`); }
+  catch (e) { if (/締切/.test(e.message)) loadReq(ym); } // サーバー側で締切を過ぎていた時は見るだけの表示に
   finally { busy(false); }
 }
 

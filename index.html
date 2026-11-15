@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261115101749">
+<meta name="build" content="20261115111439">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -707,10 +707,10 @@
           <textarea id="rqText" rows="3" maxlength="200"></textarea>
           <span class="tklabel">担当 <small class="sub">（複数可）</small></span>
           <div class="whos" id="rqWho"></div>
-          <label for="rqStart" class="tklabel"><span class="ico-start"></span>開始日 <small class="sub">（なくても可。入れると開始日から期日まで一覧の上の方に出ます）</small></label>
+          <label for="rqStart" class="tklabel"><span class="ico-start"></span>開始日 <small class="sub">（なくても可。期日の1か月前まで。入れると開始日から期日まで一覧の上の方に出ます）</small></label>
           <input type="date" id="rqStart" class="tkdate">
           <label for="rqDue" class="tklabel"><span class="ico-due"></span>期日 <small class="sub">（必須）</small></label>
-          <input type="date" id="rqDue" class="tkdate">
+          <input type="date" id="rqDue" class="tkdate" onchange="startRange('rqStart', this.value)">
           <label for="rqRep" class="tklabel"><span class="rep"></span>繰り返し <small class="sub" id="rqRepNote"></small></label>
           <select id="rqRep" class="tkdate" onchange="$('rqDaysWrap').classList.toggle('hidden', this.value !== 'W')">
             <option value="">選んでください</option><option value="none">繰り返さない</option><option value="D">毎日</option><option value="WD">平日（月〜金）</option>
@@ -728,10 +728,10 @@
           <p class="sub" style="margin:4px 0 6px">みんなの打刻画面の寺内スケジュールに出ます。表示は期限の3か月前から（2週間より先は折りたたみ。発注・締切・予約などは1か月より先なら★）</p>
           <label for="jaText" class="tklabel">内容</label>
           <textarea id="jaText" rows="3" maxlength="200"></textarea>
-          <label for="jaStart" class="tklabel"><span class="ico-start"></span>開始日 <small class="sub">（なくても可。入れると開始日から期限まで一覧の上の方に出ます。繰り返す時は毎回、期限の同じ日数前から）</small></label>
+          <label for="jaStart" class="tklabel"><span class="ico-start"></span>開始日 <small class="sub">（なくても可。初回期限の1か月前まで。入れると開始日から期限まで一覧の上の方に出ます。繰り返す時は毎回、期限の同じ日数前から）</small></label>
           <input type="date" id="jaStart" class="tkdate">
           <label for="jaDate" class="tklabel"><span class="ico-due"></span>初回期限 <small class="sub">（必須）</small></label>
-          <input type="date" id="jaDate" class="tkdate" onchange="jaRepHint()">
+          <input type="date" id="jaDate" class="tkdate" onchange="jaRepHint(); startRange('jaStart', this.value)">
           <label for="jaRep" class="tklabel"><span class="rep"></span>繰り返し</label>
           <select id="jaRep" class="tkdate" onchange="jaRepHint()">
             <option value="Y">毎年（来年以降は同じ曜日の近い日）</option><option value="none">今回のみ</option>
@@ -827,9 +827,9 @@
           <textarea id="edText" rows="3" maxlength="200"></textarea>
           <p class="sub" id="edFrom" style="margin:4px 0 0"></p>
           <label for="edDate" class="tklabel"><span class="ico-due"></span>期日</label>
-          <input type="date" id="edDate" class="tkdate" onchange="edRepHint()">
+          <input type="date" id="edDate" class="tkdate" onchange="edRepHint(); edStartRange()">
           <p class="sub" id="edDateNote" style="margin:4px 0 0"></p>
-          <label for="edStart" class="tklabel"><span class="ico-start"></span>開始日 <small class="sub">（なくても可。空にすると開始日なし）</small></label><!-- 編集の窓から開始日（2026-11-15） -->
+          <label for="edStart" class="tklabel"><span class="ico-start"></span>開始日 <small class="sub">（なくても可。期日の1か月前まで。空にすると開始日なし）</small></label><!-- 編集の窓から開始日（2026-11-15） -->
           <input type="date" id="edStart" class="tkdate">
           <p class="sub" id="edStartNote" style="margin:4px 0 0"></p>
           <div class="hidden" id="edWhoWrap"><!-- 個別業務の担当の付け外し（2026-11-06） -->
@@ -1799,6 +1799,13 @@ let edCur = null, edKind = 'annual';
 let edRep0 = '';
 /** 編集の窓の繰り返しの説明（寺内へ移す窓と同じ） */
 function edRepHint() { if (edKind === 'annual') repHint($('edRep').value, $('edDate').value, edCur && edCur.rule, $('edHint'), $('edRep').value !== edRep0); }
+/** 期日の1か月前の日（同じ日。前の月にその日がなければ月末。2026-11-15 編集の窓の開始日は期日の1か月前まで） */
+function monthBefore(due) { const [y, m, d] = due.split('-').map(Number); return ymd(new Date(y, m - 2, Math.min(d, new Date(y, m - 1, 0).getDate()))); }
+/** 編集の窓の開始日のカレンダーで選べる範囲（期日の1か月前〜期日。延長中の寺内は本来の期限から） */
+function edStartBase() { const d = $('edDate').value; return edKind === 'annual' && edCur && edCur.moved && d === edCur.date ? edCur.key : d; }
+/** 開始日のカレンダーで選べる範囲（期日の1か月前〜期日。新規作成の窓も同じ） */
+function startRange(id, b) { $(id).min = b ? monthBefore(b) : ''; $(id).max = b || ''; }
+function edStartRange() { startRange('edStart', edStartBase()); }
 function edSetDate(v) { const today = ymd(new Date()); $('edDate').value = v; $('edDate').min = v && v < today ? '' : today; }
 /* 個別業務の編集（2026-11-04）：同じ依頼の他の担当者の分も同じ内容になる */
 function openTaskEdit(t) {
@@ -1808,7 +1815,7 @@ function openTaskEdit(t) {
   $('edNote').textContent = 'この個別業務の内容を直します。' + (mates ? `同じ依頼の ${mates} の分も同じ内容になります。` : '');
   $('edText').value = t.text; $('edFrom').textContent = '';
   edSetDate(t.due || '');
-  $('edStart').value = t.start || '';
+  $('edStart').value = t.start || ''; edStartRange();
   $('edStartNote').textContent = '開始日から期日まで一覧の上の方に出ます。' + (mates ? `同じ依頼の ${mates} の分も同じ開始日になります。` : '');
   $('edRepWrap').classList.add('hidden');
   $('edDateNote').textContent = '期日そのものを直します（今回だけずらす時は「延長」）。空にすると期日なし。' + (mates ? `同じ依頼の ${mates} の分も同じ期日になります。` : '');
@@ -1846,7 +1853,7 @@ function openEdit(a) {
   edRep0 = $('edRep').value;
   $('edRepWrap').classList.remove('hidden');
   edRepHint();
-  $('edStart').value = a.start || '';
+  $('edStart').value = a.start || ''; edStartRange();
   $('edStartNote').textContent = '開始日から期限まで一覧の上の方に出ます。繰り返す時は毎回、期限の同じ日数前から' + (a.moved ? `（延長中の回は、本来の期限 ${mdOf(a.key)} より前の日）` : '');
   $('edText').value = a.text; // 画面に出ている文言（昨年の名前で出している時はその名前）
   $('edFrom').textContent = a.edited ? `${nb(a.edited.by)}が ${a.edited.at} に編集（元の内容：${a.edited.from}）` : '';
@@ -1864,6 +1871,8 @@ async function saveEdit() {
   const startBase = edKind === 'annual' && !dateChanged && a.moved ? a.key : date;
   if (start && !date) { alert('開始日を入れる時は期日も選んでください'); return; }
   if (start && start > startBase) { alert(edKind === 'annual' && !dateChanged && a.moved ? `延長中の回は、本来の期限（${mdOf(a.key)}）より前の日を開始日にしてください` : '開始日は期日より前の日を選んでください'); return; }
+  const repSent = edKind === 'annual' && $('edRep').value !== edRep0; // 繰り返しを変えた時も開始日を送る
+  if (start && (startChanged || dateChanged || repSent) && start < monthBefore(startBase)) { alert(`開始日は期日の1か月前（${mdOf(monthBefore(startBase))}）までの日を選んでください`); return; } // 2026-11-15
   const sendStart = startChanged || dateChanged ? { start } : {}; // 期日を直した時も、開始日はこの窓の日のまま
   const ids = edKind === 'task' ? edWhoIds() : null; // 担当の付け外し（2026-11-06）
   if (ids && !ids.length) { alert('担当を1人以上選んでください'); return; }
@@ -2884,7 +2893,7 @@ function taRepHint() { repHint($('taRep').value, $('taDate').value, taCur && taC
   h.addEventListener('toggle', () => { try { localStorage.setItem('hoOpen', h.open ? '1' : '0'); } catch (e) {} });
 })();
 function openRequest() {
-  $('rqText').value = ''; $('rqDue').value = ''; $('rqDue').min = ymd(new Date()); $('rqStart').value = '';
+  $('rqText').value = ''; $('rqDue').value = ''; $('rqDue').min = ymd(new Date()); $('rqStart').value = ''; startRange('rqStart', '');
   $('rqRep').value = ''; $('rqDaysWrap').classList.add('hidden');
   $('rqWho').innerHTML = '';
   (me.taskPeople || []).forEach(p => {
@@ -2917,6 +2926,7 @@ async function doRequest() {
   if (!p.due) { alert('期日を選んでください'); return; } // 期日は必須（2026-11-11）
   if (p.due < ymd(new Date())) { alert('過ぎた日付は選べません'); return; }
   if (p.start && p.start > p.due) { alert('開始日は期日より前の日を選んでください'); return; }
+  if (p.start && p.start < monthBefore(p.due)) { alert(`開始日は期日の1か月前（${mdOf(monthBefore(p.due))}）までの日を選んでください`); return; } // 2026-11-15
   $('rqBox').classList.add('hidden');
   // 返事を待たずに一覧へ仮の行（登録中）を出し、登録は裏で（2026-11-08。以前は返事まで「反映中」で待たせていた）
   p.rid = newRid();
@@ -2939,7 +2949,7 @@ async function doRequest() {
 function newRid() { return auth.id + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8); }
 function openJinaiAdd() {
   const today = ymd(new Date());
-  $('jaText').value = ''; $('jaDate').value = ''; $('jaDate').min = today; $('jaStart').value = '';
+  $('jaText').value = ''; $('jaDate').value = ''; $('jaDate').min = today; $('jaStart').value = ''; startRange('jaStart', '');
   $('jaRep').value = 'Y';
   $('jaDays').innerHTML = '';
   '日月火水木金土'.split('').forEach((w, i) => {
@@ -2970,6 +2980,7 @@ async function doJinaiAdd() {
   if (!p.date) { alert('初回期限を選んでください'); return; }
   if (p.date < ymd(new Date())) { alert('過ぎた日付は選べません'); return; }
   if (p.start && p.start > p.date) { alert('開始日は初回期限より前の日を選んでください'); return; }
+  if (p.start && p.start < monthBefore(p.date)) { alert(`開始日は初回期限の1か月前（${mdOf(monthBefore(p.date))}）までの日を選んでください`); return; } // 2026-11-15
   $('jaBox').classList.add('hidden');
   const rule = jaRule(cycle, p.date); // 周期の時は、寺内に同じ内容の予定があれば以降不要にするか確かめる（寺内へ移す時と同じ）
   if (rule) p.removeDups = await askRemoveDups({ texts: [p.text] }, ruleLabel(rule));

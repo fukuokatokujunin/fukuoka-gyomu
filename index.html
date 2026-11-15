@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261115091041">
+<meta name="build" content="20261115092332">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -92,6 +92,15 @@
   .rqc { display:block; margin-top:2px; padding:1px 4px; border-radius:4px; font-size:12px; line-height:1.35; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .rqb { margin-top:3px; font-size:10px; color:var(--sub); line-height:1.3; }
   @media (max-width: 600px) { .rqd { min-height:64px; padding:2px; } .rqc { font-size:10px; padding:1px 2px; white-space:normal; } .rqb { font-size:9px; } }
+  /* お済度枠（2026-11-15）：ピーコック＝新しく作る枠／灰＝登録済み／点線＝外す枠 */
+  .sdc { display:block; width:100%; margin:2px 0 0; padding:1px 3px; border-radius:4px; font-size:12px; line-height:1.35; text-align:left; font-weight:500;
+    border:1px solid #039be5; background:#039be5; color:#fff; box-shadow:none; letter-spacing:0; cursor:pointer; }
+  .sdc.ex { background:#eef0f2; border-color:#eef0f2; color:var(--sub); cursor:default; }
+  .sdc.off { background:#fff; color:var(--sub); border-style:dashed; text-decoration:line-through; }
+  .sdn { cursor:pointer; } .sdn small { color:var(--sub) !important; }
+  .sdlg i { display:inline-block; width:12px; height:12px; border-radius:3px; vertical-align:-1px; margin-right:3px; }
+  .sdsum { margin:8px 0; font-size:14px; } .sdlast { font-size:12px; color:var(--sub); margin-top:6px; }
+  @media (max-width: 600px) { .sdc { font-size:10px; padding:1px 2px; } }
   ul.rqlist { list-style:none; margin:10px 0 0; padding:0; } ul.rqlist li { padding:10px 0; border-bottom:1px solid var(--line); }
   ul.rqlist li:last-child { border-bottom:0; } ul.rqlist .ok { color:var(--ok); font-size:13px; } ul.rqlist .no { color:var(--ng); font-size:13px; }
   ul.rqlist .sub { margin-top:2px; font-size:13px; } button.rqreload { width:auto; display:inline-block; margin:0 0 0 8px; padding:4px 12px; font-size:13px; }
@@ -813,6 +822,9 @@
           <label for="edDate" class="tklabel">📅 期日</label>
           <input type="date" id="edDate" class="tkdate" onchange="edRepHint()">
           <p class="sub" id="edDateNote" style="margin:4px 0 0"></p>
+          <label for="edStart" class="tklabel">🚩 開始日 <small class="sub">（なくても可。空にすると開始日なし）</small></label><!-- 編集の窓から開始日（2026-11-15） -->
+          <input type="date" id="edStart" class="tkdate">
+          <p class="sub" id="edStartNote" style="margin:4px 0 0"></p>
           <div class="hidden" id="edWhoWrap"><!-- 個別業務の担当の付け外し（2026-11-06） -->
             <span class="tklabel">担当 <small class="sub">（外すとその人の個別業務から消えます。足した人には新着で届きます）</small></span>
             <div class="whos" id="edWho"></div>
@@ -941,6 +953,7 @@
         <button class="atab on" data-tab="shift" onclick="adminTab('shift')">シフト作成</button>
         <button class="atab" data-tab="req" onclick="adminTab('req')">希望確認</button>
         <button class="atab" data-tab="actual" onclick="adminTab('actual')">実績確認</button>
+        <button class="atab" data-tab="saido" onclick="adminTab('saido')">お済度枠</button>
         <button class="atab" data-tab="info" onclick="adminTab('info')">お知らせ</button>
         <button class="atab" data-tab="etc" onclick="adminTab('etc')">QR・設定</button>
       </div>
@@ -1018,6 +1031,30 @@
             ・<b>チェックを戻す</b>：退勤前チェックをすべて未チェックに戻します<br>
             ・<b>確認をもう一度出す</b>：起動時の確認（朝の確認・期日が近い個別業務）と打刻のお知らせを、次に画面を開いた時にもう一度出します</span>
           <div id="revList"></div>
+        </div>
+      </div>
+
+      <!-- お済度枠（2026-11-15 Saido.gs）：fukuokatokujunin のカレンダーに「★」枠を作る。反映前に簡易カレンダーで確認 -->
+      <div id="at-saido" class="hidden">
+        <div class="card">
+          <strong>お済度枠（★）をGoogleカレンダーに作成</strong>
+          <span class="sub" style="display:block;margin:4px 0 8px">fukuokatokujunin のカレンダーに、1枠45分・ピーコック・タイトル「★」の枠を作ります。<br>
+            ・日〜水：9:15／10:00／11:00／12:00／13:00／14:00／15:00　・土：12:00〜15:00　・木金：なし<br>
+            ・第1日曜・最終日曜は 11:00／12:00／13:00 を入れません<br>
+            ・毎月15日の朝に翌月分を自動で作成します。同じ時刻に★の予定（予約済みを含む）があれば作らないので、何度押しても二重になりません</span>
+          <select id="sdYm" onchange="loadSaido()"></select>
+          <div class="sdsum" id="sdSum"></div>
+          <button id="btnSaido" onclick="saidoCreate()">Googleカレンダーに反映</button>
+          <div class="sdlast" id="sdLast"></div>
+        </div>
+        <div class="card">
+          <strong>入力予定の確認</strong>
+          <span class="sub sdlg" style="display:block;margin:4px 0 8px">
+            <span class="lg"><i style="background:#039be5"></i>新しく作る枠</span>
+            <span class="lg"><i style="background:#eef0f2"></i>登録済み（作らない）</span>
+            <span class="lg"><i style="border:1px dashed var(--sub)"></i>外す枠</span>
+            <span style="display:block;margin-top:4px">枠を押すと、その枠だけ外せます（もう一度押すと戻ります）。日付を押すと、その日の枠をまとめて外す／戻すことができます。</span></span>
+          <div class="rqcal" id="sdCal"></div>
         </div>
       </div>
 
@@ -1761,6 +1798,8 @@ function openTaskEdit(t) {
   $('edNote').textContent = 'この個別業務の内容を直します。' + (mates ? `同じ依頼の ${mates} の分も同じ内容になります。` : '');
   $('edText').value = t.text; $('edFrom').textContent = '';
   edSetDate(t.due || '');
+  $('edStart').value = t.start || '';
+  $('edStartNote').textContent = '開始日から期日まで一覧の上の方に出ます。' + (mates ? `同じ依頼の ${mates} の分も同じ開始日になります。` : '');
   $('edRepWrap').classList.add('hidden');
   $('edDateNote').textContent = '期日そのものを直します（今回だけずらす時は「延長」）。空にすると期日なし。' + (mates ? `同じ依頼の ${mates} の分も同じ期日になります。` : '');
   // 担当の付け外し（2026-11-06）。寺内スケジュールから追加した分は1人ずつなので出さない
@@ -1797,6 +1836,8 @@ function openEdit(a) {
   edRep0 = $('edRep').value;
   $('edRepWrap').classList.remove('hidden');
   edRepHint();
+  $('edStart').value = a.start || '';
+  $('edStartNote').textContent = '開始日から期限まで一覧の上の方に出ます。繰り返す時は毎回、期限の同じ日数前から' + (a.moved ? `（延長中の回は、本来の期限 ${mdOf(a.key)} より前の日）` : '');
   $('edText').value = a.text; // 画面に出ている文言（昨年の名前で出している時はその名前）
   $('edFrom').textContent = a.edited ? `${nb(a.edited.by)}が ${a.edited.at} に編集（元の内容：${a.edited.from}）` : '';
   $('edBox').classList.remove('hidden');
@@ -1808,6 +1849,12 @@ async function saveEdit() {
   const oldDate = edKind === 'task' ? (a.due || '') : a.date, dateChanged = date !== oldDate;
   if (dateChanged && date && date < today) { alert('過ぎた日付は選べません'); return; }
   if (dateChanged && !date && edKind !== 'task') { alert('期日を選んでください'); return; }
+  // 開始日（2026-11-15）：期日（延長中の寺内は本来の期限）より後は選べない
+  const start = $('edStart').value, startChanged = start !== (a.start || '');
+  const startBase = edKind === 'annual' && !dateChanged && a.moved ? a.key : date;
+  if (start && !date) { alert('開始日を入れる時は期日も選んでください'); return; }
+  if (start && start > startBase) { alert(edKind === 'annual' && !dateChanged && a.moved ? `延長中の回は、本来の期限（${mdOf(a.key)}）より前の日を開始日にしてください` : '開始日は期日より前の日を選んでください'); return; }
+  const sendStart = startChanged || dateChanged ? { start } : {}; // 期日を直した時も、開始日はこの窓の日のまま
   const ids = edKind === 'task' ? edWhoIds() : null; // 担当の付け外し（2026-11-06）
   if (ids && !ids.length) { alert('担当を1人以上選んでください'); return; }
   const nameOf = id => String(id) === String(auth.id) ? '自分' : ((me.taskPeople || []).find(p => Number(p.id) === Number(id)) || {}).name || '';
@@ -1816,14 +1863,14 @@ async function saveEdit() {
   if (dropped.length && !await ask(`${nbs(dropped)} を担当から外しますか？（外した人の個別業務から消えます。7日間は「削除済み」から戻せます）`)) return;
   $('edBox').classList.add('hidden');
   const rep = edKind === 'annual' ? $('edRep').value : '', repChanged = edKind === 'annual' && rep !== edRep0;
-  if (text === a.text && !dateChanged && !repChanged && !ids) return;
-  const what = [text !== a.text && '内容', dateChanged && '期日', repChanged && '繰り返し', ids && '担当'].filter(Boolean).join('・');
+  if (text === a.text && !dateChanged && !repChanged && !ids && !startChanged) return;
+  const what = [text !== a.text && '内容', dateChanged && '期日', startChanged && '開始日', repChanged && '繰り返し', ids && '担当'].filter(Boolean).join('・');
   if (edKind === 'task') {
     // 返事を待たずに一覧を直す（保存は裏で）。自分を外した時は一覧から消す
     const mates = ids ? ids.filter(x => x !== Number(auth.id)).map(nameOf) : a.mates;
     drawTasks(sortTasks(me.tasks.filter(x => !(x.id === a.id && ids && !ids.includes(Number(auth.id))))
-      .map(x => x.id === a.id ? Object.assign({}, x, { text, due: date }, ids ? { mates, mateIds: ids.filter(y => y !== Number(auth.id)), multi: x.multi || ids.length > 1 } : {}) : x)));
-    saveLater('tasks', 'editTask', Object.assign({ id: a.id, text, due: date }, ids ? { ids } : {}));
+      .map(x => x.id === a.id ? Object.assign({}, x, { text, due: date, start: start && start < date ? start : '' }, ids ? { mates, mateIds: ids.filter(y => y !== Number(auth.id)), multi: x.multi || ids.length > 1 } : {}) : x)));
+    saveLater('tasks', 'editTask', Object.assign({ id: a.id, text, due: date }, sendStart, ids ? { ids } : {}));
     show(`${what}を直しました` + (added.length ? `（${nbs(added)} を担当に追加）` : '') + (dropped.length ? `（${nbs(dropped)} を担当から外しました）` : '')
       + (!ids && (a.mates || []).length ? `（${nbs(a.mates)}の分も直ります）` : ''));
     return;
@@ -1834,16 +1881,17 @@ async function saveEdit() {
     const d = rule && !ruleMatch(rule, new Date(date + 'T00:00:00')) ? nextByRule(rule, date) : date;
     const left = Math.round((new Date(d + 'T00:00:00') - new Date(today + 'T00:00:00')) / 864e5);
     drawAnnual(me.annual.map(x => !x.event && x.id === a.id ? Object.assign({}, x, text !== a.text ? { text, base: text, orig: '' } : {},
-      { date: d, key: d, left, moved: false, early: annualEarly(x, left), rule, cycle: rule ? ruleLabel(rule) : '', once: repChanged ? rep === 'none' : a.once,
+      { date: d, key: d, left, moved: false, early: annualEarly(x, left), start: start && start < d ? start : '', rule, cycle: rule ? ruleLabel(rule) : '', once: repChanged ? rep === 'none' : a.once,
         later: removeDups ? [] : x.later }) : x)); // 以降不要にした時は、同じ内容のほかの日付（このあと○/○にも）を外す
-    saveLater('annual', 'editAnnual', Object.assign({ id: a.id, key: a.key, removeDups }, dateChanged || repChanged ? { date } : {}, text !== a.text ? { text } : {}, repChanged ? { cycle: rep } : {}));
+    saveLater('annual', 'editAnnual', Object.assign({ id: a.id, key: a.key, removeDups }, dateChanged || repChanged ? { date, start } : {}, text !== a.text ? { text } : {}, repChanged ? { cycle: rep } : {}));
     show(`${what}を直しました（全員の画面に反映されます）` + (removeDups ? '。同じ内容のほかの日付の予定は以降不要にしました（7日間は「削除済み」から戻せます）' : ''));
     return;
   }
   // 返事を待たずに一覧を直す（保存は裏で）
-  drawAnnual(me.annual.map(x => !x.event && x.id === a.id ? Object.assign({}, x, { text, base: text, orig: '' }) : x));
-  saveLater('annual', 'editAnnual', { id: a.id, text });
-  show('内容を直しました（全員の画面に反映されます）');
+  drawAnnual(me.annual.map(x => !x.event && x.id === a.id ? Object.assign({}, x, text !== a.text ? { text, base: text, orig: '' } : {},
+    startChanged ? { start: start && start < (a.moved ? a.key : a.date) ? start : '' } : {}) : x));
+  saveLater('annual', 'editAnnual', Object.assign({ id: a.id, key: a.key }, text !== a.text ? { text } : {}, sendStart));
+  show(`${what}を直しました（全員の画面に反映されます）`);
 }
 
 /* 進捗（Ver1.2。旧称 備考）：着手した人が進み具合を時系列で書き足す。全員が見られる。自分の書き込みは消せる */
@@ -3405,8 +3453,9 @@ function showRes(title, list) {
 // 管理画面のタブ（開いていたタブは端末に記憶）
 function adminTab(t) {
   document.querySelectorAll('.atab').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
-  ['shift', 'req', 'actual', 'info', 'etc'].forEach(x => $('at-' + x).classList.toggle('hidden', x !== t));
+  ['shift', 'req', 'actual', 'saido', 'info', 'etc'].forEach(x => $('at-' + x).classList.toggle('hidden', x !== t));
   if (t === 'etc') loadPwList();
+  if (t === 'saido') loadSaido();
   if (t === 'actual') loadRevert();
   try { localStorage.setItem('adminTab', t); } catch (e) {}
 }
@@ -3519,6 +3568,72 @@ function drawAdmin(o) {
   $('grid').innerHTML = o.status === 'なし' ? '<tr><td style="padding:12px;cursor:auto">まだシフト案がありません。上の「① 希望からシフト案を作成」を押してください。</td></tr>' : h;
   drawReqView(o);
 }
+/* ---- お済度枠（2026-11-15 Saido.gs）：翌月の★枠をプレビューしてから反映 ---- */
+let sdPlan = null, sdOff = {};
+const sdT = t => t.replace(/^0/, '');
+const sdEsc = t => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+function sdMonths() {
+  const sel = $('sdYm'); if (sel.options.length) return;
+  const d = new Date(); d.setDate(1);
+  for (let i = 0; i < 3; i++) {
+    const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    sel.add(new Option(`${d.getFullYear()}年${d.getMonth() + 1}月${i === 1 ? '（翌月）' : i === 0 ? '（今月）' : ''}`, ym));
+    d.setMonth(d.getMonth() + 1);
+  }
+  sel.selectedIndex = 1;
+}
+async function loadSaido() {
+  sdMonths();
+  $('sdSum').textContent = '読み込み中…'; $('sdCal').innerHTML = ''; $('btnSaido').disabled = true;
+  try { sdPlan = await call('adminSaidoPlan', { ym: $('sdYm').value }); sdOff = {}; drawSaido(); }
+  catch (e) { $('sdSum').textContent = '読み込めませんでした'; }
+}
+function drawSaido() {
+  const p = sdPlan; if (!p) return;
+  let h = '日月火水木金土'.split('').map((w, i) => `<div class="rqw${i === 0 ? ' sun' : i === 6 ? ' sat' : ''}">${w}</div>`).join('');
+  h += '<div class="rqd blank"></div>'.repeat(p.days[0].w);
+  p.days.forEach(d => {
+    const tip = [d.sunNote].concat(d.events).filter(Boolean).join('・');
+    const chips = d.slots.map(s => {
+      const k = `${d.date} ${s.t}`;
+      if (s.st === 'exists') return `<button class="sdc ex" title="${sdEsc(s.title)}" disabled>${sdT(s.t)} 済</button>`;
+      return `<button class="sdc${sdOff[k] ? ' off' : ''}" onclick="sdToggle('${k}')">${sdT(s.t)}</button>`;
+    }).join('');
+    const sk = d.skipped.length ? `<div class="rqb">${d.skipped.map(sdT).join('・')} なし</div>` : '';
+    h += `<div class="rqd${d.events.length ? ' ev' : ''}"><div class="rqn sdn${d.w === 0 ? ' sun' : d.w === 6 ? ' sat' : ''}" onclick="sdToggleDay('${d.date}')">${d.d}` +
+      `${tip ? `<small>${sdEsc(tip)}</small>` : ''}</div>${chips}${sk}</div>`;
+  });
+  $('sdCal').innerHTML = h;
+  const off = Object.keys(sdOff).length, n = p.nNew - off;
+  $('sdSum').textContent = `${mlabel(p.ym)}：新しく作る ${n}枠／登録済み ${p.nExists}枠${off ? `／外す ${off}枠` : ''}`;
+  $('btnSaido').textContent = n ? `Googleカレンダーに反映（${n}枠）` : '新しく作る枠はありません';
+  $('btnSaido').disabled = !n;
+  const l = p.last;
+  $('sdLast').textContent = !l ? '' : l.error ? `前回（${l.at}・${l.by}・${mlabel(l.ym)}分）：失敗しました（${l.error}）`
+    : `前回の作成：${l.at}（${l.by}）${mlabel(l.ym)}分 ${l.made}枠を作成${l.exists ? `・登録済み ${l.exists}枠` : ''}${l.left ? `・残り ${l.left}枠（もう一度押してください）` : ''}`;
+}
+function sdToggle(k) { if (sdOff[k]) delete sdOff[k]; else sdOff[k] = true; drawSaido(); }
+function sdToggleDay(date) {
+  const d = sdPlan.days.find(x => x.date === date);
+  const ks = d.slots.filter(s => s.st === 'new').map(s => `${date} ${s.t}`);
+  if (!ks.length) return;
+  const allOff = ks.every(k => sdOff[k]);
+  ks.forEach(k => { if (allOff) delete sdOff[k]; else sdOff[k] = true; });
+  drawSaido();
+}
+async function saidoCreate() {
+  const p = sdPlan; if (!p) return;
+  const n = p.nNew - Object.keys(sdOff).length;
+  if (!n || !await ask(`${mlabel(p.ym)}のお済度枠（★）を ${n}枠、Googleカレンダーに作成しますか？\n（1〜2分かかります）`)) return;
+  busy(true);
+  try {
+    sdPlan = await call('adminSaidoCreate', { ym: p.ym, skip: Object.keys(sdOff) }); sdOff = {};
+    const l = sdPlan.last || {};
+    notice('お済度枠を作成しました', `${mlabel(p.ym)}分 ${l.made || 0}枠をGoogleカレンダーに作成しました。` +
+      (l.left ? `\n時間がかかったため ${l.left}枠が残っています。もう一度「反映」を押してください。` : ''));
+  } finally { busy(false); drawSaido(); }
+}
+
 // 希望確認タブ：提出状況と日ごとの希望（見るだけ）
 const RQ_SHORT = { '公休': ['公', 's2'], '有休': ['有', 's5'], '午前有休': ['前', 's6'], '午後有休': ['後', 's7'], '出勤': ['出', 's17'], '出勤可': ['出', 's17'], '休み': ['休', 'rqoff'] };
 function drawReqView(o) {

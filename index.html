@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261115100134">
+<meta name="build" content="20261115100850">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -3642,6 +3642,7 @@ async function saidoCreate() {
     sdPlan = await call('adminSaidoCreate', { ym: p.ym, skip: Object.keys(sdOff), add: Object.keys(sdAdd) }); sdOff = {}; sdAdd = {};
     const l = sdPlan.last || {};
     notice('お済度枠を作成しました', `${mlabel(p.ym)}分 ${l.made || 0}枠をGoogleカレンダーに作成しました。` +
+      (l.recolored ? `\n色が付いていなかった★ ${l.recolored}枠をピーコックに直しました。` : '') +
       (l.left ? `\n時間がかかったため ${l.left}枠が残っています。もう一度「反映」を押してください。` : ''));
   } finally { busy(false); drawSaido(); }
 }

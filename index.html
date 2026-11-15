@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261115111439">
+<meta name="build" content="20261115180346">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -1311,7 +1311,7 @@ let annualReq = null; // 起動時に先に始めた寺内スケジュールの�
 let stale = false;     // 前回の表示内容を出している間（最新を読み込み中）
 // 次に開いた時すぐ出す前回の表示内容（前回の表示のまま最新を読み込み中は保存しない）
 function saveSnap(s) {
-  if (!stale) try { localStorage.setItem('snap', JSON.stringify({ id: auth && auth.id, s: Object.assign({}, s, { annual: undefined }) })); } catch (e) {}
+  if (!stale) try { localStorage.setItem('snap', JSON.stringify({ id: auth && auth.id, day: ymd(new Date()), s: Object.assign({}, s, { annual: undefined }) })); } catch (e) {}
 }
 function render(s) {
   if (s.session && auth && auth.tk) { // リンクで開いた時：続けて使える印（180日）に差し替える（Ver1.2）
@@ -1358,7 +1358,7 @@ function render(s) {
   $('btnPre').classList.toggle('hidden', !s.working || preOpen || IS_PC);
   $('pcWarn').classList.toggle('hidden', !IS_PC || s.noAttend || s.working || !!s.lastTime);
   $('outBox').classList.toggle('hidden', !s.working || !preOpen || IS_PC);
-  eveMerge(s.eveSaved);
+  if (!stale) eveMerge(s.eveSaved); // 前回の表示内容のチェック記録は使わない（前日以前の分が今日の分に紛れ込んでいた。2026-11-15）
   drawChecks();
   drawEve();
   const hoKeep = $('hoTo').value;
@@ -3855,6 +3855,7 @@ if (saved) { // 名前一覧を待たずにログインを始める
   let snap = null;
   try { snap = JSON.parse(localStorage.getItem('snap') || 'null'); } catch (e) {}
   if (snap && String(snap.id) === String(saved.id) && snap.s) {
+    if (snap.day !== ymd(new Date())) { snap.s.eveDone = false; snap.s.eveSaved = null; } // 前日以前の表示内容なら、夕方のチェック済みの扱いは使わない（2026-11-15）
     try {
       const sa = JSON.parse(localStorage.getItem('snapAnnual') || 'null');
       if (sa) snap.s.annual = sa;

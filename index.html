@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261115094820">
+<meta name="build" content="20261115100134">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -3600,8 +3600,9 @@ async function loadSaido() {
 }
 function drawSaido() {
   const p = sdPlan; if (!p) return;
-  let h = '日月火水木金土'.split('').map((w, i) => `<div class="rqw${i === 0 ? ' sun' : i === 6 ? ' sat' : ''}">${w}</div>`).join('');
-  h += '<div class="rqd blank"></div>'.repeat(p.days[0].w);
+  // 月曜はじまり（2026-11-15 ユーザー指定）
+  let h = '月火水木金土日'.split('').map((w, i) => `<div class="rqw${i === 6 ? ' sun' : i === 5 ? ' sat' : ''}">${w}</div>`).join('');
+  h += '<div class="rqd blank"></div>'.repeat((p.days[0].w + 6) % 7);
   p.days.forEach(d => {
     const chips = d.slots.map(s => {
       const k = `${d.date} ${s.t}`;
@@ -3665,10 +3666,11 @@ function drawReqView(o) {
     li.append(head, body);
     $('rqList').appendChild(li);
   });
-  // カレンダー（日曜はじまり）：日ごとに希望を出した人、灰色で基本公休の人
+  // カレンダー（月曜はじまり）：日ごとに希望を出した人、灰色で基本公休の人
   const KIND = { '公休': '公休', '有休': '有給', '午前有休': '午前有給', '午後有休': '午後有給', '出勤': '出勤', '出勤可': '出勤', '休み': '休み' };
-  let h = '日月火水木金土'.split('').map((w, i) => `<div class="rqw${i === 0 ? ' sun' : i === 6 ? ' sat' : ''}">${w}</div>`).join('');
-  h += '<div class="rqd blank"></div>'.repeat(o.days[0].w);
+  // 月曜はじまり（2026-11-15 ユーザー指定）
+  let h = '月火水木金土日'.split('').map((w, i) => `<div class="rqw${i === 6 ? ' sun' : i === 5 ? ' sat' : ''}">${w}</div>`).join('');
+  h += '<div class="rqd blank"></div>'.repeat((o.days[0].w + 6) % 7);
   o.days.forEach(d => {
     const chips = [], base = [];
     o.emps.forEach(e => {

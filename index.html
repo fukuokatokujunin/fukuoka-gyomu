@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261116105749">
+<meta name="build" content="20261116111553">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -333,7 +333,11 @@
   .due.over { color:var(--ng); font-weight:700; border-width:1.5px; }
   button.pp.st { background:#fff; color:#222629; border:1px solid #222629; }
   button.pp.st::before { display:none; }
-  /* 参加（2026-11-11）：進行中（緑）の横。未参加＝白地に緑の枠と「＋」、参加中＝薄い緑地に「✓」 */
+  /* 状態の印（2026-11-16）：□の右、本文の上の行。押せない。未着手＝白地に黒の枠、進行中＝緑地に白 */
+  .stmark { line-height:1; margin:3px 0 4px; }
+  .stmark span { display:inline-block; padding:3px 8px; font-size:11px; letter-spacing:.15em; font-weight:500; background:#fff; color:#222629; border:1px solid #222629; cursor:default; }
+  .stmark.go span { background:var(--ok); color:#fff; border-color:var(--ok); }
+  /* 着手ボタン（2026-11-16。以前の「＋参加」の形）：未着手＝白地に緑の枠と「＋」、着手中＝薄い緑地に「✓」 */
   button.pp.join { background:#fff; color:var(--ok); border:1px solid var(--ok); margin-left:6px; font-weight:500; }
   button.pp.join::before { background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' fill='none' stroke='%233f6b55' stroke-width='1.6'%3E%3Cpath d='M5 1v8M1 5h8'/%3E%3C/svg%3E"); }
   button.pp.join.on { background:#e8efea; }
@@ -1649,6 +1653,7 @@ function drawAnnual(list) {
       row.appendChild(cbBox(cb));
     }
     const body = document.createElement('div'); body.style.flex = '1';
+    if (!a.event) body.appendChild(stMark(a)); // 状態の印（未着手／進行中）は□の右、本文はその下の行（2026-11-16）
     const txt = document.createElement('div'); txt.className = 't';
     txt.append(a.early ? '★ ' : '', linked(a.text)); // 区分（発注・準備など）の表記は出さない（2026-11-09。データ・入力欄は残す）
     const [, m, d] = a.date.split('-').map(Number);
@@ -1704,51 +1709,45 @@ function drawAnnual(list) {
   if (ntCur && !$('ntBox').classList.contains('hidden')) drawNotes();
 }
 
-/* 着手（寺内スケジュール）：誰も着手していなければ「未着手」（押すと「着手しますか？」→はいで加わる）、
-   誰かが着手していれば「進行中」（押すと着手している人の一覧。自分の名前を押すと取り消し）と、その横に「参加」（押すと「参加しますか？」）。
-   参加済みなら「参加中」（押すと一覧＝取り消し）。2026-11-11：「進行中」が参加のボタンだと分かりにくいので「参加」を別に */
+/* 着手（寺内スケジュール。2026-11-16 作り替え）：
+   □の右に状態の印（押せない）。誰も着手していなければ「未着手」、誰かが着手していれば「進行中」。
+   下の段の「着手」ボタン：自分が着手していなければ「着手」（押すと「着手しますか？」→はいで加わる。ほかの人が着手中でも同じ＝以前の「参加」）、
+   自分が着手済みなら「着手中」（押すと着手している人の一覧。自分の名前を押すと取り消し）。
+   以前（2026-11-11〜）の「未着手／進行中」ボタンと「＋参加」ボタンはこれにまとめた */
 let stCur = null;
 const myStart = a => (a.starters || []).some(p => String(p.id) === String(auth.id));
-function stButton(a) {
+function stMark(a) {
   const going = (a.starters || []).length > 0;
-  const w = document.createDocumentFragment();
-  const b = document.createElement('button'); b.className = going ? 'prog' : 'pp st';
-  b.textContent = going ? '進行中' : '未着手';
-  b.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); openStart(a); }; // 行はlabelなのでチェックが入らないように
-  w.appendChild(b);
-  if (going) { // 参加（2026-11-11）
-    const mine = myStart(a);
-    const j = document.createElement('button'); j.className = 'pp join' + (mine ? ' on' : '');
-    j.textContent = mine ? '参加中' : '参加';
-    j.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); if (mine) openStart(a); else joinStart(a); };
-    w.appendChild(j);
-  }
-  return w;
+  const s = document.createElement('div'); s.className = 'stmark' + (going ? ' go' : '');
+  const t = document.createElement('span'); t.textContent = going ? '進行中' : '未着手';
+  if (going) t.title = '着手している人：' + a.starters.map(p => p.name).join('・');
+  s.appendChild(t);
+  return s;
+}
+function stButton(a) {
+  const mine = myStart(a);
+  const b = document.createElement('button'); b.className = 'pp join' + (mine ? ' on' : '');
+  b.textContent = mine ? '着手中' : '着手';
+  b.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); if (mine) openStart(a); else joinStart(a); }; // 行はlabelなのでチェックが入らないように
+  return b;
 }
 function setStart(a, on) {
   const starters = (a.starters || []).filter(p => String(p.id) !== String(auth.id)).concat(on ? [{ id: Number(auth.id), name: me.name }] : []);
   drawAnnual(me.annual.map(x => !x.event && x.id === a.id ? Object.assign({}, x, { starters }) : x)); // 返事を待たずに表示（保存は裏で）
   saveLater('annual', 'startAnnual', { id: a.id, key: a.key || a.date, on });
 }
-async function openStart(a) {
-  if (!(a.starters || []).length) {
-    const r = await startAsk(a, '着手しますか？');
-    if (r) { setStart(a, true); show(r === 'add' ? '着手にしました。個別業務にも追加しました' : '着手にしました'); }
-    return;
-  }
-  stCur = a.id; drawStart(); $('stBox').classList.remove('hidden'); // 進行中：一覧だけ（参加は「参加」ボタンから。2026-11-11）
-}
-/** 参加（2026-11-11）：「参加」ボタン・一覧の「参加する」から */
+function openStart(a) { stCur = a.id; drawStart(); $('stBox').classList.remove('hidden'); } // 着手中：着手している人の一覧（取り消し）
+/** 着手（2026-11-16）：「着手」ボタンから。ほかの人が着手中でも同じ（以前の「参加」） */
 async function joinStart(a) {
   if (myStart(a)) return;
-  const r = await startAsk(a, '参加しますか？');
-  if (r) { setStart(a, true); show(r === 'add' ? '参加しました。個別業務にも追加しました' : '参加しました'); }
+  const r = await startAsk(a, '着手しますか？');
+  if (r) { setStart(a, true); show(r === 'add' ? '着手しました。個別業務にも追加しました' : '着手しました'); }
 }
 /* 着手・参加の確認（2026-11-03）：同じ内容を自分の個別業務にも入れる（2026-11-11 から「はい（個別業務には追加しない）」も選べる）。内容と期日は個別業務用に確かめて直せる。
    個別業務の対象外の人（落合さん）はこれまでどおり「はい／いいえ」だけ */
 async function startAsk(a, title) {
   if (!showTasks()) {
-    $('askBox').classList.toggle('low', title !== '着手しますか？'); // 参加の時は一覧が見えるように下に出す
+    $('askBox').classList.toggle('low', (a.starters || []).length > 0); // ほかの人が着手中の時は一覧が見えるように下に出す
     const yes = await ask(title);
     $('askBox').classList.remove('low');
     return yes ? 'only' : false; // 戻り値：false＝やめる、'only'＝着手・参加だけ、'add'＝個別業務にも追加（2026-11-11）
@@ -1937,8 +1936,8 @@ function drawNotes() {
   const mine = myStart(a);
   $('ntForm').classList.toggle('hidden', !mine);
   $('ntNotYet').classList.toggle('hidden', mine);
-  // 説明は一覧のボタンの表示に合わせる（だれか着手していれば「参加」から参加（2026-11-11。以前は「進行中」）、だれもいなければ「未着手」から着手。2026-11-10）
-  $('ntNotYet').textContent = '書き足せるのは着手している人だけです' + ((a.starters || []).length ? '（「参加」を押して参加してください）' : '（「未着手」を押して着手してください）');
+  // 説明は一覧のボタンの表示に合わせる（2026-11-16 から「着手」ボタンひとつ。以前は「未着手」「参加」）
+  $('ntNotYet').textContent = '書き足せるのは着手している人だけです（「着手」を押して着手してください）';
   $('ntList').scrollTop = $('ntList').scrollHeight; // 新しい書き込みが見えるように
 }
 async function addNote() {

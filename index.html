@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261115180346">
+<meta name="build" content="20261116104843">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -427,7 +427,7 @@
   ol.stepbar li + li::after { content:''; position:absolute; top:13px; right:50%; width:100%; height:1.5px; background:#b9bdbf; }
   ol.stepbar li.done { color:var(--ok); } ol.stepbar li.done::before { content:'✓'; border-color:var(--ok); color:var(--ok); }
   ol.stepbar li.now { color:var(--ink); font-weight:700; } ol.stepbar li.now::before { background:var(--ink); border-color:var(--ink); color:#fff; }
-  .nextmsg { margin:0 0 4px; font-size:15px; line-height:1.7; }
+  .nextmsg { margin:0 0 4px; font-size:15px; line-height:1.7; white-space:pre-line; }
   .subacts { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
   .subacts button { flex:1 1 160px; width:auto; padding:10px; font-size:14px; letter-spacing:.08em; margin:0; }
   details.help { margin-top:14px; font-size:14px; }
@@ -988,7 +988,7 @@
               <dt>② 案を確認・修正する</dt><dd>「確定前確認事項」と下の表を見て、直したいマスをタップします。</dd>
               <dt>③ シフトを確定する</dt><dd>ハーモス取込用のCSVファイルを作成し、休み／有休／パート出勤日をGoogleカレンダーに登録します。</dd>
               <dt id="unapproveNote">確定を取り消す</dt><dd>Googleカレンダーに登録した予定を削除し、シフトを「案（未確定）」に戻します。※すでにハーモスにCSVを取り込んでいる場合、ハーモス側の内容は元に戻りません。</dd>
-              <dt>④ ハーモスに取り込む</dt><dd>押すとCSVファイルがダウンロードされ、Claudeへの依頼文がコピーされます。依頼文を Claude Code に貼り付けると、ClaudeがChromeでハーモスに取り込み、⑤の確認まで行います。※ハーモスはシステムから直接シフトを登録できないため、CSVで取り込みます（手作業で取り込んでもかまいません）。</dd>
+              <dt>④ ハーモスに取り込む</dt><dd>押すと確定シフトのExcelとハーモス取込用CSVがダウンロードされ、Macでは作業フォルダ（業務管理システム）の「確定シフト」「ハーモス取込CSV」フォルダに自動で移されます。続いてターミナルが開いてClaudeが自動でChromeからハーモスに取り込みます（ハーモスのログイン画面が出たらログインし、Claudeに確認されたら答えます）。Claudeが起動しない時は、コピーされた依頼文を Claude Code に貼り付けます。取込完了のメールが届いたら⑤で確認します。※ハーモスはシステムから直接シフトを登録できないため、CSVで取り込みます（手作業で取り込んでもかまいません）。</dd>
               <dt>⑤ 取り込み結果を確認する</dt><dd>確定シフトとハーモス上のシフトを1日ずつ照らし合わせ、食い違う日を一覧表示します。</dd>
             </dl>
           </details>
@@ -3435,26 +3435,48 @@ async function approve() {
   busy(true);
   try {
     const r = await call('adminApprove', { ym: ov.ym });
-    drawAdmin(r.overview); show('シフトを確定しました\n' + r.msgs.join('\n') + '\n\n次は ④ CSVをハーモスに取り込み、⑤ 取り込み結果を確認してください');
+    setHrmosStep(ov.ym, ''); drawAdmin(r.overview); show('シフトを確定しました\n' + r.msgs.join('\n') + '\n\n次は ④ CSVをハーモスに取り込み、⑤ 取り込み結果を確認してください');
   } finally { busy(false); }
 }
-/** ④ CSVをダウンロードし、Claude Code への依頼文をコピー */
+/** 確定後・完了前の進み具合（'' / asked / diff:件数。完了はサーバーの hrmosDone）。端末に記憶（使えない時は画面を開いている間だけ） */
+const hrmosMem = {};
+function hrmosStep(ym) {
+  try { const v = localStorage.getItem('hrmosStep:' + ym); if (v !== null) return v; } catch (e) {}
+  return hrmosMem[ym] || '';
+}
+function setHrmosStep(ym, v) {
+  hrmosMem[ym] = v;
+  try { v ? localStorage.setItem('hrmosStep:' + ym, v) : localStorage.removeItem('hrmosStep:' + ym); } catch (e) {}
+}
+/** base64 のデータをファイルとしてダウンロード */
+function saveB64(b64, name, type) {
+  const bin = atob(b64), bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([bytes], { type }));
+  a.download = name; document.body.appendChild(a); a.click(); a.remove();
+}
+/** ④ 確定シフトのExcelと取込用CSVをダウンロードし、Claude Code への依頼文をコピー */
 async function askClaude() {
   busy(true);
   try {
+    // 確定シフトのExcelを先に、CSVを後に落とす（MacではCSVが届いた時に両方を作業フォルダへ移してClaudeを起動するため）
+    let xlsxMsg = '';
+    try {
+      const x = await call('adminShiftXlsx', { ym: ov.ym });
+      saveB64(x.base64, x.name, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      xlsxMsg = `${x.name} をダウンロードしました。\n`;
+    } catch (e) { xlsxMsg = '確定シフトのExcelは作れませんでした（CSVは続けてダウンロードします）。\n'; }
     const c = await call('adminCsv', { ym: ov.ym });
-    const bin = atob(c.base64), bytes = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([bytes], { type: 'text/csv' }));
-    a.download = c.name; document.body.appendChild(a); a.click(); a.remove();
+    saveB64(c.base64, c.name, 'text/csv');
     const [y, m] = ov.ym.split('-').map(Number);
-    const text = `/hrmos-import ${ov.ym}\n${y}年${m}月のシフトCSV（ダウンロードフォルダの ${c.name}）をハーモスに取り込んで、取り込み後に業務管理システムの手順⑤で照合してください。`;
+    const text = `/hrmos-import ${ov.ym}\n${y}年${m}月のシフトCSV（作業フォルダの 業務管理システム/ハーモス取込CSV/${c.name}。なければダウンロードフォルダ）をハーモスに取り込んで、取り込み後に業務管理システムの手順⑤で照合してください。`;
     $('claudeCmd').value = text; $('claudeCmd').classList.remove('hidden');
     let copied = false;
     try { await navigator.clipboard.writeText(text); copied = true; } catch (e) {}
     if (!copied) { $('claudeCmd').select(); try { copied = document.execCommand('copy'); } catch (e) {} }
-    show(`${c.name} をダウンロードしました。\n` + (copied ? '依頼文をコピーしました。Claude Code に貼り付けてください。' : '下の依頼文を選択してコピーし、Claude Code に貼り付けてください。'));
+    setHrmosStep(ov.ym, 'asked'); drawAdmin(ov);
+    show(xlsxMsg + `${c.name} をダウンロードしました。\nMacでは2つのファイルが作業フォルダの「確定シフト」「ハーモス取込CSV」に移され、まもなくターミナルが開き、Claudeがハーモスへの取込を始めます。\n` + (copied ? 'Claudeが起動しない時は、コピーした依頼文を Claude Code に貼り付けてください。' : 'Claudeが起動しない時は、下の依頼文をコピーして Claude Code に貼り付けてください。'));
   } finally { busy(false); }
 }
 async function unapprove() {
@@ -3462,7 +3484,7 @@ async function unapprove() {
   busy(true);
   try {
     const r = await call('adminUnapprove', { ym: ov.ym });
-    drawAdmin(r.overview); show('確定を取り消しました\n' + r.msgs.join('\n'));
+    setHrmosStep(ov.ym, ''); drawAdmin(r.overview); show('確定を取り消しました\n' + r.msgs.join('\n'));
   } finally { busy(false); }
 }
 function showRes(title, list) {
@@ -3492,7 +3514,15 @@ async function testNotify() {
 }
 async function hrmosCheck() {
   busy(true);
-  try { showRes(`${mlabel(ov.ym)} ハーモスの取り込み結果`, await call('adminHrmosCheck', { ym: ov.ym })); } finally { busy(false); }
+  try {
+    const list = await call('adminHrmosCheck', { ym: ov.ym });
+    showRes(`${mlabel(ov.ym)} ハーモスの取り込み結果`, list);
+    if (ov.status === '確定') {
+      setHrmosStep(ov.ym, list.length ? 'diff:' + list.length : '');
+      if (!list.length) { const n = new Date(); ov.hrmosDone = `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')} ${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`; }
+      drawAdmin(ov);
+    }
+  } finally { busy(false); }
 }
 async function reconcile() {
   busy(true);
@@ -3523,7 +3553,7 @@ function cell(empId, date) {
       // 返事を待たずに表を更新（保存と確定前確認事項の再計算は裏で行う）
       ov.grid[empId] = ov.grid[empId] || {};
       if (v) ov.grid[empId][date] = v; else delete ov.grid[empId][date];
-      if (ov.status === '確定') ov.status = '案';
+      if (ov.status === '確定') { ov.status = '案'; ov.hrmosDone = ''; setHrmosStep(ov.ym, ''); }
       drawAdmin(ov);
       saveCell({ ym: ov.ym, empId, date, segId: v });
     };
@@ -3540,27 +3570,49 @@ function saveCell(p) {
     if (--cellPending === 0) { drawAdmin(o); $('saving').classList.add('hidden'); }
   }).catch(() => { cellPending = 0; $('saving').classList.add('hidden'); loadAdmin(); });
 }
+/** 完了した月の案内：次の月はいつから作れるか・この月を直す時の手順 */
+function doneMsg(o) {
+  const [y, m] = o.ym.split('-').map(Number);
+  const nx = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`;
+  const nm = Number(nx.slice(5)) + '月';
+  const can = [...$('ym').options].some(op => op.value === nx);
+  return `✓ ${m}月のシフト作業は完了しました（${o.hrmosDone} ハーモス取込確認済み）。\n`
+    + (can ? `次は上の月の選択で${nm}を選び、①から始めてください。` : `${nm}分は、${m}月に入ると上の月の選択に出るので、①から始めてください。`)
+    + `\n${m}月のシフトを変更する時は、下の表のマスをタップしてください（「案」に戻るので、③確定 → ④ → ⑤ の順に進めます）。`;
+}
 function drawAdmin(o) {
   ov = o;
   $('sheetLink').href = o.sheetUrl;
   // 状態ごとに「次にやること」のボタンだけ大きく出し、ほかの操作は下に小さく並べる
   const st = o.status, fixed = st === '確定';
-  const now = { 'なし': 0, '案': 1, '確定': 3 }[st];
+  // 完了（⑤で差異なし。サーバーに記録 o.hrmosDone）した月は、手順を「開始前」の表示に戻す（表は残し、マスを直せば③からやり直し）
+  const done = fixed && !!o.hrmosDone;
+  // 確定後・完了前の進み具合（④を押した asked／⑤で差異あり diff:件数）はこの端末に記憶
+  const hs = fixed && !done ? hrmosStep(o.ym) : '';
+  const diffN = /^diff:/.test(hs) ? Number(hs.slice(5)) : 0;
+  const now = done ? -1 : st === 'なし' ? 0 : st === '案' ? 1 : hs ? 4 : 3;
   [...$('stepbar').children].forEach((li, i) => { li.className = i < now ? 'done' : i === now ? 'now' : ''; });
-  $('nextMsg').textContent = {
-    'なし': '提出状況を確認して、①シフト案を作成してください。',
-    '案': `下の表を確認し、直したいマスをタップしてください。問題がなければ③確定します。${o.problems.length ? `（確定前確認事項 ${o.problems.length}件）` : ''}`,
-    '確定': '確定済みです。④ハーモスに取り込み、⑤取り込み結果を確認してください。マスを直すと「案」に戻るので、もう一度確定してください。',
-  }[st];
+  $('nextMsg').textContent = done ? doneMsg(o)
+    : st === 'なし' ? '提出状況を確認して、①シフト案を作成してください。'
+    : st === '案' ? `下の表を確認し、直したいマスをタップしてください。問題がなければ③シフトを確定します。${o.problems.length ? `（確定前確認事項 ${o.problems.length}件）` : ''}`
+    : hs === 'asked' ? '次は、ハーモスの取込を待ちます。Macではターミナルが開き、Claudeが取込を進めます。ハーモスのログイン画面が出たらログインし、Claudeに確認されたら答えてください。ハーモスから取込完了のメールが届いたら、⑤取り込み結果を確認を押してください。'
+    : hs ? `ハーモスとの差異が ${diffN}件あります。下の一覧を確認してください。完了メールが届く前に確認した時は、少し待ってから⑤をもう一度押してください。ハーモス側を直した時も、⑤で確認し直してください。`
+    : '確定済みです。次は④を押すと、確定シフトのExcelと取込用CSVがダウンロードされ（Macでは作業フォルダに保存）、Claudeがハーモスへの取込を始めます。マスを直すと「案」に戻るので、もう一度確定してください。';
   $('btnBuild').classList.toggle('hidden', st !== 'なし');
-  $('btnRebuild').classList.toggle('hidden', st === 'なし');
+  $('btnRebuild').classList.toggle('hidden', st === 'なし' || done);
   $('btnApprove').className = fixed ? 'sec' : ''; // 確定後は「確定し直す」として下段へ
-  $('btnApprove').classList.toggle('hidden', st === 'なし');
+  $('btnApprove').classList.toggle('hidden', st === 'なし' || done);
   $('btnApprove').textContent = fixed ? '③ 確定し直す' : '③ シフトを確定する';
   if (fixed) $('btnUnapprove').before($('btnApprove')); else $('btnClaude').before($('btnApprove'));
-  $('btnClaude').classList.toggle('hidden', !fixed);
-  $('btnCheck').classList.toggle('hidden', st === 'なし');
-  $('btnUnapprove').classList.toggle('hidden', !fixed);
+  const checkMain = fixed && !!hs;
+  $('btnCheck').className = checkMain ? '' : 'sec';
+  $('btnCheck').classList.toggle('hidden', st === 'なし' || done);
+  if (checkMain) $('btnClaude').after($('btnCheck')); else $('btnUnapprove').before($('btnCheck'));
+  $('btnClaude').className = fixed && hs ? 'sec' : '';
+  $('btnClaude').classList.toggle('hidden', !fixed || done);
+  $('btnClaude').textContent = fixed && hs ? '④ CSVをもう一度ダウンロード' : '④ ハーモス取込をClaudeに依頼';
+  if (done) $('claudeCmd').classList.add('hidden');
+  $('btnUnapprove').classList.toggle('hidden', !fixed || done);
   $('status').textContent = { 'なし': '未作成', '案': '案（未確定）', '確定': '確定済み' }[o.status]; $('status').className = 'badge b-' + o.status;
   $('subm').innerHTML = '';
   o.emps.forEach(e => {

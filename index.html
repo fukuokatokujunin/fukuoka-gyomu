@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261116104843">
+<meta name="build" content="20261116105749">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -975,6 +975,7 @@
           <button id="btnBuild" onclick="build()">① 希望からシフト案を作成</button>
           <button id="btnApprove" onclick="approve()">③ シフトを確定する</button>
           <button id="btnClaude" onclick="askClaude()">④ ハーモス取込をClaudeに依頼</button>
+          <button class="hidden" id="btnManualDone" onclick="manualDone()">ハーモスの画面で確認済みにする</button>
           <textarea id="claudeCmd" class="hidden" rows="3" readonly onclick="this.select()"></textarea>
           <div class="subacts">
             <button class="sec" id="btnRebuild" onclick="build()">① 希望から作り直す</button>
@@ -3438,7 +3439,7 @@ async function approve() {
     setHrmosStep(ov.ym, ''); drawAdmin(r.overview); show('シフトを確定しました\n' + r.msgs.join('\n') + '\n\n次は ④ CSVをハーモスに取り込み、⑤ 取り込み結果を確認してください');
   } finally { busy(false); }
 }
-/** 確定後・完了前の進み具合（'' / asked / diff:件数。完了はサーバーの hrmosDone）。端末に記憶（使えない時は画面を開いている間だけ） */
+/** 確定後・完了前の進み具合（'' / asked / pending（日次勤怠がまだない）/ diff:件数。完了はサーバーの hrmosDone）。端末に記憶（使えない時は画面を開いている間だけ） */
 const hrmosMem = {};
 function hrmosStep(ym) {
   try { const v = localStorage.getItem('hrmosStep:' + ym); if (v !== null) return v; } catch (e) {}
@@ -3516,6 +3517,12 @@ async function hrmosCheck() {
   busy(true);
   try {
     const list = await call('adminHrmosCheck', { ym: ov.ym });
+    if (list && list.pending) { // その月の日次勤怠がハーモスでまだ作られていない（月が始まる頃に作られる）
+      $('resBox').classList.add('hidden');
+      if (ov.status === '確定') { setHrmosStep(ov.ym, 'pending'); drawAdmin(ov); }
+      show(`${mlabel(ov.ym)}の日次勤怠はハーモスでまだ作られていないため、照合できませんでした`);
+      return;
+    }
     showRes(`${mlabel(ov.ym)} ハーモスの取り込み結果`, list);
     if (ov.status === '確定') {
       setHrmosStep(ov.ym, list.length ? 'diff:' + list.length : '');
@@ -3523,6 +3530,12 @@ async function hrmosCheck() {
       drawAdmin(ov);
     }
   } finally { busy(false); }
+}
+/** 日次勤怠がまだない月：ハーモスのシフト画面で確かめて完了にする */
+async function manualDone() {
+  busy(true);
+  try { setHrmosStep(ov.ym, ''); drawAdmin(await call('adminHrmosDoneManual', { ym: ov.ym })); show(`${mlabel(ov.ym)}のシフト作業を完了にしました`); }
+  finally { busy(false); }
 }
 async function reconcile() {
   busy(true);
@@ -3576,7 +3589,8 @@ function doneMsg(o) {
   const nx = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`;
   const nm = Number(nx.slice(5)) + '月';
   const can = [...$('ym').options].some(op => op.value === nx);
-  return `✓ ${m}月のシフト作業は完了しました（${o.hrmosDone} ハーモス取込確認済み）。\n`
+  const manual = / 画面で確認$/.test(o.hrmosDone);
+  return `✓ ${m}月のシフト作業は完了しました（${o.hrmosDone.replace(/ 画面で確認$/, '')} ${manual ? 'ハーモスの画面で確認済み' : 'ハーモス取込確認済み'}）。\n`
     + (can ? `次は上の月の選択で${nm}を選び、①から始めてください。` : `${nm}分は、${m}月に入ると上の月の選択に出るので、①から始めてください。`)
     + `\n${m}月のシフトを変更する時は、下の表のマスをタップしてください（「案」に戻るので、③確定 → ④ → ⑤ の順に進めます）。`;
 }
@@ -3595,6 +3609,7 @@ function drawAdmin(o) {
   $('nextMsg').textContent = done ? doneMsg(o)
     : st === 'なし' ? '提出状況を確認して、①シフト案を作成してください。'
     : st === '案' ? `下の表を確認し、直したいマスをタップしてください。問題がなければ③シフトを確定します。${o.problems.length ? `（確定前確認事項 ${o.problems.length}件）` : ''}`
+    : hs === 'pending' ? `${Number(o.ym.slice(5))}月の日次勤怠はハーモスでまだ作られていないため（月が始まる頃に作られます）、⑤では照合できません。ハーモスのシフト画面（拠点：福岡本院・${Number(o.ym.slice(5))}月）で取り込まれていることを確かめたら、「ハーモスの画面で確認済みにする」を押してください。`
     : hs === 'asked' ? '次は、ハーモスの取込を待ちます。Macではターミナルが開き、Claudeが取込を進めます。ハーモスのログイン画面が出たらログインし、Claudeに確認されたら答えてください。ハーモスから取込完了のメールが届いたら、⑤取り込み結果を確認を押してください。'
     : hs ? `ハーモスとの差異が ${diffN}件あります。下の一覧を確認してください。完了メールが届く前に確認した時は、少し待ってから⑤をもう一度押してください。ハーモス側を直した時も、⑤で確認し直してください。`
     : '確定済みです。次は④を押すと、確定シフトのExcelと取込用CSVがダウンロードされ（Macでは作業フォルダに保存）、Claudeがハーモスへの取込を始めます。マスを直すと「案」に戻るので、もう一度確定してください。';
@@ -3604,7 +3619,8 @@ function drawAdmin(o) {
   $('btnApprove').classList.toggle('hidden', st === 'なし' || done);
   $('btnApprove').textContent = fixed ? '③ 確定し直す' : '③ シフトを確定する';
   if (fixed) $('btnUnapprove').before($('btnApprove')); else $('btnClaude').before($('btnApprove'));
-  const checkMain = fixed && !!hs;
+  const checkMain = fixed && !!hs && hs !== 'pending';
+  $('btnManualDone').classList.toggle('hidden', !(fixed && hs === 'pending'));
   $('btnCheck').className = checkMain ? '' : 'sec';
   $('btnCheck').classList.toggle('hidden', st === 'なし' || done);
   if (checkMain) $('btnClaude').after($('btnCheck')); else $('btnUnapprove').before($('btnCheck'));

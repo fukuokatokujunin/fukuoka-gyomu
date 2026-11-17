@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261117094126">
+<meta name="build" content="20261117102124">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -413,6 +413,7 @@
   #askBox.final .modal { border-top:4px solid var(--warn); }
   #askBox.final .row { flex-direction:row-reverse; }
   #askBox.final .row button:disabled { opacity:.4; }
+  #askCancel { display:none; margin:14px auto 0; text-decoration:underline; } /* 最終確認の「やめる」（ask の第3引数で文字を渡した時だけ出す）：はい／いいえの下に離して置く（2026-11-17） */
   button.in.missed { background:var(--warn); letter-spacing:.15em; } /* 出勤打刻漏れ */
   #askBox.low { align-items:flex-end; background:transparent; padding-bottom:28px; }
   #askBox.low .modal { box-shadow:0 -6px 30px rgba(0,0,0,.35); } /* 「はい／いいえ」の確認は、着手の一覧などほかの窓より前に出す */
@@ -574,6 +575,7 @@
           <div id="askSum"></div>
           <p id="askMsg" style="font-size:17px;font-weight:bold;margin:8px 0 16px;white-space:pre-line"></p>
           <div class="row"><button id="askYes">はい</button><button class="ghost" id="askNo">いいえ</button></div>
+          <button class="ghost" id="askCancel">やめる</button>
         </div>
       </div>
 
@@ -1504,15 +1506,17 @@ function notice(title, msg) {
 }
 // 「はい」「いいえ」の確認。はい＝true
 // sum を渡すと続けて出る2回目の確認（2026-11-17）：「最終確認」の帯・選んだ内容のまとめ（sum）を出し、はい／いいえを左右逆にして、少しの間押せなくする（勢いの連打を防ぐ）
-function ask(msg, sum) {
+// cancel（文字）も渡すと、その下に取りやめのボタンを出す（押すと null。はい・いいえのどちらも操作を進める時に使う）
+function ask(msg, sum, cancel) {
   return new Promise(done => {
-    const box = $('askBox'), y = $('askYes'), n = $('askNo');
+    const box = $('askBox'), y = $('askYes'), n = $('askNo'), c = $('askCancel');
     $('askMsg').textContent = msg; $('askSum').textContent = sum || '';
     box.classList.toggle('final', !!sum); box.classList.remove('hidden');
-    y.disabled = n.disabled = !!sum;
-    const wait = sum ? setTimeout(() => { y.disabled = n.disabled = false; }, 800) : 0;
-    const end = v => { clearTimeout(wait); y.disabled = n.disabled = false; box.classList.add('hidden'); box.classList.remove('final'); done(v); };
-    y.onclick = () => end(true); n.onclick = () => end(false);
+    c.textContent = cancel || ''; c.style.display = sum && cancel ? 'block' : '';
+    y.disabled = n.disabled = c.disabled = !!sum;
+    const wait = sum ? setTimeout(() => { y.disabled = n.disabled = c.disabled = false; }, 800) : 0;
+    const end = v => { clearTimeout(wait); y.disabled = n.disabled = c.disabled = false; box.classList.add('hidden'); box.classList.remove('final'); done(v); };
+    y.onclick = () => end(true); n.onclick = () => end(false); c.onclick = () => end(null);
   });
 }
 
@@ -2764,26 +2768,34 @@ async function doneTask(t, cb) {
     if (v === 2) { cb.checked = false; return; }
     all = v === 1;
   } else if (!await ask('完了にしますか？')) { cb.checked = false; return; }
-  const left = all ? `\n\n同じ依頼の ${nbs(t.mates)} の分も完了にしました。` : (t.mates || []).length ? `\n\nまだ済んでいない担当：${nbs(t.mates)}` : '\n\nこの依頼の担当は全員済みました。';
+  // 2回目の確認（2026-11-17）：どの完了も、1回目の「はい」の後に最終確認（まとめ・はい／いいえ左右逆）を出し、ここでも取りやめられる。
+  // 以前は複数あて・周期の決まった繰り返し・寺内スケジュールから追加した分は1回目ですぐ完了し、後から「確認」だけのお知らせが出ていた
+  const sum = `あなたの選択：${all ? `全員の分を完了にする（${nbs(t.mates)}の分も）` : '完了にする'}\n個別業務：${t.text.length > 40 ? t.text.slice(0, 40) + '…' : t.text}`
+    + (all ? '' : (t.mates || []).length ? `\nまだ済んでいない担当：${nbs(t.mates)}（その人の分は残ります）` : t.multi ? '\nこの依頼の担当は、これで全員済みます' : '');
+  const finalOk = more => ask('この内容で完了にしますか？\n\nはい＝完了する\nいいえ＝完了にしない', sum + more);
   if (t.repeat && t.rule) { // 周期が決まっている繰り返し：次回の期日は自動（サーバーと同じ計算で先に表示）
     const today = ymd(new Date()), next = nextByRule(t.rule, t.due && t.due > today ? t.due : today);
+    const [, m, d] = next.split('-').map(Number);
+    if (!await finalOk(`\n${all ? '全員の' : ''}次回の期日：${m}/${d}（🔁${t.ruleLabel || ruleLabel(t.rule)}で繰り返し）`)) { cb.checked = false; return; }
     drawTasks(sortTasks(me.tasks.map(x => x.id === t.id ? Object.assign({}, x, { due: next, isNew: false }) : x)));
     saveLater('tasks', 'doneTask', { id: t.id, due: t.due || '', all });
-    const [, m, d] = next.split('-').map(Number);
-    if (t.multi) notice('完了しました', `この個別業務は 🔁${t.ruleLabel || ruleLabel(t.rule)} で繰り返します（依頼の時に決めた繰り返し）。\n${all ? '全員の' : 'あなたの'}次回の期日は ${m}/${d} です。` + left);
-    else show(`完了しました。次回の期日は ${m}/${d} です`);
+    show(`完了しました。次回の期日は ${m}/${d} です`);
     return;
   }
-  if (t.repeat) { openTk(t, cb, false, all); return; }
+  if (t.repeat) { openTk(t, cb, false, all); return; } // 次回の期日を選ぶ窓（「キャンセル」で取りやめ）
   if (t.multi) { // 複数あての依頼で繰り返さない：繰り返すかは依頼の時に決めたので聞かない
+    if (!await finalOk('\nこの個別業務は繰り返しません（依頼の時に決めた繰り返し）')) { cb.checked = false; return; }
     drawTasks(me.tasks.filter(x => x.id !== t.id));
     saveLater('tasks', 'doneTask', { id: t.id, due: t.due || '', all });
-    notice('完了しました', 'この個別業務は繰り返しません（依頼の時に決めた繰り返し）。' + left);
+    show(all ? '全員の分を完了しました' : '個別業務を完了しました');
     return;
   }
   // 繰り返しでない個別業務：これからも繰り返すか聞く（はい＝次回の期日と周期を選ぶ。2026-11-06）。寺内スケジュールから追加した分は寺内の方で繰り返すので聞かない
-  if (t.from !== '寺内スケジュール' && !String(t.id).startsWith('tmp-')
-    && await ask('この個別業務を繰り返しますか？\n\nはい＝次回の期日と繰り返し方を選ぶ\nいいえ＝繰り返さずにこのまま完了', `あなたの選択：完了にする\n個別業務：${t.text.length > 40 ? t.text.slice(0, 40) + '…' : t.text}`)) { openTk(t, cb, true); return; }
+  if (t.from !== '寺内スケジュール' && !String(t.id).startsWith('tmp-')) {
+    const rp = await ask('この個別業務を繰り返しますか？\n\nはい＝次回の期日と繰り返し方を選ぶ\nいいえ＝繰り返さずにこのまま完了', sum, 'やめる（完了にしない）');
+    if (rp === null) { cb.checked = false; return; } // やめる＝完了にしない（2026-11-17）
+    if (rp) { openTk(t, cb, true); return; }
+  } else if (!await finalOk('')) { cb.checked = false; return; }
   drawTasks(me.tasks.filter(x => x.id !== t.id)); // 返事を待たずに一覧から外す（保存は裏で）
   saveLater('tasks', 'doneTask', { id: t.id, due: t.due || '' });
   show('個別業務を完了しました');
@@ -2827,6 +2839,9 @@ async function removeTask(t) {
   if (String(t.id).startsWith('tmp-')) { show('保存が終わってから操作してください', true); return; }
   const mates = (t.mates || []).length ? `\n（同じ依頼の ${nbs(t.mates)} の分も削除されます）` : '';
   if (!await ask(`${t.repeat ? 'この繰り返しの個別業務' : 'この個別業務'}を削除しますか？（7日間は「削除済み」から戻せます）` + mates)) return;
+  // 二重確認（2026-11-17）：最終確認の形（はい／いいえが左右逆。勢いで同じ場所を押すと「いいえ」＝削除しない）
+  if (!await ask('本当に削除しますか？\n\nはい＝削除する\nいいえ＝削除しない',
+    `あなたの選択：削除する\n個別業務：${t.text.length > 40 ? t.text.slice(0, 40) + '…' : t.text}` + ((t.mates || []).length ? `\n同じ依頼の ${nbs(t.mates)} の分も削除されます` : ''))) return;
   drawTasks(me.tasks.filter(x => x.id !== t.id)); // 返事を待たずに一覧から外す（保存は裏で）
   saveLater('tasks', 'removeTask', { id: t.id });
   show('削除しました（7日間は「削除済み」から戻せます）');

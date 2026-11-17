@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261117102124">
+<meta name="build" content="20261117144644">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -1312,9 +1312,11 @@ function view(v) {
   show('');
   if (v === 'req') loadReq();
   if (v === 'admin') {
-    if (!$('ym').options.length) {
-      [me.nextMonth, me.thisMonth].forEach(m => $('ym').add(new Option(m.replace('-', '年') + '月', m)));
-    }
+    // 選べる月：希望を受付中の月（締切日を過ぎたら翌々月。2026-11-17）・翌月・今月。初期は翌月。開くたびに作り直す（日をまたいでも進む）
+    const sel = $('ym').value, ms = [...new Set([reqMonths().open, me.nextMonth, me.thisMonth])].sort().reverse();
+    $('ym').innerHTML = '';
+    ms.forEach(m => $('ym').add(new Option(m.replace('-', '年') + '月', m)));
+    $('ym').value = ms.includes(sel) ? sel : me.nextMonth;
     let t = 'shift';
     try { t = localStorage.getItem('adminTab') || t; } catch (e) {}
     adminTab($('at-' + t) ? t : 'shift');

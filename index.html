@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261117175606">
+<meta name="build" content="20261117180156">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -559,11 +559,6 @@
   #calDay { margin-top:14px; padding-top:12px; border-top:1px solid var(--ink); display:flex; flex-direction:column; gap:6px; }
   #calDay > b { font-family:"Shippori Mincho","Hiragino Mincho ProN","Yu Mincho",serif; font-weight:500; font-size:15px; letter-spacing:.12em; margin-bottom:2px; }
   #calBox .calnote { font-size:11px; margin:12px 0 0; letter-spacing:.04em; }
-  /* PAIR-PATCH 福岡・東京の印 */
-  .sitetag { display:inline-block; font-size:10px; line-height:1.5; padding:0 5px; margin-right:4px; border-radius:4px; background:#e3ebf7; color:#2a4d82; vertical-align:1px; }
-  .sitetag.pair { background:#fbe6d4; color:#9a4a12; }
-  .chip.pairsite { box-shadow: inset 3px 0 0 #e08a3c; }
-  .sitesel { margin-bottom:6px; }
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Shippori+Mincho:wght@400;500;600&display=swap" rel="stylesheet">
@@ -619,14 +614,13 @@
       </div>
 
 <header>
-  <strong id="appName">福岡徳純院</strong>
+  <strong>福岡徳純院</strong>
   <div class="tools">
     <span class="who" id="who"></span>
     <button id="btnMenu" class="hidden" onclick="$('menu').classList.toggle('open')" aria-label="メニュー"><i></i><i></i><i></i></button>
     <div id="menu" onclick="this.classList.remove('open')">
       <button id="btnReq" class="hidden" onclick="view('req')">シフト希望</button>
       <button id="btnAdmin" class="hidden" onclick="view('admin')">管理</button>
-      <button id="btnPair" class="hidden" onclick="pairLink(true)">東京も表示</button><!-- PAIR-PATCH -->
       <button id="btnPush" class="hidden" onclick="testPushMe()">通知のテスト</button>
       <button id="btnLogout" class="hidden" onclick="logout()">ログアウト</button>
     </div>
@@ -713,7 +707,6 @@
         <summary>引き継ぎ事項</summary>
         <div class="mobhead"><h3 data-en="HANDOVER">引き継ぎ事項</h3></div>
         <div class="hobody">
-          <select id="hoSite" class="sitesel hidden" onchange="hoFill()"></select><!-- PAIR-PATCH -->
           <select id="hoTo"></select>
           <textarea id="hoText" rows="3" placeholder="引き継ぐ内容を入力"></textarea>
           <label class="attach"><input type="file" id="hoFile" accept="image/*" multiple onchange="addHoImages(this)">画像を添付 <small>3枚まで</small></label>
@@ -726,7 +719,6 @@
           <strong>個別業務を依頼</strong>
           <label for="rqText" class="tklabel">内容</label>
           <textarea id="rqText" rows="3" maxlength="200"></textarea>
-          <select id="rqSite" class="sitesel hidden" onchange="rqPeople()"></select><!-- PAIR-PATCH -->
           <span class="tklabel">担当 <small class="sub">（複数可）</small></span>
           <div class="whos" id="rqWho"></div>
           <label for="rqStart" class="tklabel"><span class="ico-start"></span>開始日 <small class="sub">（なくても可。期日の1か月前まで。入れると開始日から期日まで一覧の上の方に出ます）</small></label>
@@ -748,7 +740,6 @@
         <div class="modal" style="max-height:90vh;overflow-y:auto">
           <strong>寺内スケジュールに追加</strong>
           <p class="sub" style="margin:4px 0 6px">みんなの打刻画面の寺内スケジュールに出ます。表示は期限の3か月前から（2週間より先は折りたたみ。発注・締切・予約などは1か月より先なら★）</p>
-          <select id="jaSite" class="sitesel hidden"></select><!-- PAIR-PATCH -->
           <label for="jaText" class="tklabel">内容</label>
           <textarea id="jaText" rows="3" maxlength="200"></textarea>
           <label for="jaStart" class="tklabel"><span class="ico-start"></span>開始日 <small class="sub">（なくても可。初回期限の1か月前まで。入れると開始日から期限まで一覧の上の方に出ます。繰り返す時は毎回、期限の同じ日数前から）</small></label>
@@ -1226,14 +1217,14 @@ const mlabel = ym => Number(ym.split('-')[1]) + '月';
 // GASの画面内なら google.script.run、外部（GitHub Pages）に置いた場合はWebアプリへPOST
 const API_URL = 'https://script.google.com/macros/s/AKfycbxGC61rsYaixzfniMtKk_hOAez4mIntPfGnTgTVC3KX8rqTGb6w0A7oK_iL34GZCXrDeA/exec';
 const inGas = typeof google !== 'undefined' && google.script && google.script.run;
-function rawCallAt(url, action, a, payload, ms) {
+function rawCall(action, a, payload, ms) {
   if (inGas) return new Promise((ok, ng) => google.script.run.withSuccessHandler(ok).withFailureHandler(ng).api(action, a, payload || {}));
   // text/plain にすると事前確認(CORS)なしで送れる。ms＝待つ上限（業務追加。2026-11-08）
   const ac = ms && typeof AbortController !== 'undefined' ? new AbortController() : null;
   const timer = ac ? setTimeout(() => ac.abort(), ms) : null;
   // 通信が切れた・返事が壊れていた（GASの混雑など）時は net の印（送り直してよい失敗）
   const netErr = () => Object.assign(new Error('通信できませんでした（電波の良い所でもう一度お試しください）'), { net: true });
-  return fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+  return fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify({ api: action, auth: a, payload: payload || {} }), signal: ac ? ac.signal : undefined })
     .catch(() => { throw netErr(); })
     .then(r => r.json().catch(() => { throw netErr(); }))
@@ -1247,155 +1238,6 @@ async function callRetry(action, p) {
     catch (e) { if (!e.net || n >= 2) throw e; await new Promise(ok => setTimeout(ok, 2000 * (n + 1))); }
   }
 }
-/* ==== PAIR-PATCH 福岡・東京の統合（2026-11-17。tools/pair-patch.py で入れる） ====
- * 崇純さん（PAIR.ids）だけ、このアプリ1つで相手の拠点（東京）の 個別業務・申し送り・寺内スケジュール・予定カレンダー・業務追加・通知も使う。
- * 相手の拠点から来た項目の ID・画像ID には「t:」（数は「tn:」）を付けて区別し、site＝拠点名を付ける（行の印）。
- * 操作の中の ID（id・annualId・noteId）に「t:」があれば相手へ送り（印は外す）、なければこちらへ。新しく足す時は __site:'t' で相手へ。
- * 一覧を返す操作は、もう一方の最新の一覧と合わせて返す（画面側は今までどおり1つの一覧として描く）。
- * 相手のパスワードは、初めは自分のパスワードで試す（相手で未登録ならそれが相手のパスワードになる）。違えばメニューの「○○も表示」から入れる。 */
-const PAIR = { name: '東京', key: 't', api: 'https://script.google.com/macros/s/AKfycbwoFKzvtb1qQtxw9bWAV-xQzgj4whv8psSlgQoL17ARzjmcZJC-7vCXh39b8jvKWa_hrw/exec', ids: [99] };
-const HOME_NAME = $('appName') ? $('appName').textContent.replace('徳純院', '') : '';
-let pairAuth = null;
-try { pairAuth = JSON.parse(localStorage.getItem('pairAuth') || 'null'); } catch (e) {}
-const pairCache = { home: {}, pair: {} }, pairPeople = { colleagues: [], taskPeople: [] };
-const pairUser = () => !!(PAIR && auth && PAIR.ids.includes(Number(auth.id)));
-const pairOn = () => !inGas && pairUser() && !!pairAuth && String(pairAuth.id) === String(auth.id);
-const PAIR_ID_KEYS = ['id', 'images'];                 // 返事の中で印を付ける項目
-const PAIR_RAW_KEYS = ['colleagues', 'taskPeople'];    // 相手の拠点の人（そのまま。業務追加・引き継ぎの登録先を相手にした時の候補）
-const PAIR_SEND_KEYS = ['id', 'annualId', 'noteId'];   // 送る時に印を見て外す項目
-// 両方に送る操作（読み込み・新着の合図・通知の登録）
-const PAIR_BOTH = ['login', 'tasks', 'annual', 'doneTasks', 'annualDone', 'removedTasks', 'annualRemoved', 'requestedTasks', 'pulse', 'pushSubscribe', 'pushUnsubscribe'];
-// 一覧（配列）を返す操作 → 一覧の種類
-const PAIR_KIND = { tasks: 'tasks', doneTask: 'tasks', seenTask: 'tasks', editTask: 'tasks', postponeTask: 'tasks', removeTask: 'tasks', addMyTask: 'tasks',
-  annual: 'annual', doneAnnual: 'annual', removeAnnual: 'annual', postponeAnnual: 'annual', startAnnual: 'annual', addAnnualNote: 'annual', editAnnual: 'annual', delAnnualNote: 'annual',
-  doneTasks: 'doneTasks', annualDone: 'annualDone', removedTasks: 'removedTasks', annualRemoved: 'annualRemoved', requestedTasks: 'requestedTasks' };
-const pairTag = v => v === '' || v === null || v === undefined ? v : typeof v === 'number' ? 'tn:' + v : 't:' + v;
-/** 相手の返事に印（ID・画像IDに t:、配列の中の項目に site） */
-function pairMark(x, inList) {
-  if (Array.isArray(x)) return x.map(v => pairMark(v, true));
-  if (!x || typeof x !== 'object') return x;
-  const o = {};
-  Object.keys(x).forEach(k => {
-    const v = x[k];
-    o[k] = PAIR_RAW_KEYS.includes(k) ? v : PAIR_ID_KEYS.includes(k) ? (Array.isArray(v) ? v.map(pairTag) : pairTag(v)) : pairMark(v, false);
-  });
-  if (inList) o.site = PAIR.name;
-  return o;
-}
-/** 送る中身から印を外す。印があれば hit.on */
-function pairStrip(p, hit) {
-  if (!p || typeof p !== 'object' || Array.isArray(p)) return p;
-  const o = Object.assign({}, p);
-  if ('__site' in o) { if (o.__site === PAIR.key) hit.on = true; delete o.__site; }
-  PAIR_SEND_KEYS.forEach(k => {
-    const v = o[k];
-    if (typeof v === 'string' && v.startsWith('tn:')) { o[k] = Number(v.slice(3)); hit.on = true; }
-    else if (typeof v === 'string' && v.startsWith('t:')) { o[k] = v.slice(2); hit.on = true; }
-  });
-  return o;
-}
-/** side（home／pair）の返事を覚え、もう一方の最新と合わせた形にして返す */
-function pairMerge(action, side, r) {
-  const other = side === 'home' ? 'pair' : 'home';
-  const join = (kind, list) => {
-    pairCache[side][kind] = list || [];
-    const a = pairCache.home[kind] || [], b = pairCache.pair[kind] || [];
-    const all = a.concat(b);
-    return kind === 'tasks' && typeof sortTasks === 'function' ? sortTasks(all) : all;
-  };
-  if (Array.isArray(r)) return PAIR_KIND[action] ? join(PAIR_KIND[action], r) : r;
-  if (!r || typeof r !== 'object') return r;
-  if ('handovers' in r && 'colleagues' in r) { // ログイン時の情報（login・ackHandover）
-    if (side === 'pair') { pairPeople.colleagues = r.colleagues || []; pairPeople.taskPeople = r.taskPeople || []; }
-    else pairCache.home.status = r;
-    const base = Object.assign({}, side === 'home' ? r : (pairCache.home.status || r));
-    ['tasks', 'handovers', 'infos'].forEach(k => {
-      if (side === 'home' || k in r) base[k] = join(k, r[k]); else base[k] = join(k, pairCache[side][k]);
-    });
-    base.noTasks = !!(base.noTasks && !(pairPeople.taskPeople || []).length);
-    return base;
-  }
-  const o = Object.assign({}, r);
-  if (Array.isArray(r.tasks)) o.tasks = join('tasks', r.tasks);
-  if (Array.isArray(r.annual)) o.annual = join('annual', r.annual);
-  if (Array.isArray(r.done)) o.done = join(action === 'undoTask' ? 'doneTasks' : 'annualDone', r.done);
-  if (Array.isArray(r.removed)) o.removed = join(action === 'restoreTask' ? 'removedTasks' : 'annualRemoved', r.removed);
-  return o;
-}
-async function pairBoth(action, payload, ms) {
-  const [h, t] = await Promise.all([
-    rawCallAt(API_URL, action, auth, payload, ms),
-    rawCallAt(PAIR.api, action, pairAuth, payload, ms).then(pairMark).catch(() => undefined), // 相手が読めない時は前回の分で
-  ]);
-  if (action === 'pulse') return { t: `${(h && h.t) || ''}|${(t && t.t) || ''}` };
-  if (action === 'pushSubscribe' || action === 'pushUnsubscribe') return h;
-  if (t !== undefined) pairMerge(action, 'pair', t);
-  return pairMerge(action, 'home', h);
-}
-function rawCall(action, a, payload, ms) {
-  if (!pairOn() || a !== auth) return rawCallAt(API_URL, action, a, payload, ms);
-  if (PAIR_BOTH.includes(action)) return pairBoth(action, payload, ms);
-  const hit = { on: false }, p = pairStrip(payload, hit);
-  if (hit.on) return rawCallAt(PAIR.api, action, pairAuth, p, ms).then(r => pairMerge(action, 'pair', pairMark(r)));
-  return rawCallAt(API_URL, action, a, p, ms).then(r => pairMerge(action, 'home', r));
-}
-/** 行の印（相乗りの時だけ。福岡／東京） */
-function siteTag(x) {
-  if (!pairOn()) return document.createTextNode('');
-  const b = document.createElement('span'); b.className = 'sitetag' + (x && x.site ? ' pair' : '');
-  b.textContent = (x && x.site) || HOME_NAME; return b;
-}
-/** その項目の拠点の人（担当の候補） */
-function peopleOf(x) { return x && x.site ? pairPeople.taskPeople : (me.taskPeople || []); }
-/** 業務追加・引き継ぎの「福岡／東京」の選択（相乗りの時だけ出す）。値 '' ＝こちら、PAIR.key＝相手 */
-function siteSel(id) {
-  const el = $(id); if (!el) return '';
-  if (!pairOn()) { el.classList.add('hidden'); return ''; }
-  if (!el.options.length) el.innerHTML = `<option value="">登録先：${HOME_NAME}</option><option value="${PAIR.key}">登録先：${PAIR.name}</option>`;
-  el.classList.remove('hidden'); return el.value;
-}
-/** 初めてのログインの後、相手にも同じパスワードで入ってみる（ask＝メニューから。パスワードを聞く） */
-let pairTried = false;
-async function pairLink(askPw) {
-  if (!pairUser() || inGas) return;
-  if (pairAuth && String(pairAuth.id) === String(auth.id)) { $('btnPair').classList.add('hidden'); return; }
-  const pw = askPw ? prompt(`${PAIR.name}のパスワード（${PAIR.name}で初めての時は、ここで入れたものが${PAIR.name}のパスワードになります）`) : auth.pw;
-  if (!pw) { $('btnPair').classList.remove('hidden'); return; }
-  try {
-    await rawCallAt(PAIR.api, 'login', { id: auth.id, pw, form: true });
-    pairAuth = { id: auth.id, pw };
-    try { localStorage.setItem('pairAuth', JSON.stringify(pairAuth)); } catch (e) {}
-    $('btnPair').classList.add('hidden');
-    show(`${PAIR.name}の分も表示します`);
-    rawCall('login', auth).then(s => render(s)).catch(() => {});
-    rawCall('annual', auth).then(drawAnnual).catch(() => {});
-  } catch (e) {
-    $('btnPair').classList.remove('hidden');
-    if (askPw) show(`${PAIR.name}にログインできませんでした：${e.message}`, true);
-  }
-}
-/** 引き継ぎの宛先（登録先の拠点の人） */
-function hoFill(s) {
-  s = s || me;
-  const keep = $('hoTo').value, col = siteSel('hoSite') ? pairPeople.colleagues : (s.colleagues || []);
-  $('hoTo').innerHTML = '<option value="">宛先を選択</option><option value="all">全員</option>' + col.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
-  if ([...$('hoTo').options].some(o => o.value === keep)) $('hoTo').value = keep;
-}
-/** 両方の拠点に当たる人（崇純さん）は、画面上部の拠点名を「徳純院」にする（2026-11-17 ユーザー指定。福岡・東京どちらのアプリでも） */
-const BOTH_IDS = [99];
-function pairAfterLogin() {
-  if (auth && BOTH_IDS.includes(Number(auth.id)) && $('appName')) $('appName').textContent = '徳純院';
-  if (!pairTried && me) { pairTried = true; pairLink(false); }
-}
-/** 通知の go：相手の拠点の知らせは「t|task:ID」で届く（sw.js）→ この画面の印に直す */
-function goNorm(g) {
-  g = String(g || '');
-  const m = g.match(/^([a-z]+)\|(.*)$/);
-  if (!m) return g;
-  if (!PAIR || m[1] !== PAIR.key) return m[2];
-  return m[2].startsWith('task:') ? 'task:' + pairTag(m[2].slice(5)) : m[2];
-}
-/* ==== PAIR-PATCH ここまで ==== */
 // 打刻用QRの合言葉（?qr=…）。ブックマークで使い回せないようURLからは消し、1回打刻したら破棄する
 let stampQr = new URLSearchParams(location.search).get('qr') || '';
 if (stampQr) history.replaceState(null, '', location.pathname);
@@ -1451,7 +1293,7 @@ async function doLogin() {
   } finally { busy(false); }
 }
 function logout() {
-  const out = () => { try { ['auth', 'snap', 'snapAnnual', 'pairAuth'].forEach(k => localStorage.removeItem(k)); } catch (e) {} location.reload(); };
+  const out = () => { try { ['auth', 'snap', 'snapAnnual'].forEach(k => localStorage.removeItem(k)); } catch (e) {} location.reload(); };
   if (savePending) show('保存中です。終わり次第ログアウトします');
   saveQueue.then(pushOff).then(out, out); // 保存が終わってから（この端末の通知も止める）
 }
@@ -1504,7 +1346,6 @@ function render(s) {
   $('who').textContent = s.name;
   drawDeadline();
   drawInfos(s.infos || []);
-  pairAfterLogin(); // PAIR-PATCH
 
   // 申し送り
   $('handBox').classList.toggle('hidden', !s.handovers.length);
@@ -1512,7 +1353,7 @@ function render(s) {
   s.handovers.forEach(h => {
     const row = document.createElement('div'); row.className = 'hitem';
     const body = document.createElement('div'); body.style.flex = '1';
-    const meta = document.createElement('div'); meta.className = 'sub'; meta.append(siteTag(h), pn(`${h.from}より`), `（${h.date}）`);
+    const meta = document.createElement('div'); meta.className = 'sub'; meta.append(pn(`${h.from}より`), `（${h.date}）`);
     const txt = document.createElement('div'); txt.className = 't'; txt.append(linked(h.text));
     const pics = thumbs(h.images);
     const opts = document.createElement('div'); opts.className = 'opts';
@@ -1540,7 +1381,7 @@ function render(s) {
   drawEve();
   const hoKeep = $('hoTo').value;
   $('hoTo').innerHTML = '<option value="">宛先を選択</option><option value="all">全員</option>' +
-    (siteSel('hoSite') ? pairPeople.colleagues : s.colleagues).map(c => `<option value="${c.id}">${c.name}</option>`).join(''); // PAIR-PATCH 登録先の拠点の人
+    s.colleagues.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
   // 引き継ぎ事項（2026-11-08 退勤前チェックから独立）：勤務中・シフト対象外の人に出す。読み直しで書きかけを消さない
   $('hoCard').classList.toggle('hidden', !(s.working || s.noAttend));
   if ([...$('hoTo').options].some(o => o.value === hoKeep)) $('hoTo').value = hoKeep;
@@ -1733,7 +1574,6 @@ function drawRequested(list) {
       c.textContent = `${nb(p.name)}：${p.state}${p.doneAt ? '（' + p.doneAt + '）' : ''}`;
       who.appendChild(c);
     });
-    sub.prepend(siteTag(g)); // PAIR-PATCH
     d.append(t, sub, who); $('reqd').appendChild(d);
   });
 }
@@ -1779,7 +1619,6 @@ function drawRemoved(kind, list) {
       try { await saveQueue; REMOVED[kind].after(await call(REMOVED[kind].restore, { id: a.id })); show('元に戻しました'); }
       finally { busy(false); }
     };
-    m.prepend(siteTag(a)); // PAIR-PATCH
     body.append(t, m); row.append(body, b); box.appendChild(row);
   });
 }
@@ -1808,7 +1647,6 @@ function drawDone(kind, list) {
     const m = document.createElement('div'); m.className = 'sub';
     m.textContent = `${a.doneAt} 完了`;
     if (a.by) m.appendChild(pn(`（${a.by}）`));
-    m.prepend(siteTag(a)); // PAIR-PATCH
     body.append(t, m); row.append(u, body); box.appendChild(row);
   });
 }
@@ -1871,7 +1709,6 @@ function drawAnnual(list) {
       h.textContent = `昨年 ${lm}/${ld} 実施` + (a.orig ? `（元の予定：${a.orig}）` : '');
       meta.appendChild(h);
     }
-    meta.prepend(siteTag(a)); // PAIR-PATCH
     body.append(txt, meta); row.appendChild(body);
     const last = (a.notes || [])[(a.notes || []).length - 1];
     if (last) { const n = document.createElement('div'); n.className = 'ntlast'; n.textContent = `${nb(last.name)}（${last.at}）：${last.text}`; body.appendChild(n); }
@@ -2003,12 +1840,12 @@ function openTaskEdit(t) {
   $('edRepWrap').classList.add('hidden');
   $('edDateNote').textContent = '期日そのものを直します（今回だけずらす時は「延長」）。空にすると期日なし。' + (mates ? `同じ依頼の ${mates} の分も同じ期日になります。` : '');
   // 担当の付け外し（2026-11-06）。寺内スケジュールから追加した分は1人ずつなので出さない
-  const who = t.from !== '寺内スケジュール' && peopleOf(t).length > 1; // PAIR-PATCH
+  const who = t.from !== '寺内スケジュール' && (me.taskPeople || []).length > 1;
   $('edWhoWrap').classList.toggle('hidden', !who);
   $('edWho').innerHTML = '';
   if (who) {
     const now = [Number(auth.id)].concat((t.mateIds || []).map(Number));
-    peopleOf(t).forEach(p => {
+    me.taskPeople.forEach(p => {
       const l = document.createElement('label'), c = document.createElement('input');
       c.type = 'checkbox'; c.value = p.id; c.checked = now.includes(Number(p.id));
       l.append(c, String(p.id) === String(auth.id) ? '自分' : p.name); $('edWho').appendChild(l);
@@ -2059,7 +1896,7 @@ async function saveEdit() {
   const sendStart = startChanged || dateChanged ? { start } : {}; // 期日を直した時も、開始日はこの窓の日のまま
   const ids = edKind === 'task' ? edWhoIds() : null; // 担当の付け外し（2026-11-06）
   if (ids && !ids.length) { alert('担当を1人以上選んでください'); return; }
-  const nameOf = id => String(id) === String(auth.id) ? '自分' : (peopleOf(a).find(p => Number(p.id) === Number(id)) || {}).name || '';
+  const nameOf = id => String(id) === String(auth.id) ? '自分' : ((me.taskPeople || []).find(p => Number(p.id) === Number(id)) || {}).name || '';
   const before = [Number(auth.id)].concat((a.mateIds || []).map(Number));
   const added = ids ? ids.filter(x => !before.includes(x)).map(nameOf) : [], dropped = ids ? before.filter(x => !ids.includes(x)).map(nameOf) : [];
   if (dropped.length && !await ask(`${nbs(dropped)} を担当から外しますか？（外した人の個別業務から消えます。7日間は「削除済み」から戻せます）`)) return;
@@ -2287,7 +2124,6 @@ function drawTasks(list) {
     eb.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); openTaskEdit(t); };
     meta.appendChild(eb);
     if (t.ruleLabel) { const r = document.createElement('div'); r.className = 'rule rep'; r.textContent = t.ruleLabel; meta.appendChild(r); }
-    meta.prepend(siteTag(t)); // PAIR-PATCH
     body.append(txt, thumbs(t.images), meta); row.append(cbBox(cb), body); row.dataset.id = t.id;
     { // ゴミ箱：どの個別業務も削除できる（Ver1.2。以前は繰り返しだけ）。7日間は「削除済み」から戻せる
       const del = document.createElement('button'); del.className = 'ghost trash'; del.title = t.repeat ? '繰り返しをやめる' : '削除';
@@ -2330,7 +2166,7 @@ function scItems() {
   ((me && me.annual) || []).forEach(a => {
     const st = Object.assign({ [a.date]: a.start || '' }, a.laterStart || {});
     [...new Set([a.date].concat(a.later || []))].forEach(d => {
-      const x = { site: a.site, kind: 'an', text: a.text, evt: !!a.event, sel: a.event ? '' : `#annual [data-aid="${a.id}"]`, start: st[d] || '', end: d };
+      const x = { kind: 'an', text: a.text, evt: !!a.event, sel: a.event ? '' : `#annual [data-aid="${a.id}"]`, start: st[d] || '', end: d };
       add(x);
       if (!a.event) { byId[a.id + '|' + d] = x; byNorm[scNorm(a.text) + '|' + d] = byNorm[scNorm(a.text) + '|' + d] || x; }
     });
@@ -2339,7 +2175,7 @@ function scItems() {
     if (!t.due) return;
     const same = (t.annualId && byId[t.annualId + '|' + t.due]) || (t.from === '寺内スケジュール' && byNorm[scNorm(t.text) + '|' + t.due]);
     if (same) { same.both = true; return; } // 寺内スケジュールと同じ予定（着手して個別業務にも入れた分）
-    add({ site: t.site, kind: 'tk', text: t.text, evt: false, sel: `#tasks [data-id="${t.id}"]`, start: t.start || '', end: t.due });
+    add({ kind: 'tk', text: t.text, evt: false, sel: `#tasks [data-id="${t.id}"]`, start: t.start || '', end: t.due });
   });
   return map;
 }
@@ -2365,7 +2201,7 @@ function scLanes(days, map) {
 }
 function scChip(x, full, d, first) {
   const c = document.createElement('div');
-  c.className = 'chip ' + x.kind + (x.evt ? ' evt' : '') + (x.site && pairOn() ? ' pairsite' : ''); // PAIR-PATCH
+  c.className = 'chip ' + x.kind + (x.evt ? ' evt' : '');
   const range = x.start ? `${mdOf(x.start)}〜${mdOf(x.end)}` : '';
   if (full) {
     c.classList.add('full');
@@ -2373,7 +2209,7 @@ function scChip(x, full, d, first) {
     const k = document.createElement('small');
     k.textContent = (x.kind === 'tk' ? '個別業務' : x.evt ? '行事' : '寺内スケジュール') + (x.both ? '（個別業務にも追加）' : '');
     if (range) { const r = document.createElement('span'); r.className = 'rg'; r.textContent = `期間 ${range}`; k.append(' ', r); } // 期間（2026-11-11）
-    ct.append(siteTag(x), k, x.text); c.appendChild(ct);
+    ct.append(k, x.text); c.appendChild(ct);
     if (x.sel) { // 「選択」で一覧のその項目へ（2026-11-11。行事は一覧の項目がないので出さない）
       const go = document.createElement('button'); go.className = 'calgo'; go.textContent = '選択';
       go.onclick = ev => { ev.stopPropagation(); jumpTo(x.sel); };
@@ -2470,7 +2306,7 @@ function drawInfos(list) {
   $('infos').innerHTML = '';
   list.forEach(x => {
     const n = document.createElement('div'); n.className = 'notice';
-    const t = document.createElement('span'); t.className = 'info'; t.append(siteTag(x), linked(x.text)); // PAIR-PATCH t.style.whiteSpace = 'pre-wrap';
+    const t = document.createElement('span'); t.className = 'info'; t.append(linked(x.text)); t.style.whiteSpace = 'pre-wrap';
     n.appendChild(t); $('infos').appendChild(n);
   });
   if (!$('infoAdmin')) return;
@@ -2733,7 +2569,7 @@ function chime(force) {
 function onSwMessage(d) {
   if (d.type === 'push') chime();
   if (!me || !auth || stale) return;
-  const g = goNorm(d.go); // PAIR-PATCH
+  const g = String(d.go || '');
   if (d.type === 'push') {
     if (g.startsWith('task:')) refreshTasks(0);
     else if (g === 'hand' && !savePending) rawCall('login', auth).then(s => { if (!savePending && cur === 'clock') render(s); }).catch(() => {});
@@ -3090,7 +2926,13 @@ function taRepHint() { repHint($('taRep').value, $('taDate').value, taCur && taC
 function openRequest() {
   $('rqText').value = ''; $('rqDue').value = ''; $('rqDue').min = ymd(new Date()); $('rqStart').value = ''; startRange('rqStart', '');
   $('rqRep').value = ''; $('rqDaysWrap').classList.add('hidden');
-  rqPeople(); // 担当の候補（PAIR-PATCH）
+  $('rqWho').innerHTML = '';
+  (me.taskPeople || []).forEach(p => {
+    const l = document.createElement('label'), c = document.createElement('input');
+    c.type = 'checkbox'; c.value = p.id; c.checked = String(p.id) === String(auth.id); // 初期値は自分
+    c.onchange = rqRepNote;
+    l.append(c, String(p.id) === String(auth.id) ? '自分' : p.name); $('rqWho').appendChild(l);
+  });
   $('rqDays').innerHTML = '';
   '日月火水木金土'.split('').forEach((w, i) => {
     const l = document.createElement('label'), c = document.createElement('input');
@@ -3098,17 +2940,6 @@ function openRequest() {
   });
   rqRepNote();
   $('rqBox').classList.remove('hidden');
-}
-/** 依頼の担当の候補（相乗りの時は登録先の拠点の人。PAIR-PATCH） */
-function rqPeople() {
-  $('rqWho').innerHTML = '';
-  (siteSel('rqSite') ? pairPeople.taskPeople : (me.taskPeople || [])).forEach(p => {
-    const l = document.createElement('label'), c = document.createElement('input');
-    c.type = 'checkbox'; c.value = p.id; c.checked = String(p.id) === String(auth.id); // 初期値は自分
-    c.onchange = rqRepNote;
-    l.append(c, String(p.id) === String(auth.id) ? '自分' : p.name); $('rqWho').appendChild(l);
-  });
-  if (typeof rqRepNote === 'function' && $('rqRepNote')) rqRepNote();
 }
 /** 担当が複数の時は、繰り返すかどうかを必ず選ぶ（2026-11-06。完了の時はここで決めた繰り返しを知らせる） */
 function rqRepNote() {
@@ -3118,7 +2949,7 @@ function rqRepNote() {
 async function doRequest() {
   const p = { text: $('rqText').value.replace(/\s+/g, ' ').trim(), due: $('rqDue').value, start: $('rqStart').value, kind: $('rqRep').value,
     ids: [...$('rqWho').querySelectorAll('input:checked')].map(c => Number(c.value)),
-    days: [...$('rqDays').querySelectorAll('input:checked')].map(c => Number(c.value)), __site: siteSel('rqSite') };
+    days: [...$('rqDays').querySelectorAll('input:checked')].map(c => Number(c.value)) };
   if (!p.text) { alert('内容を入れてください'); return; }
   if (!p.ids.length) { alert('担当を選んでください'); return; }
   if (!p.kind && p.ids.length > 1) { alert('担当が複数の時は、繰り返すかどうか（繰り返し方）を選んでください'); return; }
@@ -3175,7 +3006,7 @@ function jaRepHint() {
 async function doJinaiAdd() {
   const cycle = $('jaRep').value;
   const p = { text: $('jaText').value.replace(/\s+/g, ' ').trim(), date: $('jaDate').value, start: $('jaStart').value, kind: $('jaKind').value,
-    repeat: cycle !== 'none', cycle, days: cycle === 'W' ? jaDaysSel() : [], __site: siteSel('jaSite') };
+    repeat: cycle !== 'none', cycle, days: cycle === 'W' ? jaDaysSel() : [] };
   if (!p.text) { alert('内容を入れてください'); return; }
   if (!p.date) { alert('初回期限を選んでください'); return; }
   if (p.date < ymd(new Date())) { alert('過ぎた日付は選べません'); return; }
@@ -3183,7 +3014,7 @@ async function doJinaiAdd() {
   if (p.start && p.start < monthBefore(p.date)) { alert(`開始日は初回期限の1か月前（${mdOf(monthBefore(p.date))}）までの日を選んでください`); return; } // 2026-11-15
   $('jaBox').classList.add('hidden');
   const rule = jaRule(cycle, p.date); // 周期の時は、寺内に同じ内容の予定があれば以降不要にするか確かめる（寺内へ移す時と同じ）
-  if (rule) p.removeDups = await askRemoveDups({ texts: [p.text], __site: p.__site }, ruleLabel(rule));
+  if (rule) p.removeDups = await askRemoveDups({ texts: [p.text] }, ruleLabel(rule));
   // 返事を待たずに一覧へ仮の行（登録中）を出し、登録は裏で（2026-11-08）
   p.rid = newRid();
   const d = rule && !ruleMatch(rule, new Date(p.date + 'T00:00:00')) ? nextByRule(rule, p.date) : p.date, left = daysLeft(d);
@@ -3228,7 +3059,7 @@ async function doTaskToAnnual() {
   if (p.date < ymd(new Date())) { alert('過ぎた日付は選べません'); return; }
   $('taBox').classList.add('hidden');
   const t0 = taCur;
-  if (cyRule) p.removeDups = await askRemoveDups({ texts: [p.text, t0.text], __site: t0.site && PAIR ? PAIR.key : '' }, ruleLabel(cyRule)); // PAIR-PATCH
+  if (cyRule) p.removeDups = await askRemoveDups({ texts: [p.text, t0.text] }, ruleLabel(cyRule));
   taCur = t0;
   busy(true);
   try {
@@ -3468,7 +3299,7 @@ async function sendHandover() {
   if (!$('hoTo').value) { alert('引き継ぎの宛先を選んでください'); $('hoCard').open = true; mobShow($('hoCard')); return false; }
   const btn = $('hoBtn'); btn.disabled = true; busy(true);
   try {
-    await call('sendHandover', { to: $('hoTo').value, text, images: hoImages, __site: siteSel('hoSite') });
+    await call('sendHandover', { to: $('hoTo').value, text, images: hoImages });
     $('hoText').value = ''; $('hoTo').value = ''; hoImages = []; drawHoImages();
     show('引き継ぎを送信しました');
     return true;
@@ -4102,7 +3933,7 @@ let saved = null;
 try { saved = JSON.parse(localStorage.getItem('auth') || 'null'); } catch (e) {}
 // 印つきのリンク（Ver1.2。以前のSlackの通知のリンク）：?u=従業員ID&e=期限&s=署名 でログイン済みで開く。go（通知を押した時も）の所へ移る。URLからは消す
 const linkQ = new URLSearchParams(location.search);
-let pendingGo = goNorm(linkQ.get('go') || ''); // PAIR-PATCH
+let pendingGo = linkQ.get('go') || '';
 if (linkQ.get('u') && linkQ.get('s')) {
   if (!saved || String(saved.id) !== linkQ.get('u')) { // 同じ人でもうログインしていればそのまま
     saved = { id: linkQ.get('u'), tk: `${linkQ.get('u')}.${linkQ.get('e')}.${linkQ.get('s')}` };

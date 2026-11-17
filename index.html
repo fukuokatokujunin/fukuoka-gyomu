@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261117180156">
+<meta name="build" content="20261117180718">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -683,6 +683,15 @@
         <div id="eveChecks"></div>
         <button class="hidden" id="eveSaveBtn" onclick="eveSave()">登録</button><!-- PCだけ（2026-11-06） -->
       </div>
+      <div class="card" id="outBox"><!-- 退勤前チェック（押した時。2026-11-17 カレンダーの上へ移した） -->
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <strong>退勤前チェック</strong>
+          <button class="ghost" onclick="openPre(false)">閉じる</button>
+        </div>
+        <div id="checks"></div>
+        <button class="out" onclick="clockOut()">チェックして退勤</button>
+        <p class="sub center">今日もお疲れ様でした！</p>
+      </div>
       <!-- 予定カレンダー（2026-11-11）：勤務中の枠の下。寺内スケジュールと個別業務の期日を月・週で見る（PC・スマホのTOP） -->
       <div class="card" id="calBox">
         <div class="calhead"><h3>予定カレンダー</h3>
@@ -768,16 +777,6 @@
           <p class="sub" id="scanMsg">事務所の打刻用QRコードを枠の中に写してください</p>
           <button class="ghost" onclick="stopScan(null)">キャンセル</button>
         </div>
-      </div>
-
-      <div class="card" id="outBox">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <strong>退勤前チェック</strong>
-          <button class="ghost" onclick="openPre(false)">閉じる</button>
-        </div>
-        <div id="checks"></div>
-        <button class="out" onclick="clockOut()">チェックして退勤</button>
-        <p class="sub center">今日もお疲れ様でした！</p>
       </div>
      </div>
 

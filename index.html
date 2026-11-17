@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261116111553">
+<meta name="build" content="20261117094126">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -406,6 +406,13 @@
   .rqd .who span.s-未確認 { border-color:var(--ng); color:var(--ng); } .rqd .who span.s-完了, .rqd .who span.s-今回分完了 { border-color:var(--ok); color:var(--ok); }
   button.prog { width:auto; margin:0 0 0 6px; padding:2px 10px; background:var(--ok); color:#fff; font-size:11px; letter-spacing:.15em; font-weight:500; }
   #askBox { z-index:12; }
+  /* 続けて出る2回目の確認（2026-11-17）：「最終確認」の帯と選んだ内容のまとめを出し、はい／いいえの位置を1回目と逆にする（勢いで同じ場所を押しても「いいえ」になる） */
+  #askFinal { display:none; margin:0 0 12px; padding:6px 0; background:var(--warn); color:#fff; font-size:14px; font-weight:bold; letter-spacing:.3em; }
+  #askSum { display:none; margin:0 0 12px; padding:10px 12px; background:#fffbeb; border:1px solid var(--warn); font-size:14px; text-align:left; white-space:pre-line; }
+  #askBox.final #askFinal, #askBox.final #askSum { display:block; }
+  #askBox.final .modal { border-top:4px solid var(--warn); }
+  #askBox.final .row { flex-direction:row-reverse; }
+  #askBox.final .row button:disabled { opacity:.4; }
   button.in.missed { background:var(--warn); letter-spacing:.15em; } /* 出勤打刻漏れ */
   #askBox.low { align-items:flex-end; background:transparent; padding-bottom:28px; }
   #askBox.low .modal { box-shadow:0 -6px 30px rgba(0,0,0,.35); } /* 「はい／いいえ」の確認は、着手の一覧などほかの窓より前に出す */
@@ -563,6 +570,8 @@
 <!-- 確認ダイアログ：どの画面からも使うので画面（section）の外に置く -->
       <div class="overlay hidden" id="askBox">
         <div class="modal center">
+          <div id="askFinal">最終確認</div>
+          <div id="askSum"></div>
           <p id="askMsg" style="font-size:17px;font-weight:bold;margin:8px 0 16px;white-space:pre-line"></p>
           <div class="row"><button id="askYes">はい</button><button class="ghost" id="askNo">いいえ</button></div>
         </div>
@@ -1494,11 +1503,16 @@ function notice(title, msg) {
   });
 }
 // 「はい」「いいえ」の確認。はい＝true
-function ask(msg) {
+// sum を渡すと続けて出る2回目の確認（2026-11-17）：「最終確認」の帯・選んだ内容のまとめ（sum）を出し、はい／いいえを左右逆にして、少しの間押せなくする（勢いの連打を防ぐ）
+function ask(msg, sum) {
   return new Promise(done => {
-    $('askMsg').textContent = msg; $('askBox').classList.remove('hidden');
-    const end = v => { $('askBox').classList.add('hidden'); done(v); };
-    $('askYes').onclick = () => end(true); $('askNo').onclick = () => end(false);
+    const box = $('askBox'), y = $('askYes'), n = $('askNo');
+    $('askMsg').textContent = msg; $('askSum').textContent = sum || '';
+    box.classList.toggle('final', !!sum); box.classList.remove('hidden');
+    y.disabled = n.disabled = !!sum;
+    const wait = sum ? setTimeout(() => { y.disabled = n.disabled = false; }, 800) : 0;
+    const end = v => { clearTimeout(wait); y.disabled = n.disabled = false; box.classList.add('hidden'); box.classList.remove('final'); done(v); };
+    y.onclick = () => end(true); n.onclick = () => end(false);
   });
 }
 
@@ -2769,7 +2783,7 @@ async function doneTask(t, cb) {
   }
   // 繰り返しでない個別業務：これからも繰り返すか聞く（はい＝次回の期日と周期を選ぶ。2026-11-06）。寺内スケジュールから追加した分は寺内の方で繰り返すので聞かない
   if (t.from !== '寺内スケジュール' && !String(t.id).startsWith('tmp-')
-    && await ask('この個別業務を繰り返しますか？\n（はい＝次回の期日と、毎日・毎週などの繰り返し方を選びます）')) { openTk(t, cb, true); return; }
+    && await ask('この個別業務を繰り返しますか？\n\nはい＝次回の期日と繰り返し方を選ぶ\nいいえ＝繰り返さずにこのまま完了', `あなたの選択：完了にする\n個別業務：${t.text.length > 40 ? t.text.slice(0, 40) + '…' : t.text}`)) { openTk(t, cb, true); return; }
   drawTasks(me.tasks.filter(x => x.id !== t.id)); // 返事を待たずに一覧から外す（保存は裏で）
   saveLater('tasks', 'doneTask', { id: t.id, due: t.due || '' });
   show('個別業務を完了しました');

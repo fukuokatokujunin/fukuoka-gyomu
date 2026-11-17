@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261117144644">
+<meta name="build" content="20261117153859">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -1312,15 +1312,16 @@ function view(v) {
   show('');
   if (v === 'req') loadReq();
   if (v === 'admin') {
-    // 選べる月：希望を受付中の月（締切日を過ぎたら翌々月。2026-11-17）・翌月・今月。初期は翌月。開くたびに作り直す（日をまたいでも進む）
-    const sel = $('ym').value, ms = [...new Set([reqMonths().open, me.nextMonth, me.thisMonth])].sort().reverse();
+    // 選べる月：希望を受付中の月（締切日を過ぎたら翌々月。2026-11-17）・翌月・今月。開くたびに作り直す（日をまたいでも進む）
+    // 初期は翌月。翌月のシフト作業が完了していたら次の月（loadAdmin の auto）
+    const ms = [...new Set([reqMonths().open, me.nextMonth, me.thisMonth])].sort().reverse();
     $('ym').innerHTML = '';
     ms.forEach(m => $('ym').add(new Option(m.replace('-', '年') + '月', m)));
-    $('ym').value = ms.includes(sel) ? sel : me.nextMonth;
+    $('ym').value = me.nextMonth;
     let t = 'shift';
     try { t = localStorage.getItem('adminTab') || t; } catch (e) {}
     adminTab($('at-' + t) ? t : 'shift');
-    loadAdmin();
+    loadAdmin(true);
   }
 }
 
@@ -3451,10 +3452,20 @@ async function saveReq() {
 }
 
 /* ---- 管理 ---- */
-async function loadAdmin() {
+// auto：管理画面を開いた時だけ。選んだ月のシフト作業が完了済み（確定＋⑤で確認）で、次の月が選べればそちらを出す（2026-11-17）
+async function loadAdmin(auto) {
   $('resBox').classList.add('hidden');
   busy(true);
-  try { drawAdmin(await call('adminOverview', { ym: $('ym').value })); } finally { busy(false); }
+  try {
+    let o = await call('adminOverview', { ym: $('ym').value });
+    while (auto === true && o.status === '確定' && o.hrmosDone) {
+      const later = [...$('ym').options].map(op => op.value).filter(v => v > o.ym).sort()[0];
+      if (!later) break;
+      $('ym').value = later;
+      o = await call('adminOverview', { ym: later });
+    }
+    drawAdmin(o);
+  } finally { busy(false); }
 }
 async function build() {
   if (ov.status !== 'なし' && !confirm('いまのシフト表を、休み希望から作り直します。手で直した分は消えます。よろしいですか？')) return;

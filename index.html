@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261118160043">
+<meta name="build" content="20261118161703">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -621,12 +621,15 @@
   #envPreview .scaler { position:relative; box-shadow:0 2px 10px rgba(0,0,0,.25); }
   #envPreview .envpage { position:absolute; left:0; top:0; transform-origin:0 0; }
   .envadj { margin-top:14px; font-size:13px; } .envadj summary { cursor:pointer; color:var(--sub); }
-  .envadj { margin-top:22px; padding-top:16px; border-top:1px solid var(--line); } .envadj > b { font-size:15px; font-weight:500; letter-spacing:.1em; }
-  .envadj .row { align-items:center; margin-top:6px; } .envadj .row input { width:6em; flex:none; padding:6px 4px; margin:0; }
-  .envpad { display:grid; grid-template-columns:1fr 1fr 1fr; grid-template-areas:". u ." "l c r" ". d ."; gap:6px; max-width:360px; margin:10px auto; align-items:center; }
-  .envpad button { margin:0; padding:12px 4px; font-size:14px; letter-spacing:.05em; }
-  #envAdjNow { text-align:center; font-size:12px; line-height:1.6; color:var(--ink); }
-  .envadj .envbtns button { flex:1 1 0; font-size:14px; padding:12px 4px; letter-spacing:.05em; }
+  .envadj { margin-top:10px; } .envadj .sub { margin:4px 0; } .envadj .zc { color:#d6342a; }
+  #envAdjNow { font-size:14px; line-height:1.7; margin:6px 0 0; white-space:pre-line; }
+  .envadj .envbtns { margin-top:8px; } .envadj .envbtns button { flex:1 1 0; font-size:14px; padding:10px 4px; letter-spacing:.05em; }
+  /* 封筒の上の薄い矢印 */
+  #envPreview .envarr { position:absolute; z-index:2; width:30px; height:30px; margin:0; padding:0; border:0 !important; border-radius:50% !important; display:flex; align-items:center; justify-content:center;
+    background:rgba(34,38,41,.22); color:#fff; letter-spacing:0; touch-action:manipulation; -webkit-tap-highlight-color:transparent; transition:background .15s; }
+  #envPreview .envarr.z { background:rgba(214,52,42,.25); }
+  #envPreview .envarr:hover, #envPreview .envarr:active { background:rgba(34,38,41,.6); opacity:1; } #envPreview .envarr.z:hover, #envPreview .envarr.z:active { background:rgba(214,52,42,.65); }
+  #envPreview .envarr svg { width:14px; height:14px; }
   #envSheet { display:none; }
   @media print { /* 封筒印刷の時だけ：封筒1枚のほかは隠し、紙の左上にぴったり置く */
     html:has(body.envPrinting) { background:#fff !important; }
@@ -1088,25 +1091,16 @@
         <h3 id="envTitle3"></h3>
         <p class="sub">印字のイメージです<span id="envGuideNote">（赤い枠は封筒に印刷済みの郵便番号の枠。印刷はされません）</span></p>
         <div id="envPreview"></div>
+        <!-- 位置の調整（2026-11-18）：封筒の上の薄い矢印で動かす。長3・ハガキは郵便番号（赤）と住所・名前（黒）を別々に。印刷した位置を「前回の位置」として覚える -->
+        <div class="envadj" id="envAdjBox">
+          <p class="sub">プリンターで字がずれる時は、封筒の上の薄い矢印を押すと0.5mmずつ動かせます<span id="envAdjZipNote">（<b class="zc">赤い矢印</b>＝郵便番号、<b>黒い矢印</b>＝住所と名前）</span></p>
+          <p id="envAdjNow"></p>
+          <p class="sub" id="envAdjLast"></p>
+          <div class="envbtns"><button class="sec" onclick="envAdjSet(envAdj())">前回の位置に戻す</button><button class="sec" onclick="envAdjSet({})">0に戻す</button></div>
+        </div>
         <div class="envbtns"><button class="sec" onclick="envGo(2)">修正する</button><button onclick="envPrint()">印刷</button></div>
         <p class="sub">「印刷」を押すとプリンターの画面が出ます。封筒の大きさは自動で選ばれます。封筒は手差しトレイに入れてください</p>
         <button class="ghost" onclick="envNext()">続けて別の宛名を入力する</button>
-        <div class="envadj" id="envAdjBox"><!-- 位置の調整（2026-11-18 上下左右の矢印・印刷した位置を「前回の位置」として覚える） -->
-          <b>印字の位置の調整</b>
-          <p class="sub">プリンターによって少しずれることがあります。矢印を押すと1mmずつ動きます（数字の欄は0.5mmなど細かく入れられます）</p>
-          <div class="envpad">
-            <button class="sec" style="grid-area:u" onclick="envAdjMove(0,-1)">↑ 上へ</button>
-            <button class="sec" style="grid-area:l" onclick="envAdjMove(-1,0)">← 左へ</button>
-            <span style="grid-area:c" id="envAdjNow"></span>
-            <button class="sec" style="grid-area:r" onclick="envAdjMove(1,0)">右へ →</button>
-            <button class="sec" style="grid-area:d" onclick="envAdjMove(0,1)">↓ 下へ</button>
-          </div>
-          <div class="row"><span>右へ</span><input id="envAdjX" type="number" step="0.5" inputmode="decimal" oninput="envAdjInput()"><span>mm</span>
-            <span>下へ</span><input id="envAdjY" type="number" step="0.5" inputmode="decimal" oninput="envAdjInput()"><span>mm</span></div>
-          <p class="sub">左・上はマイナス（例：-1.5）</p>
-          <p class="sub" id="envAdjLast"></p>
-          <div class="envbtns"><button class="sec" onclick="envAdjSet(envAdj())">前回の位置に戻す</button><button class="sec" onclick="envAdjSet({ x: 0, y: 0 })">0に戻す</button></div>
-        </div>
       </div>
     </section>
 
@@ -3685,7 +3679,7 @@ const ENV_SIZES = { // 寸法・位置はmm（左上から）。box＝郵便番�
 };
 // 封筒の紙面の見た目（画面の確認と印刷で同じものを使う）。字はすべて明朝体（2026-11-18 ユーザー指定）、名前は太字
 const ENV_CSS = `.envpage{position:relative;background:#fff;color:#000;overflow:hidden;letter-spacing:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.envpage .in{position:absolute;inset:0}
+.envpage .in,.envpage .inz{position:absolute;inset:0}
 .envpage .el{position:absolute;white-space:nowrap;line-height:1.25;font-family:"Hiragino Mincho ProN","Yu Mincho","YuMincho","MS PMincho","MS Mincho",serif;font-weight:500}
 .envpage .zd{text-align:center}
 .envpage .nm{text-align:center;font-weight:700}
@@ -3709,7 +3703,7 @@ function envGo(n) {
   }
   if (n === 2) { $('envTitle2').textContent = z.label + '　宛先の入力'; setTimeout(() => $(envZipNorm($('envZip').value).length === 7 ? 'envAddr' : 'envZip').focus(), 50); }
   if (n === 3) { $('envTitle3').textContent = z.label + '　印字の確認'; $('envGuideNote').classList.toggle('hidden', !z.box);
-    if (!envAdjCur[envSize]) envAdjCur[envSize] = envAdj(); // はじめは前回の位置から
+    if (!envAdjCur[envSize]) { const a = envAdj(); envAdjCur[envSize] = { x: a.x, y: a.y, zx: a.zx, zy: a.zy }; } // はじめは前回の位置から
     envDraw(); envAdjShow(); }
   else envPrintEnd();
   window.scrollTo(0, 0);
@@ -3758,15 +3752,15 @@ function envPageHtml() {
   const addr = $('envAddr').value.trim().replace(/\s+/g, ' '), name = $('envName').value.trim() + '　' + $('envHon').value;
   let h = '';
   if (s.zip) h += `<div class="el" data-fs="${s.zip.fs}" style="left:${s.zip.x}mm;top:${s.zip.y}mm;width:${s.w - s.zip.x - 10}mm">〒${z.slice(0, 3)}-${z.slice(3)}</div>`;
-  let g = ''; // 印刷済みの郵便番号の枠（画面だけ。位置の調整では動かさない）
+  let g = '', hz = ''; // g＝印刷済みの郵便番号の枠（画面だけ。位置の調整では動かさない）、hz＝枠に入れる数字（住所・名前と別に動かす）
   if (s.box) z.split('').forEach((d, i) => {
     const x = s.box.x + (i < 3 ? i * 7 : 21.8 + (i - 3) * 6.8);
     g += `<div class="guide" style="left:${x}mm;top:${s.box.y}mm;width:5.7mm;height:8mm"></div>`;
-    h += `<div class="el zd" style="left:${x}mm;top:${s.box.y}mm;width:5.7mm;height:8mm;line-height:8mm;font-size:${s.box.fs}mm">${d}</div>`;
+    hz += `<div class="el zd" style="left:${x}mm;top:${s.box.y}mm;width:5.7mm;height:8mm;line-height:8mm;font-size:${s.box.fs}mm">${d}</div>`;
   });
   h += `<div class="el ad" data-fs="${s.addr.fs}" style="left:${s.addr.x}mm;top:${s.addr.y}mm;width:${s.addr.w}mm">${envEsc(addr)}</div>`;
   h += `<div class="el nm" data-fs="${s.name.fs}" data-min=".5" style="left:8mm;top:${s.name.y}mm;width:${s.w - 16}mm">${envEsc(name)}</div>`;
-  return `<div class="envpage" style="width:${s.w}mm;height:${s.h}mm">${g}<div class="in">${h}</div></div>`;
+  return `<div class="envpage" style="width:${s.w}mm;height:${s.h}mm">${g}<div class="in">${h}</div>${hz ? `<div class="inz">${hz}</div>` : ''}</div>`;
 }
 // 枠に入りきらない文字を小さくする。住所は小さくしても入らなければ2行に（スペースがあればそこで改行）
 function envFit(page) {
@@ -3805,49 +3799,87 @@ function envDraw() {
   envFit(page);
   const k = Math.min((box.clientWidth - 24) / (s.w * MM), Math.max(320, Math.min(560, innerHeight * .65)) / (s.h * MM), 1);
   page.style.transform = `scale(${k})`;
-  envAdjApply();
   sc.style.width = s.w * MM * k + 'px'; sc.style.height = s.h * MM * k + 'px';
+  envAdjApply(); // 矢印も置く（大きさが決まった後に）
 }
-// 位置の調整（大きさごと）。動かしている間は画面だけ。印刷した時の位置を「前回の位置」としてこの端末に覚え、次に開いた時はそこから（2026-11-18 ユーザー指定）
+// 位置の調整（大きさごと）。x,y＝住所・名前（角2は〒も）、zx,zy＝枠に入れる郵便番号（長3・ハガキ）。
+// 動かしている間は画面だけ。印刷した時の位置を「前回の位置」としてこの端末に覚え、次に開いた時はそこから（2026-11-18 ユーザー指定）
 let envAdjCur = {}; // 大きさごとの今の調整
-function envAdj() { // 前回の位置（覚えている分）
-  try { const a = (JSON.parse(localStorage.getItem('envAdj') || '{}'))[envSize]; if (a) return { x: +a.x || 0, y: +a.y || 0, at: a.at || '' }; } catch (e) {}
-  return { x: 0, y: 0, at: '' };
+const ENV_STEP = .5; // 矢印1回で動く量（mm）
+const envR = v => Math.round((+v || 0) * 10) / 10;
+function envAdj() { // 前回の位置（覚えている分）。郵便番号を分ける前の記録は、郵便番号も同じだけ動いていた
+  try {
+    const a = (JSON.parse(localStorage.getItem('envAdj') || '{}'))[envSize];
+    if (a) return { x: envR(a.x), y: envR(a.y), zx: envR(a.zx != null ? a.zx : a.x), zy: envR(a.zy != null ? a.zy : a.y), at: a.at || '' };
+  } catch (e) {}
+  return { x: 0, y: 0, zx: 0, zy: 0, at: '' };
 }
-const envAdjTxt = a => (a.x ? (a.x > 0 ? '右へ ' : '左へ ') + Math.abs(a.x) + 'mm' : '左右 0') + '・' + (a.y ? (a.y > 0 ? '下へ ' : '上へ ') + Math.abs(a.y) + 'mm' : '上下 0');
-function envAdjShow() { // 数字の欄・今の位置・前回の位置の表示
-  const a = envAdjCur[envSize] || { x: 0, y: 0 }, last = envAdj();
-  if (+$('envAdjX').value !== a.x || $('envAdjX').value === '') $('envAdjX').value = a.x;
-  if (+$('envAdjY').value !== a.y || $('envAdjY').value === '') $('envAdjY').value = a.y;
-  $('envAdjNow').textContent = envAdjTxt(a).replace('・', '\n');
-  $('envAdjNow').style.whiteSpace = 'pre-line';
-  $('envAdjLast').textContent = '前回の位置' + (last.at ? '（' + last.at + ' に印刷）' : '') + '：' + envAdjTxt(last);
+const envAdjTxt1 = (x, y) => (x ? (x > 0 ? '右へ ' : '左へ ') + Math.abs(x) + 'mm' : '左右 0') + '・' + (y ? (y > 0 ? '下へ ' : '上へ ') + Math.abs(y) + 'mm' : '上下 0');
+const envAdjTxt = (a, sep) => ENV_SIZES[envSize].box
+  ? '郵便番号：' + envAdjTxt1(a.zx, a.zy) + sep + '住所・名前：' + envAdjTxt1(a.x, a.y) : envAdjTxt1(a.x, a.y);
+function envAdjShow() { // 今の位置・前回の位置の表示
+  const a = envAdjCur[envSize], last = envAdj();
+  $('envAdjZipNote').classList.toggle('hidden', !ENV_SIZES[envSize].box);
+  $('envAdjNow').textContent = '今の位置　' + envAdjTxt(a, '\n　　　　　');
+  $('envAdjLast').textContent = '前回の位置' + (last.at ? '（' + last.at + ' に印刷）' : '') + '：' + envAdjTxt(last, '／');
 }
 function envAdjSet(a) {
-  const r = v => Math.round(v * 10) / 10;
-  envAdjCur[envSize] = { x: r(+a.x || 0), y: r(+a.y || 0) };
-  envAdjApply(envAdjCur[envSize]); envAdjShow();
+  envAdjCur[envSize] = { x: envR(a.x), y: envR(a.y), zx: envR(a.zx), zy: envR(a.zy) };
+  envAdjApply(); envAdjShow();
 }
-function envAdjMove(dx, dy) { const a = envAdjCur[envSize] || { x: 0, y: 0 }; envAdjSet({ x: a.x + dx, y: a.y + dy }); }
-function envAdjInput() { // 数字の欄（入れたらすぐ確認の画面に映す）
-  envAdjCur[envSize] = { x: +$('envAdjX').value || 0, y: +$('envAdjY').value || 0 };
-  envAdjApply(envAdjCur[envSize]);
-  $('envAdjNow').textContent = envAdjTxt(envAdjCur[envSize]).replace('・', '\n');
+function envAdjMove(g, dx, dy) {
+  const a = Object.assign({}, envAdjCur[envSize]);
+  if (g === 'z') { a.zx += dx * ENV_STEP; a.zy += dy * ENV_STEP; } else { a.x += dx * ENV_STEP; a.y += dy * ENV_STEP; }
+  envAdjSet(a);
 }
 function envAdjKeep() { // 印刷した位置を前回の位置として覚える
-  const a = envAdjCur[envSize] || { x: 0, y: 0 }, d = new Date();
+  const a = envAdjCur[envSize], d = new Date();
   try {
     const all = JSON.parse(localStorage.getItem('envAdj') || '{}');
-    all[envSize] = { x: a.x, y: a.y, at: (d.getMonth() + 1) + '/' + d.getDate() };
+    all[envSize] = Object.assign({}, a, { at: (d.getMonth() + 1) + '/' + d.getDate() });
     localStorage.setItem('envAdj', JSON.stringify(all));
   } catch (e) {}
   envAdjShow();
 }
 // 位置の調整を確認の画面に映す（字だけ動かす。封筒と印刷済みの枠はそのまま）
-function envAdjApply(a) {
-  a = a || envAdjCur[envSize] || { x: 0, y: 0 };
-  const el = $('envPreview').querySelector('.in');
-  if (el) el.style.transform = `translate(${a.x}mm,${a.y}mm)`;
+function envAdjApply() {
+  const a = envAdjCur[envSize] || { x: 0, y: 0, zx: 0, zy: 0 }, box = $('envPreview');
+  const m = box.querySelector('.in'), z = box.querySelector('.inz');
+  if (m) m.style.transform = `translate(${a.x}mm,${a.y}mm)`;
+  if (z) z.style.transform = `translate(${a.zx}mm,${a.zy}mm)`;
+  envArrows();
+}
+// 封筒の上の薄い矢印：動かす字のまわり（上下左右）に出す。郵便番号の枠がある大きさは、郵便番号（赤）と住所・名前（黒）の2組
+const ENV_ARR = { u: 'M3 10l5-5 5 5', d: 'M3 6l5 5 5-5', l: 'M10 3l-5 5 5 5', r: 'M6 3l5 5-5 5' };
+function envArrows() {
+  const sc = $('envPreview').querySelector('.scaler'); if (!sc) return;
+  sc.querySelectorAll('.envarr').forEach(e => e.remove());
+  const base = sc.getBoundingClientRect(), A = 30, gap = 3;
+  const mv = { u: [0, -1], d: [0, 1], l: [-1, 0], r: [1, 0] };
+  [['z', '.inz'], ['m', '.in']].forEach(([g, sel]) => {
+    const layer = sc.querySelector(sel); if (!layer) return;
+    let l = 1e9, t = 1e9, r = -1e9, b = -1e9;
+    [...layer.children].forEach(el => { // 字のある範囲（欄の幅ではなく字の幅）
+      const rg = document.createRange(); rg.selectNodeContents(el);
+      const q = el.classList.contains('zd') ? el.getBoundingClientRect() : rg.getBoundingClientRect();
+      if (!q.width) return;
+      l = Math.min(l, q.left); t = Math.min(t, q.top); r = Math.max(r, q.right); b = Math.max(b, q.bottom);
+    });
+    if (l > r) return;
+    l -= base.left; r -= base.left; t -= base.top; b -= base.top;
+    const cx = (l + r) / 2, cy = (t + b) / 2;
+    const pos = { u: [cx - A / 2, t - A - gap], d: [cx - A / 2, b + gap], l: [l - A - gap, cy - A / 2], r: [r + gap, cy - A / 2] };
+    Object.keys(pos).forEach(k => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'envarr' + (g === 'z' ? ' z' : '');
+      btn.setAttribute('aria-label', (g === 'z' ? '郵便番号を' : '住所と名前を') + { u: '上へ', d: '下へ', l: '左へ', r: '右へ' }[k]);
+      btn.style.left = pos[k][0] + 'px'; btn.style.top = pos[k][1] + 'px';
+      btn.innerHTML = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${ENV_ARR[k]}"/></svg>`;
+      btn.onclick = e => { e.preventDefault(); envAdjMove(g, mv[k][0], mv[k][1]); };
+      sc.appendChild(btn);
+    });
+  });
 }
 // 印刷：この画面のまま、封筒1枚（#envSheet）だけを紙の左上に置いて刷る。
 // はじめは見えない枠（iframe・幅0）で刷っていたが、プリンターのプレビューで字が右へずれて見切れた（2026-11-18）ため、この方式に変えた

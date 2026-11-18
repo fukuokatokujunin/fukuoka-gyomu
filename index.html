@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261118120228">
+<meta name="build" content="20261118121913">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -170,9 +170,9 @@
   .annual .titem.early { background:#fffbeb; margin:0 -8px; padding:10px 8px; border-radius:8px; }
   .annual .titem.evt { color:var(--sub); }
   .annual .kind { display:inline-block; margin-right:6px; padding:0 6px; border-radius:6px; background:#eef2ff; color:#3730a3; font-size:12px; }
-  .task .trashwrap, .annual .trashwrap { flex:none; display:flex; flex-direction:column; align-items:center; align-self:flex-end; } /* 行の最下段にそろえる */
-  .task .trashwrap small, .annual .trashwrap small { font-size:10px; color:var(--sub); white-space:nowrap; }
-  .task .trash, .annual .trash { padding:0 4px; font-size:16px; opacity:.6; }
+  .task .trashwrap, .annual .trashwrap, #hoList .trashwrap { flex:none; display:flex; flex-direction:column; align-items:center; align-self:flex-end; } /* 行の最下段にそろえる */
+  .task .trashwrap small, .annual .trashwrap small, #hoList .trashwrap small { font-size:10px; color:var(--sub); white-space:nowrap; }
+  .task .trash, .annual .trash, #hoList .trash { padding:0 4px; font-size:16px; opacity:.6; }
   .annual .evmark { width:24px; flex:none; text-align:center; }
   #v-clock { display:flex; flex-direction:column; }
   #annualBox { order:3; }
@@ -268,7 +268,7 @@
   button.pp::before { content:''; display:inline-block; width:9px; height:9px; margin-right:6px; vertical-align:0; background:no-repeat center / contain
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' fill='none' stroke='white' stroke-width='1.4'%3E%3Cpath d='M0 5h9M6 2l3 3-3 3'/%3E%3C/svg%3E"); }
   .notice .info::before { content:'INFO'; display:inline-block; margin-right:10px; padding:1px 7px; background:#222629; color:#fff; font-size:10px; letter-spacing:.2em; text-shadow:none; vertical-align:1px; border:1px solid rgba(255,255,255,.6); }
-  .task .trash, .annual .trash { width:24px; height:24px; padding:0; opacity:1; background:#222629 no-repeat center / 12px
+  .task .trash, .annual .trash, #hoList .trash { width:24px; height:24px; padding:0; opacity:1; background:#222629 no-repeat center / 12px
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='white' stroke-width='1.2'%3E%3Cpath d='M2 3h8M4.5 3V1.5h3V3M3 3l.6 7.5h4.8L9 3M5 5v4M7 5v4'/%3E%3C/svg%3E"); }
   /* スマホでカレンダーが見切れないように（7列を必ず画面幅に収める） */
   .cal { grid-template-columns:repeat(7, minmax(0,1fr)); gap:3px; }
@@ -384,6 +384,17 @@
   .lastdone { display:table; padding:1px 6px; font-size:12px; color:var(--ok); border:1px solid #c7d8cd; background:#f3f8f5; white-space:nowrap; } /* 日常業務の前回完了日（2026-11-18） */
   .every { display:flex; gap:8px; } .every .tkdate { width:auto; margin:0; } .every input.tkdate { flex:0 0 96px; text-align:center; } .every select.tkdate { flex:1; } /* 日常業務の間隔 */
   .nextdue { display:inline-block; margin-left:0; } /* 日常業務の次の回 */
+  /* 引き継ぎ事項の一覧（2026-11-18） */
+  .hocnt { display:inline-block; margin-left:10px; min-width:20px; padding:0 7px; box-sizing:border-box; font-family:"Noto Sans JP",sans-serif; font-size:11px; font-weight:500;
+    line-height:20px; letter-spacing:0; text-align:center; color:#fff; background:#b8913a; border-radius:10px; vertical-align:2px; }
+  .hocnt.hot { background:#9b3a2e; animation:hoPulse 1.6s ease-in-out infinite; } /* 自分あてで未確認があれば赤で明滅 */
+  @keyframes hoPulse { 50% { transform:scale(1.15); } }
+  .hocnt:empty { display:none; }
+  #hoList:not(:empty) { border-top:1px solid var(--ink); padding-bottom:12px; }
+  #hoList .hlhead { padding:12px 0 2px; font-size:11px; color:var(--sub); letter-spacing:.3em; }
+  #hoList .titem > div { min-width:0; }
+  #hoList .titem > div > .sub > * { margin:2px 6px 2px 0; }
+  #hoList .hodone { color:var(--ok); } #hoList .hodone.none { color:var(--sub); }
   .lastdone.none { color:var(--sub); border-color:var(--line); background:#f7f7f6; }
   :is(#tasks, #daily) .titem.my:not(.alert) { background:#eaf3fb; margin:0 -8px; padding-left:8px; padding-right:8px; } /* マイタスクは薄い青（2026-11-08。期日が来たら赤を優先） */
   :is(#tasks, #daily) .titem.alert { padding-left:5px; } /* 赤い線（3px）の分だけ詰めて、□と本文の位置をほかの行とそろえる */
@@ -682,7 +693,7 @@
 
       <div class="card hand hidden" id="handBox">
         <h3>申し送り</h3>
-        <p class="sub" style="margin:0">確認したらチェックしてください。内容は自分の個別業務（期日：翌日）に移ります</p>
+        <p class="sub" style="margin:0">確認したらチェックしてください。確認した後も「引き継ぎ事項」の一覧に残ります</p>
         <div id="hands"></div>
       </div>
 
@@ -719,15 +730,16 @@
       </details>
       <!-- 引き継ぎ事項（2026-11-08 退勤前チェックから独立。業務追加と同じ折りたたみ。PC・スマホとも業務追加の下。2026-11-18 PCは勤務中の枠の下・予定カレンダーの上へ） -->
       <details class="card foldbox hidden" id="hoCard">
-        <summary>引き継ぎ事項</summary>
+        <summary><span>引き継ぎ事項<span class="hocnt" id="hoCount"></span></span></summary><!-- 件数の印：一覧が残っている間は折りたたんでも出す（2026-11-18） -->
         <div class="mobhead"><h3 data-en="HANDOVER">引き継ぎ事項</h3></div>
-        <div class="hobody">
+        <div class="hobody" id="hoForm">
           <select id="hoTo"></select>
           <textarea id="hoText" rows="3" placeholder="引き継ぐ内容を入力"></textarea>
           <label class="attach"><input type="file" id="hoFile" accept="image/*" multiple onchange="addHoImages(this)">画像を添付 <small>3枚まで</small></label>
           <div class="thumbs" id="hoThumbs"></div>
           <button id="hoBtn" onclick="sendHandover()">引き継ぎを送信</button>
         </div>
+        <div id="hoList"></div><!-- 引き継ぎ事項の一覧（2026-11-18）：全員の引き継ぎを新しい順に。消すまで残る -->
       </details>
       <!-- 予定カレンダー（2026-11-11）：勤務中の枠の下。寺内スケジュールと個別業務の期日を月・週で見る（PC・スマホのTOP） -->
       <div class="card" id="calBox">
@@ -1399,7 +1411,7 @@ function render(s) {
     const opts = document.createElement('div'); opts.className = 'opts';
     const l1 = document.createElement('label'), c1 = document.createElement('input');
     c1.type = 'checkbox'; c1.onchange = () => { if (c1.checked) ack(h.id, c1); };
-    l1.append(c1, '確認した（個別業務に移す）');
+    l1.append(c1, '確認した');
     opts.append(l1);
     body.append(meta, txt, pics, opts); row.append(body); $('hands').appendChild(row);
   });
@@ -1423,7 +1435,9 @@ function render(s) {
   $('hoTo').innerHTML = '<option value="">宛先を選択</option><option value="all">全員</option>' +
     s.colleagues.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
   // 引き継ぎ事項（2026-11-08 退勤前チェックから独立）：勤務中・シフト対象外の人に出す。読み直しで書きかけを消さない
-  $('hoCard').classList.toggle('hidden', !(s.working || s.noAttend));
+  $('hoCard').classList.toggle('hidden', !(s.working || s.noAttend || (s.hoList || []).length)); // 一覧が残っていれば勤務外でも見られる（2026-11-18）
+  $('hoForm').classList.toggle('hidden', !(s.working || s.noAttend)); // 送るのはこれまでどおり勤務中・シフト対象外の人
+  drawHoList(s.hoList || []);
   if ([...$('hoTo').options].some(o => o.value === hoKeep)) $('hoTo').value = hoKeep;
 
   // タスク（勤務中のみ表示）
@@ -1461,7 +1475,7 @@ function mobOn() { return MOB_TABS && document.body.classList.contains('tabs'); 
 function mobAvail(t) {
   if (!me) return false;
   if (t === 'add' || t === 'task' || t === 'daily') return showTasks(); // daily＝日常業務（2026-11-18）
-  if (t === 'ho') return !!(me.working || me.noAttend || (me.handovers || []).length); // 引き継ぎは勤務中・シフト対象外の人（届いた申し送りがあれば勤務外でも開ける）
+  if (t === 'ho') return !!(me.working || me.noAttend || (me.handovers || []).length || (me.hoList || []).length); // 引き継ぎは勤務中・シフト対象外の人（届いた申し送りがあれば勤務外でも開ける）
   if (t === 'admin') return !!me.admin;
   return true;
 }
@@ -1501,7 +1515,7 @@ function mobBar() {
     task: { n: tk.filter(x => x.isNew || (x.due && x.due <= wk)).length, hot: tkHot > 0 },
     daily: { n: dl.filter(x => x.due && x.due <= today).length, hot: true }, // 日常業務は次の回が来た分だけ（2026-11-18）
     annual: { n: an.filter(a => a.left <= 7).length, hot: an.some(a => a.left <= 0) }, // 1週間以内（期日が来た分は赤）
-    ho: { n: (me.handovers || []).length, hot: true }, // 届いた申し送り
+    ho: { n: (me.handovers || []).length || (me.hoList || []).length, hot: (me.handovers || []).length > 0 }, // 届いた申し送り（赤）、なければ一覧に残っている件数（金。2026-11-18）
   };
   document.querySelectorAll('#tabbar button').forEach(b => {
     const t = b.dataset.t;
@@ -1948,6 +1962,14 @@ function openEdit(a) {
 async function saveEdit() {
   const text = $('edText').value.replace(/\s+/g, ' ').trim(), date = $('edDate').value;
   if (!text) { alert('内容を入れてください'); return; }
+  if (edKind === 'ho') { // 引き継ぎ（2026-11-18）：内容だけ。同じ引き継ぎの全員分
+    $('edBox').classList.add('hidden');
+    if (text === edCur.text) return;
+    busy(true);
+    try { render(await call('editHandover', { id: edCur.id, text })); show('内容を直しました（全員の一覧に反映されます）'); }
+    finally { busy(false); }
+    return;
+  }
   const a = edCur, today = ymd(new Date());
   const oldDate = edKind === 'task' ? (a.due || '') : a.date, dateChanged = date !== oldDate;
   if (dateChanged && date && date < today) { alert('過ぎた日付は選べません'); return; }
@@ -3324,8 +3346,8 @@ document.addEventListener('visibilitychange', alarmCheck);
 
 async function ack(id, cb) {
   busy(true);
-  try { render(await call('ackHandover', { id })); show(showTasks() ? '個別業務に移しました（期日は明日）' : '確認しました'); }
-  catch (e) { cb.checked = false; }
+  try { render(await call('ackHandover', { id })); show('確認しました'); } // 2026-11-18 個別業務へ移すのは廃止（引き継ぎ事項の一覧に残る）
+  catch (e) { if (cb) cb.checked = false; }
   finally { busy(false); }
 }
 /* ---- QR読み取り（出勤・退勤ボタンでカメラを起動） ---- */
@@ -3440,6 +3462,48 @@ async function clockOut() {
   } finally { busy(false); }
 }
 
+/* ---- 引き継ぎ事項の一覧（2026-11-18）：送信ボタンの下に全員の引き継ぎを新しい順に。送った日時・送った人・宛先・確認した人。
+   自分あてで未確認なら「確認した」。編集・ゴミ箱は同じ引き継ぎの全員分（個別業務と同じボタン）。期日・延期はない。件数は折りたたんでも見出しに出す ---- */
+function drawHoList(list) {
+  me.hoList = list || [];
+  const box = $('hoList'), n = me.hoList.length;
+  box.innerHTML = '';
+  $('hoCount').textContent = n ? `${n}件` : '';
+  $('hoCount').classList.toggle('hot', me.hoList.some(h => h.mine));
+  if (!n) return;
+  const hd = document.createElement('div'); hd.className = 'hlhead'; hd.textContent = '引き継ぎの一覧（新しい順）'; box.appendChild(hd);
+  me.hoList.forEach(h => {
+    const row = document.createElement('div'); row.className = 'titem'; row.dataset.hid = h.id;
+    const body = document.createElement('div'); body.style.flex = '1';
+    const txt = document.createElement('div'); txt.className = 't'; txt.append(linked(h.text));
+    const meta = document.createElement('div'); meta.className = 'sub';
+    const who = document.createElement('span'); who.append(`${h.date}　`, pn(`${h.from}より`), ' → ', pn(h.to)); meta.appendChild(who);
+    const st = document.createElement('div'); st.className = 'sub hodone' + (h.done.length ? '' : ' none');
+    st.textContent = h.done.length ? `確認済み：${h.done.join('・')}` + (h.left ? `（未確認 ${h.left}人）` : '') : 'まだ確認した人はいません';
+    const btns = document.createElement('div'); btns.className = 'sub';
+    if (h.mine) { const b = document.createElement('button'); b.className = 'pp st'; b.textContent = '確認した'; b.onclick = () => ack(h.mine); btns.appendChild(b); }
+    const eb = document.createElement('button'); eb.className = 'pp nt'; eb.textContent = '編集'; eb.onclick = () => openHoEdit(h); btns.appendChild(eb);
+    body.append(txt, thumbs(h.images), meta, st, btns);
+    const del = document.createElement('button'); del.className = 'ghost trash'; del.title = '削除'; del.onclick = () => removeHo(h);
+    const wrap = document.createElement('div'); wrap.className = 'trashwrap';
+    const cap = document.createElement('small'); cap.textContent = '削除';
+    wrap.append(cap, del); row.append(body, wrap); box.appendChild(row);
+  });
+}
+function openHoEdit(h) {
+  edCur = h; edKind = 'ho';
+  $('edNote').textContent = 'この引き継ぎの内容を直します。全員の一覧がこの内容になります。';
+  $('edText').value = h.text; $('edFrom').textContent = '';
+  ['edDateWrap', 'edEveryWrap', 'edRepWrap', 'edWhoWrap'].forEach(id => $(id).classList.add('hidden'));
+  $('edBox').classList.remove('hidden');
+}
+async function removeHo(h) {
+  if (!await ask('この引き継ぎを削除しますか？\n（全員の一覧から消えます。まだ確認していない人の申し送りからも消えます）')) return;
+  if (!await ask('本当に削除しますか？\n\nはい＝削除する\nいいえ＝削除しない', `あなたの選択：削除する\n引き継ぎ：${h.text.length > 40 ? h.text.slice(0, 40) + '…' : h.text}`)) return;
+  busy(true);
+  try { render(await call('removeHandover', { id: h.id })); show('引き継ぎを削除しました'); }
+  finally { busy(false); }
+}
 /** 引き継ぎ事項を送る（2026-11-08 退勤前チェックから独立。PC・スマホとも）。送れたら true */
 async function sendHandover() {
   const text = $('hoText').value.trim();
@@ -3447,7 +3511,8 @@ async function sendHandover() {
   if (!$('hoTo').value) { alert('引き継ぎの宛先を選んでください'); $('hoCard').open = true; mobShow($('hoCard')); return false; }
   const btn = $('hoBtn'); btn.disabled = true; busy(true);
   try {
-    await call('sendHandover', { to: $('hoTo').value, text, images: hoImages });
+    const r = await call('sendHandover', { to: $('hoTo').value, text, images: hoImages });
+    if (r && r.hoList) drawHoList(r.hoList); // 送信ボタンの下の一覧に出る（2026-11-18）
     $('hoText').value = ''; $('hoTo').value = ''; hoImages = []; drawHoImages();
     show('引き継ぎを送信しました');
     return true;

@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261118114554">
+<meta name="build" content="20261118115826">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -382,6 +382,8 @@
   .titem.pending { opacity:.55; pointer-events:none; } /* 業務追加の登録中（2026-11-08） */
   .pendtag { font-size:12px; color:var(--sub); margin-left:6px; }
   .lastdone { display:table; padding:1px 6px; font-size:12px; color:var(--ok); border:1px solid #c7d8cd; background:#f3f8f5; white-space:nowrap; } /* 日常業務の前回完了日（2026-11-18） */
+  .every { display:flex; gap:8px; } .every .tkdate { width:auto; margin:0; } .every input.tkdate { flex:0 0 96px; text-align:center; } .every select.tkdate { flex:1; } /* 日常業務の間隔 */
+  .nextdue { display:inline-block; margin-left:0; } /* 日常業務の次の回 */
   .lastdone.none { color:var(--sub); border-color:var(--line); background:#f7f7f6; }
   :is(#tasks, #daily) .titem.my:not(.alert) { background:#eaf3fb; margin:0 -8px; padding-left:8px; padding-right:8px; } /* マイタスクは薄い青（2026-11-08。期日が来たら赤を優先） */
   :is(#tasks, #daily) .titem.alert { padding-left:5px; } /* 赤い線（3px）の分だけ詰めて、□と本文の位置をほかの行とそろえる */
@@ -748,12 +750,13 @@
 
       <div class="overlay hidden" id="rqBox">
         <div class="modal" style="max-height:90vh;overflow-y:auto">
-          <strong id="rqTitle">個別業務を依頼</strong>
-          <p class="sub hidden" id="rqDailyNote" style="margin:4px 0 6px">日常業務は担当を決めず、全員の画面に出ます。だれかが完了すると全員の画面で済みになり、前回完了日が出ます</p>
+          <strong id="rqHead">個別業務を依頼</strong>
+          <p class="sub hidden" id="rqDailyNote" style="margin:4px 0 6px">日常業務は期日を決めず、選んだ間隔でくり返す定期業務です。担当はなく全員の画面に出ます。だれかが完了すると全員の画面で済みになり、その日から数えて次の回になります</p>
           <label for="rqText" class="tklabel">内容</label>
           <textarea id="rqText" rows="3" maxlength="200"></textarea>
           <div id="rqWhoWrap"><span class="tklabel">担当 <small class="sub">（複数可）</small></span>
           <div class="whos" id="rqWho"></div></div>
+          <div id="rqDateWrap">
           <label for="rqStart" class="tklabel"><span class="ico-start"></span>開始日 <small class="sub">（なくても可。期日の1か月前まで。入れると開始日から期日まで一覧の上の方に出ます）</small></label>
           <input type="date" id="rqStart" class="tkdate">
           <label for="rqDue" class="tklabel"><span class="ico-due"></span>期日 <small class="sub">（必須）</small></label>
@@ -765,6 +768,12 @@
             <option value="MN">毎月（期日と同じ「第○ ○曜日」）</option><option value="Y">毎年（期日と同じ月日）</option>
           </select>
           <div class="hidden" id="rqDaysWrap"><span class="tklabel">曜日（複数可）</span><div class="whos" id="rqDays"></div></div>
+          </div>
+          <div class="hidden" id="rqEveryWrap"><!-- 日常業務の間隔（2026-11-18） -->
+            <label for="rqEveryN" class="tklabel"><span class="rep"></span>間隔 <small class="sub">（完了した日から数えて、次の回が出ます）</small></label>
+            <div class="every"><input type="number" id="rqEveryN" class="tkdate" min="1" max="365" step="1" inputmode="numeric" value="1">
+              <select id="rqEveryU" class="tkdate"><option value="D">日ごと</option><option value="W">週間ごと</option><option value="M">ヶ月ごと</option></select></div>
+          </div>
           <button onclick="doRequest()">登録</button>
           <button class="ghost" onclick="$('rqBox').classList.add('hidden')">キャンセル</button>
         </div>
@@ -863,12 +872,19 @@
           <p class="sub" id="edNote" style="margin:4px 0 6px"></p>
           <textarea id="edText" rows="3" maxlength="200"></textarea>
           <p class="sub" id="edFrom" style="margin:4px 0 0"></p>
+          <div id="edDateWrap">
           <label for="edDate" class="tklabel"><span class="ico-due"></span>期日</label>
           <input type="date" id="edDate" class="tkdate" onchange="edRepHint(); edStartRange()">
           <p class="sub" id="edDateNote" style="margin:4px 0 0"></p>
           <label for="edStart" class="tklabel"><span class="ico-start"></span>開始日 <small class="sub">（なくても可。期日の1か月前まで。空にすると開始日なし）</small></label><!-- 編集の窓から開始日（2026-11-15） -->
           <input type="date" id="edStart" class="tkdate">
           <p class="sub" id="edStartNote" style="margin:4px 0 0"></p>
+          </div>
+          <div class="hidden" id="edEveryWrap"><!-- 日常業務の間隔（2026-11-18） -->
+            <label for="edEveryN" class="tklabel"><span class="rep"></span>間隔 <small class="sub">（完了した日から数えて、次の回が出ます）</small></label>
+            <div class="every"><input type="number" id="edEveryN" class="tkdate" min="1" max="365" step="1" inputmode="numeric" value="1">
+              <select id="edEveryU" class="tkdate"><option value="D">日ごと</option><option value="W">週間ごと</option><option value="M">ヶ月ごと</option></select></div>
+          </div>
           <div class="hidden" id="edWhoWrap"><!-- 個別業務の担当の付け外し（2026-11-06） -->
             <span class="tklabel">担当 <small class="sub">（外すとその人の個別業務から消えます。足した人には新着で届きます）</small></span>
             <div class="whos" id="edWho"></div>
@@ -1483,7 +1499,7 @@ function mobBar() {
   const an = (me.annual || []).filter(a => !a.event && !String(a.id).startsWith('tmp-'));
   const badge = {
     task: { n: tk.filter(x => x.isNew || (x.due && x.due <= wk)).length, hot: tkHot > 0 },
-    daily: { n: dl.filter(x => x.due && x.due <= wk).length, hot: dl.some(x => x.due && x.due <= today) },
+    daily: { n: dl.filter(x => x.due && x.due <= today).length, hot: true }, // 日常業務は次の回が来た分だけ（2026-11-18）
     annual: { n: an.filter(a => a.left <= 7).length, hot: an.some(a => a.left <= 0) }, // 1週間以内（期日が来た分は赤）
     ho: { n: (me.handovers || []).length, hot: true }, // 届いた申し送り
   };
@@ -1885,6 +1901,8 @@ function openTaskEdit(t) {
   $('edStart').value = t.start || ''; edStartRange();
   $('edStartNote').textContent = '開始日から期日まで一覧の上の方に出ます。' + (mates ? `同じ依頼の ${mates} の分も同じ開始日になります。` : '');
   $('edRepWrap').classList.add('hidden');
+  $('edDateWrap').classList.toggle('hidden', !!t.daily); $('edEveryWrap').classList.toggle('hidden', !t.daily); // 日常業務は期日の代わりに間隔（2026-11-18）
+  if (t.daily) setEvery('ed', t.rule);
   $('edDateNote').textContent = '期日そのものを直します（今回だけずらす時は「延長」）。空にすると期日なし。' + (mates ? `同じ依頼の ${mates} の分も同じ期日になります。` : '');
   // 担当の付け外し（2026-11-06）。寺内スケジュールから追加した分は1人ずつなので出さない
   const who = !t.daily && t.from !== '寺内スケジュール' && (me.taskPeople || []).length > 1; // 日常業務には担当がない（2026-11-18）
@@ -1909,6 +1927,7 @@ function edWhoIds() {
 }
 function openEdit(a) {
   edCur = a; edKind = 'annual';
+  $('edDateWrap').classList.remove('hidden'); $('edEveryWrap').classList.add('hidden');
   $('edNote').textContent = '古くなった書き方を、今に合った表現に直します。全員の画面と、来年以降の予定もこの内容になります。';
   edSetDate(a.date);
   $('edDateNote').textContent = a.cycle ? `期日を変えると、この日から数え直します（今回だけずらす時は「延長」）`
@@ -1947,6 +1966,18 @@ async function saveEdit() {
   const before = [Number(auth.id)].concat((a.mateIds || []).map(Number));
   const added = ids ? ids.filter(x => !before.includes(x)).map(nameOf) : [], dropped = ids ? before.filter(x => !ids.includes(x)).map(nameOf) : [];
   if (dropped.length && !await ask(`${nbs(dropped)} を担当から外しますか？（外した人の個別業務から消えます。7日間は「削除済み」から戻せます）`)) return;
+  if (edKind === 'task' && a.daily) { // 日常業務：内容と間隔（2026-11-18）。間隔を変えたら次の回を前回完了した日から数え直す
+    const ev = everyOf('ed');
+    if (!ev) { alert('間隔は1〜365の数を入れてください'); return; }
+    $('edBox').classList.add('hidden');
+    const evChanged = ev.rule !== a.rule;
+    if (text === a.text && !evChanged) return;
+    const due = evChanged && a.lastDone ? everyNext(ev.rule, a.lastDone) : a.due;
+    drawTasks(sortTasks(me.tasks.map(x => x.id === a.id ? Object.assign({}, x, { text, due, rule: ev.rule, ruleLabel: ruleLabel(ev.rule), repeat: true }) : x)));
+    saveLater('tasks', 'editTask', Object.assign({ id: a.id, text }, evChanged ? { every: { n: ev.n, u: ev.u } } : {}));
+    show(`${[text !== a.text && '内容', evChanged && '間隔'].filter(Boolean).join('・')}を直しました（全員の画面に反映されます）`);
+    return;
+  }
   $('edBox').classList.add('hidden');
   const rep = edKind === 'annual' ? $('edRep').value : '', repChanged = edKind === 'annual' && rep !== edRep0;
   if (text === a.text && !dateChanged && !repChanged && !ids && !startChanged) return;
@@ -2038,7 +2069,7 @@ function morningCheck() {
 let nearDay = '';
 function nearItems(list, today) {
   const t0 = new Date(today + 'T00:00:00');
-  return (list || []).filter(t => t.due && !String(t.id).startsWith('tmp-') && !/^(D|WD|W:)/.test(t.rule || ''))
+  return (list || []).filter(t => t.due && !t.daily && !String(t.id).startsWith('tmp-') && !/^(D|WD|W:)/.test(t.rule || '')) // 日常業務は期日がないので出さない（2026-11-18）
     .map(t => ({ t, left: Math.round((new Date(t.due + 'T00:00:00') - t0) / 864e5) }))
     .filter(x => x.left <= 14);
 }
@@ -2171,7 +2202,13 @@ function drawTaskList(list, daily, today) {
       ['あなた'].concat(t.mates).forEach((n, k) => { if (k) w.append('・'); w.appendChild(pn(n)); });
       meta.appendChild(w);
     }
-    if (t.due) {
+    if (t.due && daily) { // 日常業務（2026-11-18）：期日ではなく「次の回」。過ぎた分だけ赤、今日は黄
+      left = Math.round((new Date(t.due + 'T00:00:00') - new Date(today + 'T00:00:00')) / 864e5);
+      if (left >= 0) row.classList.remove('alert');
+      const b = document.createElement('span'); b.className = 'due nextdue' + (left < 0 ? ' over' : left === 0 ? ' soon' : '');
+      b.textContent = `次回 ${mdOf(t.due)}` + (left < 0 ? `（${-left}日経過）` : left === 0 ? '（今日）' : `（あと${left}日）`);
+      meta.appendChild(b);
+    } else if (t.due) {
       const [, m, d] = t.due.split('-').map(Number);
       left = Math.round((new Date(t.due + 'T00:00:00') - new Date(today + 'T00:00:00')) / 864e5);
       const b = document.createElement('span');
@@ -2180,7 +2217,7 @@ function drawTaskList(list, daily, today) {
       if (t.start) meta.appendChild(periodTag(t.start, t.due, today)); // 開始日（2026-11-11）
       meta.appendChild(b);
     }
-    meta.appendChild(ppButton(() => openPostpone('task', t, t.due)));
+    if (!daily) meta.appendChild(ppButton(() => openPostpone('task', t, t.due))); // 日常業務は延長しない（期日がないため。2026-11-18）
     if (!daily) { // 日常業務は寺内スケジュールへ移さない（2026-11-18）
       const mv = document.createElement('button'); mv.className = 'pp mv'; mv.textContent = '寺内へ';
       mv.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); openTaskToAnnual(t); }; // 行はlabelなのでチェックが入らないように
@@ -2841,12 +2878,12 @@ async function doneTask(t, cb) {
     + (all ? '' : (t.mates || []).length ? `\nまだ済んでいない担当：${nbs(t.mates)}（その人の分は残ります）` : t.multi ? '\nこの依頼の担当は、これで全員済みます' : '');
   const finalOk = more => ask('この内容で完了にしますか？\n\nはい＝完了する\nいいえ＝完了にしない', sum + more);
   if (t.repeat && t.rule) { // 周期が決まっている繰り返し：次回の期日は自動（サーバーと同じ計算で先に表示）
-    const today = ymd(new Date()), next = nextByRule(t.rule, t.due && t.due > today ? t.due : today);
+    const today = ymd(new Date()), next = isEvery(t.rule) ? everyNext(t.rule, today) : nextByRule(t.rule, t.due && t.due > today ? t.due : today); // 日常業務は今日から間隔だけ先
     const [, m, d] = next.split('-').map(Number);
-    if (!await finalOk(`\n${all ? '全員の' : ''}次回の期日：${m}/${d}（🔁${t.ruleLabel || ruleLabel(t.rule)}で繰り返し）`)) { cb.checked = false; return; }
+    if (!await finalOk(`\n${all ? '全員の' : ''}${t.daily ? '次回' : '次回の期日'}：${m}/${d}（🔁${t.ruleLabel || ruleLabel(t.rule)}で繰り返し）`)) { cb.checked = false; return; }
     drawTasks(sortTasks(me.tasks.map(x => x.id === t.id ? Object.assign({}, x, { due: next, isNew: false }, t.daily ? { lastDone: today, lastBy: me.name } : {}) : x))); // 日常業務は前回完了日も先に直す
     saveLater('tasks', 'doneTask', { id: t.id, due: t.due || '', all });
-    show(`完了しました。次回の期日は ${m}/${d} です`);
+    show(`完了しました。次回${t.daily ? '' : 'の期日'}は ${m}/${d} です`);
     return;
   }
   if (t.repeat) { openTk(t, cb, false, all); return; } // 次回の期日を選ぶ窓（「キャンセル」で取りやめ）
@@ -2883,12 +2920,27 @@ function ruleMatch(rule, d) {
   return false;
 }
 const WEEK = '日月火水木金土';
+/* 日常業務の間隔（2026-11-18。Task.gs と同じ）：ED:3＝3日ごと、EW:2＝2週間ごと、EM:1＝毎月。完了した日から数える */
+function isEvery(rule) { return /^E[DWM]:\d+$/.test(String(rule || '')); }
+function everyNext(rule, from) {
+  const [k, a] = String(rule).split(':'), n = Number(a), d = new Date(from + 'T00:00:00');
+  if (k === 'ED' || k === 'EW') { d.setDate(d.getDate() + (k === 'EW' ? 7 : 1) * n); return ymd(d); }
+  const day = d.getDate(); d.setDate(1); d.setMonth(d.getMonth() + n);
+  d.setDate(Math.min(day, new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate())); return ymd(d);
+}
+/** 間隔の入力欄（rq＝依頼の窓、ed＝編集の窓）→ { n, u }・周期。不正なら null */
+function everyOf(pre) {
+  const n = Number($(pre + 'EveryN').value), u = $(pre + 'EveryU').value;
+  return Number.isInteger(n) && n >= 1 && n <= 365 ? { n, u, rule: `E${u}:${n}` } : null;
+}
+function setEvery(pre, rule) { const [k, a] = isEvery(rule) ? String(rule).split(':') : ['ED', '1']; $(pre + 'EveryN').value = a; $(pre + 'EveryU').value = k.slice(1); }
 function ruleFromKind(kind, base) {
   const d = new Date(base + 'T00:00:00'), w = d.getDay(), day = d.getDate(), n = Math.ceil(day / 7);
   return { D: 'D', WD: 'WD', W: 'W:' + w, M: 'M:' + day, MN: 'MN:' + (n <= 4 ? n : 'L') + ':' + w, Y: 'Y:' + (d.getMonth() + 1) + '-' + day }[kind] || '';
 }
 function ruleLabel(rule) {
   const [k, a, b] = String(rule).split(':');
+  if (isEvery(rule)) { const u = k.slice(1); return Number(a) === 1 ? { D: '毎日', W: '毎週', M: '毎月' }[u] : a + { D: '日ごと', W: '週間ごと', M: 'ヶ月ごと' }[u]; } // 日常業務（2026-11-18）
   if (k === 'D') return '毎日';
   if (k === 'WD') return '平日（月〜金）';
   if (k === 'W') return '毎週 ' + a.split(',').map(i => WEEK[i]).join('・');
@@ -2992,9 +3044,11 @@ function taRepHint() { repHint($('taRep').value, $('taDate').value, taCur && taC
 let rqCat = '';
 function openRequest(cat) {
   rqCat = cat === 'daily' ? 'daily' : '';
-  $('rqTitle').textContent = rqCat ? '日常業務に追加' : '個別業務を依頼';
+  $('rqHead').textContent = rqCat ? '日常業務に追加' : '個別業務を依頼';
   $('rqDailyNote').classList.toggle('hidden', !rqCat);
   $('rqWhoWrap').classList.toggle('hidden', !!rqCat);
+  $('rqDateWrap').classList.toggle('hidden', !!rqCat); $('rqEveryWrap').classList.toggle('hidden', !rqCat); // 日常業務は期日の代わりに間隔（2026-11-18）
+  setEvery('rq', '');
   $('rqText').value = ''; $('rqDue').value = ''; $('rqDue').min = ymd(new Date()); $('rqStart').value = ''; startRange('rqStart', '');
   $('rqRep').value = ''; $('rqDaysWrap').classList.add('hidden');
   $('rqWho').innerHTML = '';
@@ -3022,7 +3076,20 @@ async function doRequest() {
     ids: [...$('rqWho').querySelectorAll('input:checked')].map(c => Number(c.value)),
     days: [...$('rqDays').querySelectorAll('input:checked')].map(c => Number(c.value)) };
   const daily = rqCat === 'daily', w = daily ? '日常業務' : '個別業務';
-  if (daily) { p.cat = 'daily'; p.ids = []; } // 日常業務は担当なし（2026-11-18）
+  if (daily) { // 日常業務は担当・期日なし。間隔だけ（2026-11-18）
+    if (!p.text) { alert('内容を入れてください'); return; }
+    const ev = everyOf('rq');
+    if (!ev) { alert('間隔は1〜365の数を入れてください'); return; }
+    const q = { text: p.text, cat: 'daily', every: { n: ev.n, u: ev.u }, rid: newRid() }, today = ymd(new Date());
+    $('rqBox').classList.add('hidden');
+    drawTasks(sortTasks((me.tasks || []).concat([{ id: 'tmp-' + q.rid, text: q.text, due: today, start: '', from: me.name, repeat: true, rule: ev.rule, ruleLabel: ruleLabel(ev.rule),
+      multi: false, mates: [], isNew: false, images: [], daily: true, lastDone: '' }])));
+    show('日常業務を登録しています…（そのまま操作を続けられます）');
+    saveLater('tasks', 'requestTask', q, { retry: true, pick: r => r.tasks,
+      ok: r => show(`日常業務に追加しました：「${q.text.slice(0, 30)}」（🔁${r.ruleLabel}）`),
+      fail: e => { show(`日常業務を登録できませんでした：${e.message}`, true); openRequestAgain(true); } });
+    return;
+  }
   if (!p.text) { alert('内容を入れてください'); return; }
   if (!daily && !p.ids.length) { alert('担当を選んでください'); return; }
   if (!p.kind && p.ids.length > 1) { alert('担当が複数の時は、繰り返すかどうか（繰り返し方）を選んでください'); return; }
@@ -3052,8 +3119,9 @@ async function doRequest() {
 /** 登録できなかった時に、入れた内容を残したまま窓を開き直す（日常業務・個別業務の別も戻す） */
 function openRequestAgain(daily) {
   rqCat = daily ? 'daily' : '';
-  $('rqTitle').textContent = daily ? '日常業務に追加' : '個別業務を依頼';
+  $('rqHead').textContent = daily ? '日常業務に追加' : '個別業務を依頼';
   $('rqDailyNote').classList.toggle('hidden', !daily); $('rqWhoWrap').classList.toggle('hidden', daily);
+  $('rqDateWrap').classList.toggle('hidden', daily); $('rqEveryWrap').classList.toggle('hidden', !daily);
   $('rqBox').classList.remove('hidden');
 }
 /** 送信の印（送り直した時にサーバーが同じ登録と分かるように） */

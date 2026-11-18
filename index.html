@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261118143748">
+<meta name="build" content="20261118144907">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -1532,10 +1532,11 @@ function mobBar() {
   const tk = all.filter(x => !x.daily), dl = all.filter(x => x.daily); // 日常業務は別のタブ（2026-11-18）
   const an = (me.annual || []).filter(a => !a.event && !String(a.id).startsWith('tmp-'));
   // 数える項目。k＝新着の印（赤。タブを開いたら消す）、due＝期日の印（金。期日が近い・来た。完了するまで残る）
-  //  新着＝届いた個別業務・期日が来た回（個別業務・日常業務・寺内スケジュール）・届いた申し送り。開いた後も期日の分は金で残る（2026-11-18 ユーザー指定）
+  //  新着＝届いた個別業務・期日が来た回（個別業務・日常業務・寺内スケジュール）・届いた申し送り。開いた後も期日の分は金で残る（2026-11-18 ユーザー指定）。
+  //  ただし日常業務は、開いたら赤も金も消す（2026-11-18 ユーザー指定。次の回が来た時にまた赤）
   const items = {
     task: tk.filter(x => x.isNew || (x.due && x.due <= wk)).map(x => ({ k: x.isNew ? x.id + ':n' : x.due <= today ? x.id + ':d' + x.due : '', due: !!(x.due && x.due <= wk) })),
-    daily: dl.filter(x => x.due && x.due <= today).map(x => ({ k: x.id + ':d' + x.due, due: true })), // 日常業務は次の回が来た分だけ（2026-11-18）。回ごとに新着
+    daily: dl.filter(x => x.due && x.due <= today).map(x => ({ k: x.id + ':d' + x.due, due: false })), // 日常業務は次の回が来た分だけ（2026-11-18）。回ごとに新着。開いた後は金も出さない（2026-11-18 ユーザー指定）
     annual: an.filter(a => a.left <= 7).map(a => ({ k: a.left <= 0 ? a.id + ':d' + a.key : '', due: true })), // 1週間以内（期日が来た回は新着）
     ho: (me.handovers || []).length ? me.handovers.map(h => ({ k: 'h' + h.id, due: false })) : (me.hoList || []).map(h => ({ k: '', due: true })), // 届いた申し送り（赤・新着）、なければ一覧に残っている件数（金。2026-11-18）
   };

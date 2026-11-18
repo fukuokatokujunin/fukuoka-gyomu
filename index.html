@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261118142914">
+<meta name="build" content="20261118143748">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -1531,15 +1531,16 @@ function mobBar() {
   const all = showTasks() ? (me.tasks || []).filter(x => !String(x.id).startsWith('tmp-')) : [];
   const tk = all.filter(x => !x.daily), dl = all.filter(x => x.daily); // 日常業務は別のタブ（2026-11-18）
   const an = (me.annual || []).filter(a => !a.event && !String(a.id).startsWith('tmp-'));
-  // 数える項目。k＝新着の印（開いたら消す）、due＝期日の印（期日が近い・来た。開いても残す）
+  // 数える項目。k＝新着の印（赤。タブを開いたら消す）、due＝期日の印（金。期日が近い・来た。完了するまで残る）
+  //  新着＝届いた個別業務・期日が来た回（個別業務・日常業務・寺内スケジュール）・届いた申し送り。開いた後も期日の分は金で残る（2026-11-18 ユーザー指定）
   const items = {
-    task: tk.filter(x => x.isNew || (x.due && x.due <= wk)).map(x => ({ k: x.isNew ? x.id + ':n' : '', hot: true, due: x.due && x.due <= wk ? { hot: x.due <= today } : null })),
-    daily: dl.filter(x => x.due && x.due <= today).map(x => ({ k: '', due: { hot: true } })), // 日常業務は次の回が来た分だけ（2026-11-18）
-    annual: an.filter(a => a.left <= 7).map(a => ({ k: '', due: { hot: a.left <= 0 } })), // 1週間以内（期日が来た分は赤）
-    ho: (me.handovers || []).length ? me.handovers.map(h => ({ k: 'h' + h.id, hot: true })) : (me.hoList || []).map(h => ({ k: '', due: { hot: false } })), // 届いた申し送り（赤・新着）、なければ一覧に残っている件数（金。2026-11-18）
+    task: tk.filter(x => x.isNew || (x.due && x.due <= wk)).map(x => ({ k: x.isNew ? x.id + ':n' : x.due <= today ? x.id + ':d' + x.due : '', due: !!(x.due && x.due <= wk) })),
+    daily: dl.filter(x => x.due && x.due <= today).map(x => ({ k: x.id + ':d' + x.due, due: true })), // 日常業務は次の回が来た分だけ（2026-11-18）。回ごとに新着
+    annual: an.filter(a => a.left <= 7).map(a => ({ k: a.left <= 0 ? a.id + ':d' + a.key : '', due: true })), // 1週間以内（期日が来た回は新着）
+    ho: (me.handovers || []).length ? me.handovers.map(h => ({ k: 'h' + h.id, due: false })) : (me.hoList || []).map(h => ({ k: '', due: true })), // 届いた申し送り（赤・新着）、なければ一覧に残っている件数（金。2026-11-18）
   };
   // 新着の印はタブを開いたら消す（2026-11-18 ユーザー指定）：開いた時に出ていた新着をこの端末に「見た」と覚え、新しく来た分だけをまた数える。
-  //  期日が近い・来たことを知らせる印は、開いても残す（2026-11-18 ユーザー指定）
+  //  期日の印は開いても金で残す（2026-11-18 ユーザー指定）
   const seenKey = 'tabSeen:' + (auth && auth.id);
   let seen = {}; try { seen = JSON.parse(localStorage.getItem(seenKey) || '{}') || {}; } catch (e) {}
   let seenChanged = false;
@@ -1548,7 +1549,7 @@ function mobBar() {
     const ks = items[t].filter(x => x.k).map(x => x.k);
     if (cur === 'clock' && mobTab === t && !document.hidden && String(seen[t] || '') !== String(ks)) { seen[t] = ks; seenChanged = true; } // 開いている
     const old = new Set(seen[t] || []);
-    const on = items[t].map(x => x.k && !old.has(x.k) ? x.hot : x.due ? x.due.hot : null).filter(h => h !== null);
+    const on = items[t].map(x => x.k && !old.has(x.k) ? true : x.due ? false : null).filter(h => h !== null); // true＝赤（まだ見ていない新着）、false＝金
     badge[t] = { n: on.length, hot: on.some(h => h) };
   });
   if (seenChanged) try { localStorage.setItem(seenKey, JSON.stringify(seen)); } catch (e) {}

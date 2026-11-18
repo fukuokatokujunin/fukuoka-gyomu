@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261118161703">
+<meta name="build" content="20261118162621">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -630,6 +630,7 @@
   #envPreview .envarr.z { background:rgba(214,52,42,.25); }
   #envPreview .envarr:hover, #envPreview .envarr:active { background:rgba(34,38,41,.6); opacity:1; } #envPreview .envarr.z:hover, #envPreview .envarr.z:active { background:rgba(214,52,42,.65); }
   #envPreview .envarr svg { width:14px; height:14px; }
+  .envhow { margin:10px 0 0; padding-left:1.4em; line-height:1.7; } .envhow b { color:var(--ink); font-weight:600; }
   #envSheet { display:none; }
   @media print { /* 封筒印刷の時だけ：封筒1枚のほかは隠し、紙の左上にぴったり置く */
     html:has(body.envPrinting) { background:#fff !important; }
@@ -1099,7 +1100,12 @@
           <div class="envbtns"><button class="sec" onclick="envAdjSet(envAdj())">前回の位置に戻す</button><button class="sec" onclick="envAdjSet({})">0に戻す</button></div>
         </div>
         <div class="envbtns"><button class="sec" onclick="envGo(2)">修正する</button><button onclick="envPrint()">印刷</button></div>
-        <p class="sub">「印刷」を押すとプリンターの画面が出ます。封筒の大きさは自動で選ばれます。封筒は手差しトレイに入れてください</p>
+        <ol class="sub envhow"><!-- 手差しトレイはChromeの画面では選べないので、パソコンの印刷画面へ切り替える（2026-11-18） -->
+          <li>封筒を手差しトレイに入れる</li>
+          <li>「印刷」を押す（プリンターの画面が出ます。封筒の大きさは自動で選ばれます）</li>
+          <li>左下の「<b>システムダイアログを使用して印刷…</b>」を押す（パソコンの印刷画面に変わります）</li>
+          <li>プリンターを選び、「給紙」（または「用紙トレイ」）で<b>手差しトレイ</b>を選んで印刷する</li>
+        </ol>
         <button class="ghost" onclick="envNext()">続けて別の宛名を入力する</button>
       </div>
     </section>
@@ -1453,7 +1459,7 @@ function logout() {
 function view(v) {
   cur = v;
   ['clock', 'req', 'env', 'admin'].forEach(x => $('v-' + x).classList.toggle('hidden', v !== x));
-  $('btnEnv').classList.toggle('hidden', v === 'env');
+  $('btnEnv').classList.toggle('hidden', v === 'env' || !IS_PC); // 封筒印刷はパソコンだけ（スマホ・iPadは用紙を選べないので出さない。2026-11-18 ユーザー指定）
   $('main').classList.toggle('split', v === 'clock');
   $('main').classList.toggle('three', v === 'clock' && showTasks());
   $('btnReq').classList.toggle('hidden', v === 'req' || me.noAttend);

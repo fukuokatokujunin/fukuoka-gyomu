@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261118114256">
+<meta name="build" content="20261118114554">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -1191,7 +1191,7 @@ function openPre(on) {
 let dueMode = false; // 退勤前に期日の項目を片付けている最中（全部済むまで知らせ続ける）
 function dueItems() {
   const today = ymd(new Date());
-  const tasks = (showTasks() ? me.tasks || [] : []).filter(t => t.due && t.due <= today).map(t => ({ kind: tw(t), text: t.text, date: t.due, sel: taskSel(t.id) }));
+  const tasks = (showTasks() ? me.tasks || [] : []).filter(t => !t.daily && t.due && t.due <= today).map(t => ({ kind: '個別業務', text: t.text, date: t.due, sel: taskSel(t.id) })); // 日常業務は入れない（2026-11-18 ユーザー指定）
   const ann = (me.annual || []).filter(a => !a.event && a.left <= 0).map(a => ({ kind: '寺内スケジュール', text: a.text, date: a.date, sel: `#annual [data-aid="${a.id}"]` }));
   return tasks.concat(ann);
 }

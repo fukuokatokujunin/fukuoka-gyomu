@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261118140114">
+<meta name="build" content="20261118140355">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -299,7 +299,7 @@
     background:linear-gradient(180deg, rgba(20,22,24,.8) 0%, rgba(20,22,24,.6) 40%, rgba(20,22,24,.8) 100%), url('https://fukuokatokujunin.github.io/fukuoka-gyomu/menu-bg.jpg?v=1') center / cover no-repeat; }
   #menu.open { opacity:1; visibility:visible; transition:opacity .5s ease; }
   #menu.open::before { transform:scale(1); }
-  html.menuLock, html.menuLock body { overflow:hidden; }
+  html.menuLock { overflow:hidden; } /* body には付けない（付けると上の帯の固定が外れ、スクロールした所で開くと帯が上に見切れる。2026-11-18） */
   html.menuLock header { z-index:10; } /* 下のタブ・お知らせより上に */
   #menu button { width:min(320px,100%); margin:0; border:0 !important; border-bottom:1px solid rgba(255,255,255,.35) !important; padding:20px 8px !important; text-align:center;
     font-family:"Shippori Mincho","Hiragino Mincho ProN","Yu Mincho",serif; font-size:18px !important; font-weight:500; letter-spacing:.3em !important; color:#fff; background:transparent !important;

@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261118144907">
+<meta name="build" content="20261118151100">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -451,6 +451,7 @@
   .rule { margin-top:4px; font-size:12px; color:var(--sub); letter-spacing:.04em; }
   .rule.rep::before { width:15px; height:15px; margin-right:6px; background-size:10px; vertical-align:-2px; } /* 周期の行の繰り返しアイコン（小さめ） */
   .tklabel .rep::before { vertical-align:-3px; }
+  .rep.inl::before { width:15px; height:15px; margin:0 5px 0 0; background-size:10px; vertical-align:-2px; } /* 文の中の繰り返しアイコン（確認の窓のまとめ・お知らせの帯。絵文字🔁の代わり。2026-11-18） */
   /* 期日・開始日のアイコン（2026-11-15。繰り返しと同じ黒い四角＋白い線） */
   .ico-due::before, .ico-start::before { content:''; display:inline-block; width:18px; height:18px; margin:0 8px 0 0; vertical-align:-3px; background:#222629 no-repeat center / 12px; }
   .ico-due::before { background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2.2' stroke-linecap='square'%3E%3Crect x='3' y='5' width='18' height='16'/%3E%3Cpath d='M3 10h18M8 2v5M16 2v5'/%3E%3C/svg%3E"); }
@@ -480,9 +481,11 @@
      TOPはインフォと勤務中の枠（申し送り・退勤前チェックを含む）だけにし、各機能はタブで切り替える。同じタブをもう一度押すとTOPへ ===== */
   #tabbar, .mobhead, #mobBack, .btndesc { display:none; }
   @media (max-width:899px) {
-    /* 2026-11-11：画面の角が丸い機種で左右の下が見切れたので、上げて内側に寄せ、角を丸める */
-    body.mob.tabs #tabbar { display:flex; position:fixed; left:12px; right:12px; bottom:calc(24px + env(safe-area-inset-bottom)); z-index:8; height:66px;
-      border-radius:20px; overflow:hidden; background:rgba(34,38,41,.95); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); box-shadow:0 12px 32px rgba(0,0,0,.35); }
+    /* 2026-11-18：左右と下の余白をなくし、画面の下いっぱいに付ける（11-11 の内側に寄せた形をやめた）。
+       角が丸い機種で見切れないよう、下はホームバーの分（safe-area）だけ内側にあけてアイコンを上に置く */
+    body.mob.tabs #tabbar { display:flex; position:fixed; left:0; right:0; bottom:0; z-index:8; height:calc(66px + env(safe-area-inset-bottom));
+      padding:0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+      border-radius:0; overflow:hidden; background:rgba(34,38,41,.95); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); box-shadow:0 -6px 20px rgba(0,0,0,.25); }
     #tabbar button { flex:1 1 0; width:auto; min-width:0; margin:0; padding:0; background:none; border:0; color:rgba(255,255,255,.55); position:relative;
       display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; font-size:10px; font-weight:400; letter-spacing:.06em; transition:color .25s; }
     #tabbar button.wide { flex-grow:1.8; } /* ホームを足して6つでも「寺内スケジュール」が1行に収まるように */
@@ -499,12 +502,12 @@
     #tabbar i.pulse { animation:tabPulse 1.6s ease-in-out infinite; } /* 新着・期日が来た分は明滅 */
     @keyframes tabPulse { 50% { transform:scale(1.18); } }
     #tabbar i:empty { display:none; }
-    body.mob.tabs main { padding-bottom:124px; }
+    body.mob.tabs main { padding-bottom:100px; }
     body.mob.tabs #btnAdmin { display:none !important; } /* 管理は下のタブから */
-    body.mob.tabs #newPop, body.mob.tabs #saveBar { bottom:calc(102px + env(safe-area-inset-bottom)); }
-    body.mob.tabs #dueBar { bottom:calc(154px + env(safe-area-inset-bottom)); }
-    body.mob.tabs.saving #newPop { bottom:calc(156px + env(safe-area-inset-bottom)); }
-    body.mob.tabs.saving #dueBar { bottom:calc(208px + env(safe-area-inset-bottom)); }
+    body.mob.tabs #newPop, body.mob.tabs #saveBar { bottom:calc(78px + env(safe-area-inset-bottom)); }
+    body.mob.tabs #dueBar { bottom:calc(130px + env(safe-area-inset-bottom)); }
+    body.mob.tabs.saving #newPop { bottom:calc(132px + env(safe-area-inset-bottom)); }
+    body.mob.tabs.saving #dueBar { bottom:calc(184px + env(safe-area-inset-bottom)); }
     /* 選んでいるタブの枠だけ出す（TOP＝home はインフォ・勤務中の枠） */
     body.mob.tabs #v-clock:not([data-tab=annual]) #annualBox, body.mob.tabs #v-clock:not([data-tab=task]) #taskBox, body.mob.tabs #v-clock:not([data-tab=daily]) #dailyBox,
     body.mob.tabs #v-clock:not([data-tab=add]) #addBox, body.mob.tabs #v-clock:not([data-tab=ho]) #hoCard,
@@ -527,11 +530,11 @@
     #tabbar.two button, #tabbar.two button.wide { flex:0 0 var(--tw); height:56px; }
     #tabbar.two button.r2 { box-shadow:inset 0 1px 0 rgba(255,255,255,.08); } /* 段の区切りの細い線 */
     #tabbar.two button span { letter-spacing:0; }
-    body.mob.tabs.tab2 main { padding-bottom:170px; }
-    body.mob.tabs.tab2 #newPop, body.mob.tabs.tab2 #saveBar { bottom:calc(148px + env(safe-area-inset-bottom)); }
-    body.mob.tabs.tab2 #dueBar { bottom:calc(200px + env(safe-area-inset-bottom)); }
-    body.mob.tabs.tab2.saving #newPop { bottom:calc(202px + env(safe-area-inset-bottom)); }
-    body.mob.tabs.tab2.saving #dueBar { bottom:calc(254px + env(safe-area-inset-bottom)); }
+    body.mob.tabs.tab2 main { padding-bottom:146px; }
+    body.mob.tabs.tab2 #newPop, body.mob.tabs.tab2 #saveBar { bottom:calc(124px + env(safe-area-inset-bottom)); }
+    body.mob.tabs.tab2 #dueBar { bottom:calc(176px + env(safe-area-inset-bottom)); }
+    body.mob.tabs.tab2.saving #newPop { bottom:calc(178px + env(safe-area-inset-bottom)); }
+    body.mob.tabs.tab2.saving #dueBar { bottom:calc(230px + env(safe-area-inset-bottom)); }
   }
   @media (max-width:360px) { #tabbar button { font-size:9px; letter-spacing:0; } #tabbar svg { width:21px; height:21px; } }
   /* ===== 予定カレンダー（2026-11-11）：寺内スケジュール＝藍、個別業務＝代赭（たいしゃ）。行事は藍の枠だけ ===== */
@@ -1311,11 +1314,19 @@ if (stampQr) history.replaceState(null, '', location.pathname);
 function call(action, payload) {
   return rawCall(action, auth, payload).catch(e => { show(e.message, true); throw e; });
 }
+/** 文字を入れる。🔁 はほかの画面と同じ線画の繰り返しアイコンにする（絵文字だと雰囲気が合わない。2026-11-18 ユーザー指定） */
+function setRepText(el, t) {
+  el.textContent = '';
+  String(t || '').split('🔁').forEach((x, k) => {
+    if (k) { const i = document.createElement('span'); i.className = 'rep inl'; el.appendChild(i); }
+    el.appendChild(document.createTextNode(x));
+  });
+}
 function show(t, err) {
   $('msg').innerHTML = '';
   if (!t) return;
   const d = document.createElement('div');
-  d.className = 'msg ' + (err ? 'err' : 'ok'); d.textContent = t;
+  d.className = 'msg ' + (err ? 'err' : 'ok'); setRepText(d, t);
   $('msg').appendChild(d); window.scrollTo(0, 0);
   if (!err) setTimeout(() => d.remove(), 5000); // 完了などのお知らせは5秒で消す（エラーは残す）
 }
@@ -1617,7 +1628,7 @@ function notice(title, msg) {
 function ask(msg, sum, cancel) {
   return new Promise(done => {
     const box = $('askBox'), y = $('askYes'), n = $('askNo'), c = $('askCancel');
-    $('askMsg').textContent = msg; $('askSum').textContent = sum || '';
+    $('askMsg').textContent = msg; setRepText($('askSum'), sum);
     box.classList.toggle('final', !!sum); box.classList.remove('hidden');
     c.textContent = cancel || ''; c.style.display = sum && cancel ? 'block' : '';
     y.disabled = n.disabled = c.disabled = !!sum;
@@ -2939,7 +2950,7 @@ async function doneTask(t, cb) {
   if (t.repeat && t.rule) { // 周期が決まっている繰り返し：次回の期日は自動（サーバーと同じ計算で先に表示）
     const today = ymd(new Date()), next = isEvery(t.rule) ? everyNext(t.rule, today) : nextByRule(t.rule, t.due && t.due > today ? t.due : today); // 日常業務は今日から間隔だけ先
     const [, m, d] = next.split('-').map(Number);
-    if (!await finalOk(`\n${all ? '全員の' : ''}${t.daily ? '次回' : '次回の期日'}：${m}/${d}（🔁${t.ruleLabel || ruleLabel(t.rule)}で繰り返し）`)) { cb.checked = false; return; }
+    if (!await finalOk(`\n${all ? '全員の' : ''}${t.daily ? '次回' : '次回の期日'}：${m}/${d}\n🔁${t.ruleLabel || ruleLabel(t.rule)}で繰り返し`)) { cb.checked = false; return; }
     drawTasks(sortTasks(me.tasks.map(x => x.id === t.id ? Object.assign({}, x, { due: next, isNew: false }, t.daily ? { lastDone: today, lastBy: me.name } : {}) : x))); // 日常業務は前回完了日も先に直す
     saveLater('tasks', 'doneTask', { id: t.id, due: t.due || '', all });
     show(`完了しました。次回${t.daily ? '' : 'の期日'}は ${m}/${d} です`);
@@ -3145,7 +3156,7 @@ async function doRequest() {
       multi: false, mates: [], isNew: false, images: [], daily: true, lastDone: '' }])));
     show('日常業務を登録しています…（そのまま操作を続けられます）');
     saveLater('tasks', 'requestTask', q, { retry: true, pick: r => r.tasks,
-      ok: r => show(`日常業務に追加しました：「${q.text.slice(0, 30)}」（🔁${r.ruleLabel}）`),
+      ok: r => show(`日常業務に追加しました：「${q.text.slice(0, 30)}」 🔁${r.ruleLabel}`),
       fail: e => { show(`日常業務を登録できませんでした：${e.message}`, true); openRequestAgain(true); } });
     return;
   }

@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261118162621">
+<meta name="build" content="20261118180051">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -387,6 +387,11 @@
   button.pp.nt { background:#fff; color:#222629; border:1px solid #222629; margin-left:6px; } button.pp.nt::before { display:none; }
   /* 進捗が書き込まれた予定は「進捗」を薄い青で点灯（2026-11-10 明滅→2026-11-17 点灯に変更） */
   button.pp.nt.has { background:#bfdcf5; }
+  /* 手順（2026-11-18）：書いてあれば薄い金色。進捗（青）と見分ける */
+  button.pp.nt.pr.has { background:#efe3c2; }
+  .tl .ne .ed { font-size:11px; color:var(--sub); margin-left:6px; }
+  .tl .ne .fix { margin-left:8px; font-size:11px; color:#1d4ed8; cursor:pointer; text-decoration:underline; }
+  .tl .ne.editing { background:#fbf6ea; }
   .ntlast { margin-top:4px; font-size:12px; color:var(--sub); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; border-left:2px solid #c9b88f; padding-left:6px; }
   .annual .titem > div { min-width:0; } /* 最新の書き込みの1行が長くても、行の幅を広げない */
   /* 個別業務の行（2026-11-04）：担当者の名前が長くても本文の幅を広げない（ゴミ箱が枠の外へ押し出されないように）。
@@ -984,6 +989,23 @@
           <button class="ghost" onclick="closeNotes()">閉じる</button>
         </div>
       </div>
+      <div class="overlay hidden" id="prBox" onclick="if (event.target === this) closePr()">
+        <div class="modal" style="max-height:90vh;overflow-y:auto">
+          <strong>手順</strong>
+          <div class="sub" id="prText" style="margin:4px 0 2px"></div>
+          <p class="sub" style="margin:2px 0 0">作業のやり方を残す所です。進捗と違い、次の回（来年以降）もそのまま表示されます。だれでも書き足し・直し・消すことができます。</p>
+          <div class="tl" id="prList"></div>
+          <div id="prForm">
+            <div class="sub hidden" id="prEditing" style="margin:6px 0 2px;color:#8a6d1f">色の付いた手順を直しています（写真の×で外せます）</div>
+            <textarea id="prInput" rows="5" maxlength="2000" placeholder="手順を書く（例：①倉庫の2段目から箱を出す ②数を数えて…）"></textarea>
+            <label class="attach"><input type="file" id="prFile" accept="image/*" multiple onchange="addPrImages(this)">写真を添付 <small>1件に10枚まで</small></label>
+            <div class="thumbs" id="prThumbs"></div>
+            <button id="prSave" onclick="savePr()">残す</button>
+            <button class="ghost hidden" id="prCancel" onclick="cancelPrEdit()">直すのをやめる</button>
+          </div>
+          <button class="ghost" onclick="closePr()">閉じる</button>
+        </div>
+      </div>
       <div class="overlay hidden" id="nearBox">
         <div class="modal" style="max-height:85vh;overflow-y:auto">
           <strong>期日が近い個別業務があります</strong>
@@ -1546,6 +1568,7 @@ function render(s) {
   $('hoCard').classList.toggle('hidden', !(s.working || s.noAttend || (s.hoList || []).length)); // 一覧が残っていれば勤務外でも見られる（2026-11-18）
   $('hoForm').classList.toggle('hidden', !(s.working || s.noAttend)); // 送るのはこれまでどおり勤務中・シフト対象外の人
   drawHoList(s.hoList || []);
+  setTimeout(hoDoneAsk, 0); // 自分が送った引き継ぎを全員が確認していれば、削除するか聞く（2026-11-18）
   if ([...$('hoTo').options].some(o => o.value === hoKeep)) $('hoTo').value = hoKeep;
 
   // タスク（勤務中のみ表示）
@@ -1900,6 +1923,11 @@ function drawAnnual(list) {
       if ((a.notes || []).length) nb.classList.add('has'); // 進捗があれば薄い青で明滅（2026-11-10）
       nb.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); openNotes(a); }; // 行はlabelなのでチェックが入らないように
       meta.appendChild(nb);
+      const pb = document.createElement('button'); pb.className = 'pp nt pr'; // 手順（2026-11-18。翌年以降も残る）
+      pb.textContent = (a.procs || []).length ? `手順 ${a.procs.length}` : '手順';
+      if ((a.procs || []).length) pb.classList.add('has');
+      pb.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); openPr(a); };
+      meta.appendChild(pb);
       const eb = document.createElement('button'); eb.className = 'pp nt'; eb.textContent = '編集';
       eb.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); openEdit(a); };
       meta.appendChild(eb);
@@ -1933,6 +1961,7 @@ function drawAnnual(list) {
   if (typeof dueMode !== 'undefined' && dueMode) setTimeout(refreshDue, 0);
   if (stCur && !$('stBox').classList.contains('hidden')) drawStart();
   if (ntCur && !$('ntBox').classList.contains('hidden')) drawNotes();
+  if (prCur && !$('prBox').classList.contains('hidden')) drawPr();
 }
 
 /* 着手（寺内スケジュール。2026-11-16 作り替え）：
@@ -2206,6 +2235,97 @@ async function delNote(noteId) {
   busy(true);
   try { await saveQueue; drawAnnual(await call('delAnnualNote', { noteId })); show('書き込みを消しました'); }
   finally { busy(false); }
+}
+
+/* 手順（2026-11-18）：作業のやり方を文章と写真で残す。予定ごと（回ごとではない）なので、次の回・来年以降もそのまま出る。
+   だれでも書き足し・直し・消せる。書いた人・日時は自動、直した時は最後に直した人・日時も出す */
+const PR_MAX_IMAGES = 10, PR_ONCE = 5;
+let prCur = null, prEdit = null, prKeep = [], prImages = [];
+function openPr(a) { prCur = a.id; prReset(); drawPr(); $('prBox').classList.remove('hidden'); }
+function closePr() { prCur = null; prReset(); $('prBox').classList.add('hidden'); }
+function prReset() { prEdit = null; prKeep = []; prImages = []; $('prInput').value = ''; prFormMode(); drawPrImages(); }
+function prFormMode() {
+  $('prEditing').classList.toggle('hidden', !prEdit);
+  $('prCancel').classList.toggle('hidden', !prEdit);
+  $('prSave').textContent = prEdit ? '直した内容を保存' : '残す';
+}
+function prItem() { return (me.annual || []).find(x => !x.event && x.id === prCur); }
+function drawPr() {
+  const a = prItem();
+  if (!a) { closePr(); return; }
+  $('prText').textContent = a.text;
+  const list = a.procs || [];
+  if (prEdit && !list.some(p => p.id === prEdit)) { prReset(); show('直していた手順はほかの人が消しました', true); }
+  $('prList').innerHTML = list.length ? '' : '<p class="sub" style="margin:0">まだ手順は書かれていません</p>';
+  list.forEach(p => {
+    const d = document.createElement('div'); d.className = 'ne' + (p.id === prEdit ? ' editing' : '');
+    const w = document.createElement('div'); w.className = 'who'; w.textContent = `${nb(p.name)}　${p.at}`;
+    if (p.edited) { const e = document.createElement('span'); e.className = 'ed'; e.textContent = `（${nb(p.edited.by)} ${p.edited.at} に直した）`; w.appendChild(e); }
+    const f = document.createElement('span'); f.className = 'fix'; f.textContent = '直す'; f.onclick = () => editPr(p);
+    const x = document.createElement('span'); x.className = 'del'; x.textContent = '消す'; x.onclick = () => delPr(p.id);
+    w.append(f, x);
+    const t = document.createElement('div'); t.className = 'tx'; t.append(linked(p.text));
+    d.append(w, t, thumbs(p.images)); $('prList').appendChild(d);
+  });
+}
+function editPr(p) {
+  prEdit = p.id; prKeep = (p.images || []).slice(); prImages = [];
+  $('prInput').value = p.text || ''; prFormMode(); drawPrImages(); drawPr();
+  $('prInput').focus();
+}
+function cancelPrEdit() { prReset(); drawPr(); }
+async function addPrImages(input) {
+  const files = [...input.files]; input.value = '';
+  const room = Math.max(0, Math.min(PR_MAX_IMAGES - prKeep.length - prImages.length, PR_ONCE - prImages.length));
+  if (files.length > room) alert(prKeep.length + prImages.length + files.length > PR_MAX_IMAGES
+    ? `写真は1件に${PR_MAX_IMAGES}枚までです（先の${room}枚だけ付けました）`
+    : `写真は1回に${PR_ONCE}枚まで付けられます（先の${room}枚だけ付けました。残りは保存したあと「直す」から足せます）`);
+  for (const f of files.slice(0, room)) {
+    try { prImages.push(await shrinkImage(f)); } catch (e) { alert(e.message); }
+  }
+  drawPrImages();
+}
+function drawPrImages() {
+  $('prThumbs').innerHTML = '';
+  const add = (setBg, onBig, onDel) => {
+    const d = document.createElement('div'); d.className = 'th'; setBg(d); d.onclick = onBig;
+    const x = document.createElement('button'); x.textContent = '×'; x.title = '外す';
+    x.onclick = ev => { ev.stopPropagation(); onDel(); drawPrImages(); };
+    d.appendChild(x); $('prThumbs').appendChild(d);
+  };
+  prKeep.forEach((id, i) => add( // 直す時：いま付いている写真（×で外すと保存した時に消える）
+    d => loadImage(id).then(u => { d.style.backgroundImage = `url("${u}")`; }).catch(() => { d.textContent = '×'; }),
+    () => loadImage(id).then(u => { $('imgBig').src = u; $('imgBox').classList.remove('hidden'); }).catch(() => show('画像を読み込めませんでした', true)),
+    () => prKeep.splice(i, 1)));
+  prImages.forEach((u, i) => add(d => { d.style.backgroundImage = `url("${u}")`; },
+    () => { $('imgBig').src = u; $('imgBox').classList.remove('hidden'); }, () => prImages.splice(i, 1)));
+}
+async function savePr() {
+  const a = prItem(), text = $('prInput').value.trim();
+  if (!a) return;
+  if (!text && !prKeep.length && !prImages.length) { alert(prEdit ? '手順を入れてください（すべて消す時は「消す」を押してください）' : '手順を入れてください'); return; }
+  if (prEdit) {
+    const p = (a.procs || []).find(x => x.id === prEdit), gone = p ? (p.images || []).length - prKeep.length : 0;
+    if (gone > 0 && !await ask(`外した写真${gone}枚は消えます。保存しますか？`)) return;
+  }
+  busy(true);
+  try {
+    await saveQueue;
+    drawAnnual(await call(prEdit ? 'editAnnualProc' : 'addAnnualProc',
+      prEdit ? { procId: prEdit, text, keep: prKeep, images: prImages } : { id: a.id, text, images: prImages }));
+    show(prEdit ? '手順を直しました' : '手順を残しました（次の回・来年以降も表示されます）');
+    prReset(); drawPr();
+  } finally { busy(false); }
+}
+async function delPr(procId) {
+  if (!await ask('この手順を消しますか？（写真もいっしょに消えます。全員の画面から消えます）')) return;
+  busy(true);
+  try {
+    await saveQueue;
+    drawAnnual(await call('delAnnualProc', { procId }));
+    if (prEdit === procId) { prReset(); drawPr(); }
+    show('手順を消しました');
+  } finally { busy(false); }
 }
 
 /* PCで1日の最初に開いた時：カレンダー・LINE・メールの確認を促す（端末ごとに1日1回） */
@@ -3609,7 +3729,7 @@ function drawHoList(list) {
     const meta = document.createElement('div'); meta.className = 'sub';
     const who = document.createElement('span'); who.append(`${h.date}　`, pn(`${h.from}より`), ' → ', pn(h.to)); meta.appendChild(who);
     const st = document.createElement('div'); st.className = 'sub hodone' + (h.done.length ? '' : ' none');
-    st.textContent = h.done.length ? `確認済み：${h.done.join('・')}` + (h.left ? `（未確認 ${h.left}人）` : '') : 'まだ確認した人はいません';
+    st.textContent = h.done.length ? `確認済み：${h.done.join('・')}` + (h.left ? `（未確認 ${h.left}人）` : h.done.length > 1 ? '（全員確認済み）' : '') : 'まだ確認した人はいません';
     const btns = document.createElement('div'); btns.className = 'sub';
     if (h.mine) { const b = document.createElement('button'); b.className = 'pp st'; b.textContent = '確認した'; b.onclick = () => ack(h.mine); btns.appendChild(b); }
     const eb = document.createElement('button'); eb.className = 'pp nt'; eb.textContent = '編集'; eb.onclick = () => openHoEdit(h); btns.appendChild(eb);
@@ -3619,6 +3739,25 @@ function drawHoList(list) {
     const cap = document.createElement('small'); cap.textContent = '削除';
     wrap.append(cap, del); row.append(body, wrap); box.appendChild(row);
   });
+}
+/* 全員が確認した引き継ぎ（2026-11-18）：送った人の画面で、削除するか1回だけ聞く。「残す」を選んでも一覧のゴミ箱からいつでも削除できる。
+   ほかの確認の窓が出ている時は出さない（次に画面を読み直した時に聞く） */
+let hoAsking = false;
+async function hoDoneAsk() {
+  const h = (me.hoList || []).find(x => x.ask);
+  if (!h || hoAsking || document.querySelector('.overlay:not(.hidden)')) return; // ほかの窓（メール登録・期日が近い等）が出ている間は聞かない
+  hoAsking = true;
+  try {
+    const t = h.text.length > 60 ? h.text.slice(0, 60) + '…' : h.text;
+    const n = await choose(`送った引き継ぎを${h.to === '全員' ? '全員' : h.to + 'さん'}が確認しました\n\n「${t}」\n\n引き継ぎ事項から削除しますか？\n（残しても、あとで一覧のゴミ箱からいつでも削除できます）`,
+      ['削除する', '残す']);
+    busy(true);
+    try {
+      render(await call('hoDoneAnswer', { id: h.id, remove: n === 0 }));
+      show(n === 0 ? '引き継ぎを削除しました' : '一覧に残しました（ゴミ箱からいつでも削除できます）');
+    } finally { busy(false); }
+  } catch (e) { /* 失敗した時は次に読み直した時にまた聞く */ }
+  finally { hoAsking = false; }
 }
 function openHoEdit(h) {
   edCur = h; edKind = 'ho';

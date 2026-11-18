@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261118180512">
+<meta name="build" content="20261118180652">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -895,7 +895,6 @@
       <div class="overlay hidden" id="stBox" onclick="if (event.target === this) closeStart()">
         <div class="modal">
           <strong>着手している人</strong>
-          <div class="sub" id="stText" style="margin:4px 0 10px"></div>
           <div id="stList"></div>
           <p class="sub" style="margin:10px 0 0">自分の名前を押すと、着手を取り消せます</p>
           <button class="ghost" onclick="closeStart()">閉じる</button>
@@ -976,7 +975,6 @@
       <div class="overlay hidden" id="ntBox" onclick="if (event.target === this) closeNotes()">
         <div class="modal" style="max-height:90vh;overflow-y:auto">
           <strong>進捗</strong>
-          <div class="sub" id="ntText" style="margin:4px 0 2px"></div>
           <div class="sub" id="ntWho"></div>
           <div class="tl" id="ntList"></div>
           <div id="ntForm">
@@ -1021,7 +1019,6 @@
       <div class="overlay hidden" id="ppBox" onclick="if (event.target === this) this.classList.add('hidden')">
         <div class="modal">
           <strong>期日を延長</strong>
-          <div class="sub" id="ppText" style="margin:4px 0 6px"></div>
           <label for="ppDate" class="tklabel"><span class="ico-due"></span>延長後の期日</label>
           <input type="date" id="ppDate" class="tkdate">
           <p class="sub" style="margin:6px 0">今回の分だけ延長します（次回は本来の期日で表示されます）</p>
@@ -1048,7 +1045,6 @@
       <div class="overlay hidden" id="tkPicker" onclick="if (event.target === this) closeTk()">
         <div class="modal">
           <strong><span class="rep"></span><span id="tkTitle">次回の期日と繰り返しを選んで完了</span></strong>
-          <div class="sub" id="tkText" style="margin:4px 0 6px"></div>
           <label for="tkDate" class="tklabel"><span class="ico-due"></span>次回の期日（タップして日付を選ぶ）</label>
           <input type="date" id="tkDate" class="tkdate" onchange="guessKind()">
           <label for="tkKind" class="tklabel"><span class="rep"></span>これからの繰り返し</label>
@@ -2030,7 +2026,6 @@ async function startAsk(a, title) {
 function drawStart() {
   const a = me.annual.find(x => !x.event && x.id === stCur);
   if (!a) { closeStart(); return; }
-  $('stText').textContent = a.text;
   $('stList').innerHTML = '';
   a.starters.forEach(p => {
     const mine = String(p.id) === String(auth.id);
@@ -2197,7 +2192,6 @@ function closeNotes() { ntCur = null; $('ntBox').classList.add('hidden'); }
 function drawNotes() {
   const a = me.annual.find(x => !x.event && x.id === ntCur);
   if (!a) { closeNotes(); return; }
-  $('ntText').textContent = a.text;
   $('ntWho').textContent = (a.starters || []).length ? '着手している人：' + nbs(a.starters.map(p => p.name)) : 'まだだれも着手していません';
   $('ntList').innerHTML = (a.notes || []).length ? '' : '<p class="sub" style="margin:0">まだ書き込みはありません</p>';
   (a.notes || []).forEach(n => {
@@ -2714,7 +2708,6 @@ function openPostpone(kind, item, due) {
   const base = new Date(Math.max(Date.now(), due ? new Date(due + 'T00:00:00').getTime() : 0));
   base.setDate(base.getDate() + 7);
   $('ppDate').min = ymd(new Date()); $('ppDate').value = ymd(base); // 仮に1週間後
-  $('ppText').textContent = item.text;
   $('ppBox').classList.remove('hidden');
 }
 function doPostpone() {
@@ -3243,7 +3236,6 @@ function openTk(t, cb, conv, all) {
   if (conv) $('tkKind').value = 'W'; // 新しく繰り返す時は「毎週」から（選び直せる）
   $('tkTitle').textContent = conv ? '繰り返しの設定（次回の期日と繰り返し方）' : '次回の期日と繰り返しを選んで完了';
   $('tkEnd').textContent = conv ? '繰り返さずに完了' : '完了にして繰り返さない';
-  $('tkText').textContent = t.text;
   $('tkPicker').classList.remove('hidden');
 }
 function closeTk() { if (tkCur) tkCur.cb.checked = false; tkCur = null; $('tkPicker').classList.add('hidden'); }

@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261118151138">
+<meta name="build" content="20261118153950">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -604,6 +604,24 @@
   #calDay { margin-top:14px; padding-top:12px; border-top:1px solid var(--ink); display:flex; flex-direction:column; gap:6px; }
   #calDay > b { font-family:"Shippori Mincho","Hiragino Mincho ProN","Yu Mincho",serif; font-weight:500; font-size:15px; letter-spacing:.12em; margin-bottom:2px; }
   #calBox .calnote { font-size:11px; margin:12px 0 0; letter-spacing:.04em; }
+  /* 封筒印刷（2026-11-18）。封筒そのものの見た目（.envpage）は ENV_CSS（印刷と共用） */
+  .envsizes { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:14px; }
+  .envsizes button { display:flex; flex-direction:column; align-items:center; gap:8px; margin:0; padding:18px 6px; background:#fff; color:var(--ink); border:1px solid var(--line); letter-spacing:.1em; }
+  .envsizes button:hover { border-color:var(--ink); opacity:1; }
+  .envsizes .shape { border:1.5px solid var(--ink); background:#fff; }
+  .envsizes b { font-size:17px; font-weight:600; }
+  .envsizes small { font-size:11px; color:var(--sub); letter-spacing:.04em; line-height:1.5; }
+  .envform label { display:block; margin-top:16px; font-size:13px; color:var(--sub); letter-spacing:.1em; }
+  .envform .ziprow { display:flex; align-items:center; gap:8px; } .envform .ziprow input { width:12em; flex:none; }
+  #envZipMsg { font-size:13px; margin:2px 0 0; min-height:1.4em; color:var(--sub); } #envZipMsg.ng { color:var(--ng); } #envZipMsg.ok { color:var(--ok); }
+  #envZipPick button { width:auto; display:inline-block; margin:4px 6px 0 0; padding:6px 10px; font-size:13px; letter-spacing:.04em; background:#fff; color:var(--ink); border:1px solid var(--ink); }
+  .envform .namerow { display:flex; gap:8px; } .envform .namerow select { width:6em; flex:none; }
+  .envbtns { display:flex; gap:10px; margin-top:18px; } .envbtns button { margin:0; } .envbtns button.sec { flex:0 0 32%; }
+  #envPreview { display:flex; justify-content:center; padding:18px 0; background:#e9eaea; margin-top:12px; }
+  #envPreview .scaler { position:relative; box-shadow:0 2px 10px rgba(0,0,0,.25); }
+  #envPreview .envpage { position:absolute; left:0; top:0; transform-origin:0 0; }
+  .envadj { margin-top:14px; font-size:13px; } .envadj summary { cursor:pointer; color:var(--sub); }
+  .envadj .row { align-items:center; margin-top:6px; } .envadj input { width:6em; flex:none; padding:6px 4px; margin:0; }
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Shippori+Mincho:wght@400;500;600&display=swap" rel="stylesheet">
@@ -665,6 +683,7 @@
     <button id="btnMenu" class="hidden" onclick="event.stopPropagation(); menuOpen(!$('menu').classList.contains('open'))" aria-label="メニュー"><i></i><i></i><i></i></button>
     <div id="menu" onclick="menuOpen(false)">
       <button id="btnReq" class="hidden" onclick="view('req')">シフト希望</button>
+      <button id="btnEnv" class="hidden" onclick="view('env')">封筒印刷</button>
       <button id="btnAdmin" class="hidden" onclick="view('admin')">管理</button>
       <button id="btnPush" class="hidden" onclick="testPushMe()">通知のテスト</button>
       <button id="btnLogout" class="hidden" onclick="logout()">ログアウト</button>
@@ -1030,6 +1049,44 @@
       </div>
     </section>
 
+    <!-- 封筒印刷（2026-11-18）：①大きさ → ②宛先の入力 → ③印字の確認・印刷 -->
+    <section id="v-env" class="hidden">
+      <button class="ghost back" onclick="view('clock')">← TOPに戻る</button>
+      <div class="card" id="envStep1">
+        <h3>封筒印刷</h3>
+        <p class="sub">封筒の大きさを選んでください</p>
+        <div class="envsizes" id="envSizes"></div>
+      </div>
+      <div class="card envform hidden" id="envStep2">
+        <h3 id="envTitle2"></h3>
+        <label>郵便番号</label>
+        <div class="ziprow"><input id="envZip" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="例：8200046" oninput="envZipInput()"></div>
+        <p id="envZipMsg">7けたの数字を入れると住所が自動で出ます</p>
+        <div id="envZipPick"></div>
+        <label>住所（番地・建物名まで）</label>
+        <input id="envAddr" autocomplete="off" placeholder="例：福岡県飯塚市大日寺512-149">
+        <p class="sub">住所が長い時は、建物名の前にスペースを入れると、そこで2行に分けて印字します</p>
+        <label>名前</label>
+        <div class="namerow"><input id="envName" autocomplete="off" placeholder="例：市丸　元気"><select id="envHon"><option>様</option><option>御中</option></select></div>
+        <p class="sub">名字と名前の間は全角スペースを入れると見やすくなります</p>
+        <div class="envbtns"><button class="sec" onclick="envGo(1)">戻る</button><button onclick="envConfirm()">確認</button></div>
+      </div>
+      <div class="card hidden" id="envStep3">
+        <h3 id="envTitle3"></h3>
+        <p class="sub">印字のイメージです<span id="envGuideNote">（赤い枠は封筒に印刷済みの郵便番号の枠。印刷はされません）</span></p>
+        <div id="envPreview"></div>
+        <div class="envbtns"><button class="sec" onclick="envGo(2)">修正する</button><button onclick="envPrint()">印刷</button></div>
+        <p class="sub">「印刷」を押すとプリンターの画面が出ます。封筒の大きさは自動で選ばれます。封筒は手差しトレイに入れてください</p>
+        <button class="ghost" onclick="envNext()">続けて別の宛名を入力する</button>
+        <details class="envadj"><summary>印字がずれる時（位置の調整）</summary>
+          <p class="sub">プリンターによって少しずれることがあります。ずれた分をmmで入れてください（このパソコンに覚えます）</p>
+          <div class="row"><span>右へ</span><input id="envAdjX" type="number" step="0.5" onchange="envAdjSave()"><span>mm</span>
+            <span>下へ</span><input id="envAdjY" type="number" step="0.5" onchange="envAdjSave()"><span>mm</span></div>
+          <p class="sub">左・上へずらす時はマイナス（例：-1.5）</p>
+        </details>
+      </div>
+    </section>
+
     <!-- 管理 -->
     <section id="v-admin" class="hidden">
       <button class="ghost back" onclick="view('clock')">← TOPに戻る</button>
@@ -1378,7 +1435,8 @@ function logout() {
 
 function view(v) {
   cur = v;
-  ['clock', 'req', 'admin'].forEach(x => $('v-' + x).classList.toggle('hidden', v !== x));
+  ['clock', 'req', 'env', 'admin'].forEach(x => $('v-' + x).classList.toggle('hidden', v !== x));
+  $('btnEnv').classList.toggle('hidden', v === 'env');
   $('main').classList.toggle('split', v === 'clock');
   $('main').classList.toggle('three', v === 'clock' && showTasks());
   $('btnReq').classList.toggle('hidden', v === 'req' || me.noAttend);
@@ -1388,6 +1446,7 @@ function view(v) {
   mobBar();
   show('');
   if (v === 'req') loadReq();
+  if (v === 'env') envGo(1);
   if (v === 'admin') {
     // 選べる月：希望を受付中の月（締切日を過ぎたら翌々月。2026-11-17）・翌月・今月。開くたびに作り直す（日をまたいでも進む）
     // 初期は翌月。翌月のシフト作業が完了していたら次の月（loadAdmin の auto）
@@ -3586,6 +3645,188 @@ setTimeout(function(){print()},600)<\/script>`);
     if (reset) show('QRコードを作り直しました。新しいQRコードを印刷して貼り替えてください');
   } catch (e) { w.close(); }
   finally { busy(false); }
+}
+
+/* ---- 封筒印刷（2026-11-18）----
+   ①大きさを選ぶ → ②郵便番号・住所・名前（郵便番号から住所を自動で入れる。zipcloud） → ③印字の確認 → 印刷。
+   すべて横書き。配置はユーザーの見本（角2＝〒付きの郵便番号、長3・ハガキ＝印刷済みの郵便番号の枠に1けたずつ）。
+   印刷は見えない枠（iframe）に封筒1枚だけの紙面を作り、@page で用紙の大きさを指定してプリンターの画面を出す。
+   手差しトレイ・プリンターの選択はブラウザからは決められない（プリンター側の設定） */
+const ENV_SIZES = { // 寸法・位置はmm（左上から）。box＝郵便番号の枠（日本郵便の規格：5.7×8mm、前3けた7mm間隔・後4けた6.8mm間隔）
+  kaku2:  { label: '角2号', w: 240, h: 332, note: 'A4の書類を<br>折らずに入れる',
+            zip: { x: 45, y: 85, fs: 7.5 }, addr: { x: 45, y: 104, w: 180, fs: 7.5 }, name: { y: 141, fs: 8.5 } },
+  naga3:  { label: '長3号', w: 120, h: 235, note: 'A4を<br>三つ折りで入れる',
+            box: { x: 63.2, y: 12, fs: 6 }, addr: { x: 12, y: 66.5, w: 98, fs: 6 }, name: { y: 86, fs: 6.5 } },
+  hagaki: { label: 'ハガキ', w: 100, h: 148, note: 'はがき<br>100×148mm',
+            box: { x: 44, y: 12, fs: 5.5, mincho: true }, addr: { x: 13, y: 51, w: 80, fs: 5, mincho: true }, name: { y: 68.5, fs: 6.5 } },
+};
+// 封筒の紙面の見た目（画面の確認と印刷で同じものを使う）
+const ENV_CSS = `.envpage{position:relative;background:#fff;color:#000;overflow:hidden;letter-spacing:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.envpage .in{position:absolute;inset:0}
+.envpage .el{position:absolute;white-space:nowrap;line-height:1.25;font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic","YuGothic","Meiryo",sans-serif;font-weight:700}
+.envpage .m{font-family:"Hiragino Mincho ProN","Yu Mincho","YuMincho","MS PMincho",serif;font-weight:400}
+.envpage .zd{text-align:center;font-weight:500}.envpage .zd.m{font-weight:400}
+.envpage .nm{text-align:center}
+.envpage .ad.wrap{white-space:normal;word-break:break-all}
+.envpage .guide{position:absolute;border:.35mm solid #e8473b;box-sizing:border-box}`;
+(() => { const s = document.createElement('style'); s.textContent = ENV_CSS; document.head.appendChild(s); })();
+const MM = 96 / 25.4; // 1mm の画面上の点の数
+let envSize = 'naga3', envAuto = '', envZipLast = '';
+const envEsc = t => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const envZipNorm = v => String(v).replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0)).replace(/\D/g, '');
+
+function envGo(n) {
+  [1, 2, 3].forEach(i => $('envStep' + i).classList.toggle('hidden', i !== n));
+  const z = ENV_SIZES[envSize];
+  if (n === 1 && !$('envSizes').children.length) {
+    $('envSizes').innerHTML = Object.keys(ENV_SIZES).map(k => {
+      const s = ENV_SIZES[k], r = 56 / Math.max(s.w, s.h);
+      return `<button onclick="envPick('${k}')"><span class="shape" style="width:${Math.round(s.w * r)}px;height:${Math.round(s.h * r)}px"></span>
+        <b>${s.label}</b><small>${s.w}×${s.h}mm<br>${s.note}</small></button>`;
+    }).join('');
+  }
+  if (n === 2) { $('envTitle2').textContent = z.label + '　宛先の入力'; setTimeout(() => $(envZipNorm($('envZip').value).length === 7 ? 'envAddr' : 'envZip').focus(), 50); }
+  if (n === 3) { $('envTitle3').textContent = z.label + '　印字の確認'; $('envGuideNote').classList.toggle('hidden', !z.box); envDraw(); const a = envAdj(); $('envAdjX').value = a.x; $('envAdjY').value = a.y; }
+  window.scrollTo(0, 0);
+}
+function envPick(k) { envSize = k; envGo(2); }
+
+// 郵便番号：7けたそろったら住所を調べて、住所の欄に分かる所まで入れる
+function envZipMsg(t, c) { $('envZipMsg').textContent = t; $('envZipMsg').className = c || ''; }
+async function envZipInput() {
+  const z = envZipNorm($('envZip').value);
+  if (z.length < 7) { envZipLast = ''; $('envZipPick').innerHTML = ''; envZipMsg('7けたの数字を入れると住所が自動で出ます'); return; }
+  if (z === envZipLast) return;
+  envZipLast = z; $('envZipPick').innerHTML = '';
+  envZipMsg('住所を調べています…');
+  try {
+    const r = await fetch('https://zipcloud.ibsnet.co.jp/api/search?zipcode=' + z).then(r => r.json());
+    if (envZipNorm($('envZip').value) !== z) return; // 調べている間に番号が変わった
+    const list = [...new Set((r.results || []).map(x => (x.address1 + x.address2 + x.address3).replace(/（.*$/, '')))];
+    if (!list.length) { envZipMsg('この郵便番号の住所が見つかりませんでした。番号を確かめるか、住所を手で入力してください', 'ng'); return; }
+    if (list.length === 1) { envAddrSet(list[0]); return; }
+    envZipMsg('住所がいくつかあります。当てはまるものを押してください');
+    $('envZipPick').innerHTML = list.map(a => `<button data-a="${envEsc(a)}" onclick="envAddrSet(this.dataset.a)">${envEsc(a)}</button>`).join('');
+  } catch (e) {
+    envZipLast = '';
+    envZipMsg('住所を調べられませんでした（インターネットの接続を確かめてください）。住所は手で入力できます', 'ng');
+  }
+}
+function envAddrSet(a) {
+  const el = $('envAddr'), cur = el.value;
+  if (!cur.startsWith(a)) el.value = a + (envAuto && cur.startsWith(envAuto) ? cur.slice(envAuto.length) : '');
+  envAuto = a; $('envZipPick').innerHTML = '';
+  envZipMsg(`「${a}」まで入れました。続きの番地・建物名を入力してください`, 'ok');
+  el.focus(); el.setSelectionRange(el.value.length, el.value.length);
+}
+
+function envConfirm() {
+  const z = envZipNorm($('envZip').value), a = $('envAddr').value.trim(), n = $('envName').value.trim();
+  if (z.length !== 7) { show('郵便番号を7けたで入力してください', true); $('envZip').focus(); return; }
+  if (!a) { show('住所を入力してください', true); $('envAddr').focus(); return; }
+  if (!n) { show('名前を入力してください', true); $('envName').focus(); return; }
+  show(''); envGo(3);
+}
+// 封筒1枚の紙面（HTML）
+function envPageHtml() {
+  const s = ENV_SIZES[envSize], z = envZipNorm($('envZip').value);
+  const addr = $('envAddr').value.trim().replace(/\s+/g, ' '), name = $('envName').value.trim() + '　' + $('envHon').value;
+  let h = '';
+  if (s.zip) h += `<div class="el" data-fs="${s.zip.fs}" style="left:${s.zip.x}mm;top:${s.zip.y}mm;width:${s.w - s.zip.x - 10}mm">〒${z.slice(0, 3)}-${z.slice(3)}</div>`;
+  if (s.box) z.split('').forEach((d, i) => {
+    const x = s.box.x + (i < 3 ? i * 7 : 21.8 + (i - 3) * 6.8);
+    h += `<div class="guide" style="left:${x}mm;top:${s.box.y}mm;width:5.7mm;height:8mm"></div>`
+      + `<div class="el zd${s.box.mincho ? ' m' : ''}" style="left:${x}mm;top:${s.box.y}mm;width:5.7mm;height:8mm;line-height:8mm;font-size:${s.box.fs}mm">${d}</div>`;
+  });
+  h += `<div class="el ad${s.addr.mincho ? ' m' : ''}" data-fs="${s.addr.fs}" style="left:${s.addr.x}mm;top:${s.addr.y}mm;width:${s.addr.w}mm">${envEsc(addr)}</div>`;
+  h += `<div class="el nm" data-fs="${s.name.fs}" data-min=".5" style="left:8mm;top:${s.name.y}mm;width:${s.w - 16}mm">${envEsc(name)}</div>`;
+  return `<div class="envpage" style="width:${s.w}mm;height:${s.h}mm"><div class="in">${h}</div></div>`;
+}
+// 枠に入りきらない文字を小さくする。住所は小さくしても入らなければ2行に（スペースがあればそこで改行）
+function envFit(page) {
+  const over = el => el.scrollWidth > el.clientWidth + 1;
+  page.querySelectorAll('[data-fs]').forEach(el => {
+    fitOne(el);
+    if (el.classList.contains('ad')) { // 2行になった分だけ上へ（名前に近づかないように）
+      const up = (el.offsetHeight - parseFloat(getComputedStyle(el).fontSize) * 1.25) / MM;
+      if (up > .5) el.style.top = (parseFloat(el.style.top) - up).toFixed(2) + 'mm';
+    }
+  });
+  function fitOne(el) {
+    const base = +el.dataset.fs, min = base * (+el.dataset.min || .75);
+    let fs = base;
+    const set = v => { fs = v; el.style.fontSize = v.toFixed(2) + 'mm'; };
+    set(base);
+    while (over(el) && fs > min) set(fs - .1);
+    if (!over(el) || !el.classList.contains('ad')) return;
+    const t = el.textContent, sp = t.lastIndexOf(' ');
+    if (sp > 0) { // 建物名などの前のスペースで2行に
+      el.innerHTML = envEsc(t.slice(0, sp)) + '<br>' + envEsc(t.slice(sp + 1));
+      set(base * .9);
+      while (over(el) && fs > base * .6) set(fs - .1);
+      if (!over(el)) return;
+      el.textContent = t;
+    }
+    el.classList.add('wrap'); set(base * .85); // 字の切れ目で2行に
+    const lines = () => el.scrollHeight / (fs * MM * 1.25);
+    while (lines() > 2.05 && fs > base * .5) set(fs - .1);
+  }
+}
+function envDraw() {
+  const s = ENV_SIZES[envSize], box = $('envPreview');
+  box.innerHTML = `<div class="scaler">${envPageHtml()}</div>`;
+  const page = box.querySelector('.envpage'), sc = box.querySelector('.scaler');
+  envFit(page);
+  const k = Math.min((box.clientWidth - 24) / (s.w * MM), Math.max(320, Math.min(560, innerHeight * .65)) / (s.h * MM), 1);
+  page.style.transform = `scale(${k})`;
+  sc.style.width = s.w * MM * k + 'px'; sc.style.height = s.h * MM * k + 'px';
+}
+// 位置の調整（大きさごと・このパソコンに覚える）
+function envAdj() {
+  try { const a = (JSON.parse(localStorage.getItem('envAdj') || '{}'))[envSize]; if (a) return { x: +a.x || 0, y: +a.y || 0 }; } catch (e) {}
+  return { x: 0, y: 0 };
+}
+function envAdjSave() {
+  try {
+    const all = JSON.parse(localStorage.getItem('envAdj') || '{}');
+    all[envSize] = { x: +$('envAdjX').value || 0, y: +$('envAdjY').value || 0 };
+    localStorage.setItem('envAdj', JSON.stringify(all));
+    show('位置の調整を覚えました（次の印刷から）');
+  } catch (e) {}
+}
+function envPrint() {
+  const s = ENV_SIZES[envSize], a = envAdj();
+  const page = $('envPreview').querySelector('.envpage').cloneNode(true);
+  page.style.transform = '';
+  page.querySelectorAll('.guide').forEach(g => g.remove()); // 赤い枠は封筒に印刷済みなので刷らない
+  page.querySelector('.in').style.transform = `translate(${a.x}mm,${a.y}mm)`;
+  const old = $('envFrame'); if (old) old.remove();
+  const f = document.createElement('iframe');
+  f.id = 'envFrame'; f.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
+  document.body.appendChild(f);
+  const d = f.contentDocument;
+  d.open();
+  d.write(`<!doctype html><html lang="ja"><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>福岡徳純院</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="徳純院">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="theme-color" content="#1e2533">
+<meta name="build" content="20261118153950"><title>封筒（${s.label}）</title>
+<style>@page{size:${s.w}mm ${s.h}mm;margin:0}html,body{margin:0;padding:0;background:#fff}${ENV_CSS}</style><body>${page.outerHTML}</body></html>`);
+  d.close();
+  setTimeout(() => { f.contentWindow.focus(); f.contentWindow.print(); }, 300);
+}
+function envNext() {
+  ['envZip', 'envAddr', 'envName'].forEach(id => $(id).value = '');
+  envAuto = ''; envZipLast = ''; $('envZipPick').innerHTML = ''; envZipMsg('7けたの数字を入れると住所が自動で出ます');
+  envGo(2);
 }
 
 /* ---- シフト希望 ---- */

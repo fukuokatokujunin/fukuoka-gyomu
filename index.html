@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261118140355">
+<meta name="build" content="20261118142007">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -1530,14 +1530,27 @@ function mobBar() {
   const wk = ymd(new Date(new Date(today + 'T00:00:00').getTime() + 7 * 864e5));
   const all = showTasks() ? (me.tasks || []).filter(x => !String(x.id).startsWith('tmp-')) : [];
   const tk = all.filter(x => !x.daily), dl = all.filter(x => x.daily); // 日常業務は別のタブ（2026-11-18）
-  const tkHot = tk.filter(x => x.isNew || (x.due && x.due <= today)).length;
   const an = (me.annual || []).filter(a => !a.event && !String(a.id).startsWith('tmp-'));
-  const badge = {
-    task: { n: tk.filter(x => x.isNew || (x.due && x.due <= wk)).length, hot: tkHot > 0 },
-    daily: { n: dl.filter(x => x.due && x.due <= today).length, hot: true }, // 日常業務は次の回が来た分だけ（2026-11-18）
-    annual: { n: an.filter(a => a.left <= 7).length, hot: an.some(a => a.left <= 0) }, // 1週間以内（期日が来た分は赤）
-    ho: { n: (me.handovers || []).length || (me.hoList || []).length, hot: (me.handovers || []).length > 0 }, // 届いた申し送り（赤）、なければ一覧に残っている件数（金。2026-11-18）
+  // 数える項目（k＝項目と状態。状態が変わる＝期日が近い→期日が来た 等の時はまた数える）
+  const items = {
+    task: tk.filter(x => x.isNew || (x.due && x.due <= wk)).map(x => ({ k: x.id + ':' + (x.isNew ? 'n' : x.due <= today ? 'd' : 'w'), hot: x.isNew || x.due <= today })),
+    daily: dl.filter(x => x.due && x.due <= today).map(x => ({ k: x.id + ':' + x.due, hot: true })), // 日常業務は次の回が来た分だけ（2026-11-18）
+    annual: an.filter(a => a.left <= 7).map(a => ({ k: a.id + ':' + (a.left <= 0 ? 'd' : 'w'), hot: a.left <= 0 })), // 1週間以内（期日が来た分は赤）
+    ho: (me.handovers || []).length ? me.handovers.map(h => ({ k: 'h' + h.id, hot: true })) : (me.hoList || []).map(h => ({ k: 'l' + h.id, hot: false })), // 届いた申し送り（赤）、なければ一覧に残っている件数（金。2026-11-18）
   };
+  // 印はタブを開いたら消す（2026-11-18 ユーザー指定）：開いた時に数えていた項目をこの端末に「見た」と覚え、
+  //  新しく来た項目・状態が変わった項目だけをまた数える
+  const seenKey = 'tabSeen:' + (auth && auth.id);
+  let seen = {}; try { seen = JSON.parse(localStorage.getItem(seenKey) || '{}') || {}; } catch (e) {}
+  let seenChanged = false;
+  const badge = {};
+  Object.keys(items).forEach(t => {
+    const ks = items[t].map(x => x.k);
+    if (cur === 'clock' && mobTab === t && !document.hidden && String(seen[t] || '') !== String(ks)) { seen[t] = ks; seenChanged = true; } // 開いている
+    const old = new Set(seen[t] || []), fresh = items[t].filter(x => !old.has(x.k));
+    badge[t] = { n: fresh.length, hot: fresh.some(x => x.hot) };
+  });
+  if (seenChanged) try { localStorage.setItem(seenKey, JSON.stringify(seen)); } catch (e) {}
   document.querySelectorAll('#tabbar button').forEach(b => {
     const t = b.dataset.t;
     b.classList.toggle('hidden', (t === 'add' || t === 'task' || t === 'daily' || t === 'admin') && !mobAvail(t));

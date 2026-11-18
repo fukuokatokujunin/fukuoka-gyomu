@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261118155218">
+<meta name="build" content="20261118160043">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -621,7 +621,12 @@
   #envPreview .scaler { position:relative; box-shadow:0 2px 10px rgba(0,0,0,.25); }
   #envPreview .envpage { position:absolute; left:0; top:0; transform-origin:0 0; }
   .envadj { margin-top:14px; font-size:13px; } .envadj summary { cursor:pointer; color:var(--sub); }
-  .envadj .row { align-items:center; margin-top:6px; } .envadj input { width:6em; flex:none; padding:6px 4px; margin:0; }
+  .envadj { margin-top:22px; padding-top:16px; border-top:1px solid var(--line); } .envadj > b { font-size:15px; font-weight:500; letter-spacing:.1em; }
+  .envadj .row { align-items:center; margin-top:6px; } .envadj .row input { width:6em; flex:none; padding:6px 4px; margin:0; }
+  .envpad { display:grid; grid-template-columns:1fr 1fr 1fr; grid-template-areas:". u ." "l c r" ". d ."; gap:6px; max-width:360px; margin:10px auto; align-items:center; }
+  .envpad button { margin:0; padding:12px 4px; font-size:14px; letter-spacing:.05em; }
+  #envAdjNow { text-align:center; font-size:12px; line-height:1.6; color:var(--ink); }
+  .envadj .envbtns button { flex:1 1 0; font-size:14px; padding:12px 4px; letter-spacing:.05em; }
   #envSheet { display:none; }
   @media print { /* 封筒印刷の時だけ：封筒1枚のほかは隠し、紙の左上にぴったり置く */
     html:has(body.envPrinting) { background:#fff !important; }
@@ -1086,12 +1091,22 @@
         <div class="envbtns"><button class="sec" onclick="envGo(2)">修正する</button><button onclick="envPrint()">印刷</button></div>
         <p class="sub">「印刷」を押すとプリンターの画面が出ます。封筒の大きさは自動で選ばれます。封筒は手差しトレイに入れてください</p>
         <button class="ghost" onclick="envNext()">続けて別の宛名を入力する</button>
-        <details class="envadj"><summary>印字がずれる時（位置の調整）</summary>
-          <p class="sub">プリンターによって少しずれることがあります。ずれた分をmmで入れてください（このパソコンに覚えます）</p>
-          <div class="row"><span>右へ</span><input id="envAdjX" type="number" step="0.5" oninput="envAdjSave()"><span>mm</span>
-            <span>下へ</span><input id="envAdjY" type="number" step="0.5" oninput="envAdjSave()"><span>mm</span></div>
-          <p class="sub">左・上へずらす時はマイナス（例：-1.5）</p>
-        </details>
+        <div class="envadj" id="envAdjBox"><!-- 位置の調整（2026-11-18 上下左右の矢印・印刷した位置を「前回の位置」として覚える） -->
+          <b>印字の位置の調整</b>
+          <p class="sub">プリンターによって少しずれることがあります。矢印を押すと1mmずつ動きます（数字の欄は0.5mmなど細かく入れられます）</p>
+          <div class="envpad">
+            <button class="sec" style="grid-area:u" onclick="envAdjMove(0,-1)">↑ 上へ</button>
+            <button class="sec" style="grid-area:l" onclick="envAdjMove(-1,0)">← 左へ</button>
+            <span style="grid-area:c" id="envAdjNow"></span>
+            <button class="sec" style="grid-area:r" onclick="envAdjMove(1,0)">右へ →</button>
+            <button class="sec" style="grid-area:d" onclick="envAdjMove(0,1)">↓ 下へ</button>
+          </div>
+          <div class="row"><span>右へ</span><input id="envAdjX" type="number" step="0.5" inputmode="decimal" oninput="envAdjInput()"><span>mm</span>
+            <span>下へ</span><input id="envAdjY" type="number" step="0.5" inputmode="decimal" oninput="envAdjInput()"><span>mm</span></div>
+          <p class="sub">左・上はマイナス（例：-1.5）</p>
+          <p class="sub" id="envAdjLast"></p>
+          <div class="envbtns"><button class="sec" onclick="envAdjSet(envAdj())">前回の位置に戻す</button><button class="sec" onclick="envAdjSet({ x: 0, y: 0 })">0に戻す</button></div>
+        </div>
       </div>
     </section>
 
@@ -1454,7 +1469,7 @@ function view(v) {
   mobBar();
   show('');
   if (v === 'req') loadReq();
-  if (v === 'env') envGo(1);
+  if (v === 'env') envGo(1); else envPrintEnd();
   if (v === 'admin') {
     // 選べる月：希望を受付中の月（締切日を過ぎたら翌々月。2026-11-17）・翌月・今月。開くたびに作り直す（日をまたいでも進む）
     // 初期は翌月。翌月のシフト作業が完了していたら次の月（loadAdmin の auto）
@@ -3693,7 +3708,10 @@ function envGo(n) {
     }).join('');
   }
   if (n === 2) { $('envTitle2').textContent = z.label + '　宛先の入力'; setTimeout(() => $(envZipNorm($('envZip').value).length === 7 ? 'envAddr' : 'envZip').focus(), 50); }
-  if (n === 3) { $('envTitle3').textContent = z.label + '　印字の確認'; $('envGuideNote').classList.toggle('hidden', !z.box); envDraw(); const a = envAdj(); $('envAdjX').value = a.x; $('envAdjY').value = a.y; }
+  if (n === 3) { $('envTitle3').textContent = z.label + '　印字の確認'; $('envGuideNote').classList.toggle('hidden', !z.box);
+    if (!envAdjCur[envSize]) envAdjCur[envSize] = envAdj(); // はじめは前回の位置から
+    envDraw(); envAdjShow(); }
+  else envPrintEnd();
   window.scrollTo(0, 0);
 }
 function envPick(k) { envSize = k; envGo(2); }
@@ -3790,23 +3808,44 @@ function envDraw() {
   envAdjApply();
   sc.style.width = s.w * MM * k + 'px'; sc.style.height = s.h * MM * k + 'px';
 }
-// 位置の調整（大きさごと・このパソコンに覚える）
-function envAdj() {
-  try { const a = (JSON.parse(localStorage.getItem('envAdj') || '{}'))[envSize]; if (a) return { x: +a.x || 0, y: +a.y || 0 }; } catch (e) {}
-  return { x: 0, y: 0 };
+// 位置の調整（大きさごと）。動かしている間は画面だけ。印刷した時の位置を「前回の位置」としてこの端末に覚え、次に開いた時はそこから（2026-11-18 ユーザー指定）
+let envAdjCur = {}; // 大きさごとの今の調整
+function envAdj() { // 前回の位置（覚えている分）
+  try { const a = (JSON.parse(localStorage.getItem('envAdj') || '{}'))[envSize]; if (a) return { x: +a.x || 0, y: +a.y || 0, at: a.at || '' }; } catch (e) {}
+  return { x: 0, y: 0, at: '' };
 }
-function envAdjSave() { // 入れたらすぐ確認の画面にも映す（2026-11-18 ユーザー指定）
-  const a = { x: +$('envAdjX').value || 0, y: +$('envAdjY').value || 0 };
+const envAdjTxt = a => (a.x ? (a.x > 0 ? '右へ ' : '左へ ') + Math.abs(a.x) + 'mm' : '左右 0') + '・' + (a.y ? (a.y > 0 ? '下へ ' : '上へ ') + Math.abs(a.y) + 'mm' : '上下 0');
+function envAdjShow() { // 数字の欄・今の位置・前回の位置の表示
+  const a = envAdjCur[envSize] || { x: 0, y: 0 }, last = envAdj();
+  if (+$('envAdjX').value !== a.x || $('envAdjX').value === '') $('envAdjX').value = a.x;
+  if (+$('envAdjY').value !== a.y || $('envAdjY').value === '') $('envAdjY').value = a.y;
+  $('envAdjNow').textContent = envAdjTxt(a).replace('・', '\n');
+  $('envAdjNow').style.whiteSpace = 'pre-line';
+  $('envAdjLast').textContent = '前回の位置' + (last.at ? '（' + last.at + ' に印刷）' : '') + '：' + envAdjTxt(last);
+}
+function envAdjSet(a) {
+  const r = v => Math.round(v * 10) / 10;
+  envAdjCur[envSize] = { x: r(+a.x || 0), y: r(+a.y || 0) };
+  envAdjApply(envAdjCur[envSize]); envAdjShow();
+}
+function envAdjMove(dx, dy) { const a = envAdjCur[envSize] || { x: 0, y: 0 }; envAdjSet({ x: a.x + dx, y: a.y + dy }); }
+function envAdjInput() { // 数字の欄（入れたらすぐ確認の画面に映す）
+  envAdjCur[envSize] = { x: +$('envAdjX').value || 0, y: +$('envAdjY').value || 0 };
+  envAdjApply(envAdjCur[envSize]);
+  $('envAdjNow').textContent = envAdjTxt(envAdjCur[envSize]).replace('・', '\n');
+}
+function envAdjKeep() { // 印刷した位置を前回の位置として覚える
+  const a = envAdjCur[envSize] || { x: 0, y: 0 }, d = new Date();
   try {
     const all = JSON.parse(localStorage.getItem('envAdj') || '{}');
-    all[envSize] = a;
+    all[envSize] = { x: a.x, y: a.y, at: (d.getMonth() + 1) + '/' + d.getDate() };
     localStorage.setItem('envAdj', JSON.stringify(all));
   } catch (e) {}
-  envAdjApply(a);
+  envAdjShow();
 }
 // 位置の調整を確認の画面に映す（字だけ動かす。封筒と印刷済みの枠はそのまま）
 function envAdjApply(a) {
-  a = a || envAdj();
+  a = a || envAdjCur[envSize] || { x: 0, y: 0 };
   const el = $('envPreview').querySelector('.in');
   if (el) el.style.transform = `translate(${a.x}mm,${a.y}mm)`;
 }
@@ -3830,9 +3869,11 @@ function envPrintEnd() {
   const st = $('envPageStyle'); if (st) st.remove();
   const sh = $('envSheet'); if (sh) sh.innerHTML = '';
 }
+// 印刷の切り替えは、封筒印刷の画面を離れるまで残す（iPhoneはプリンターの画面を出した直後に afterprint が来て、
+// 元に戻すと画面全体が刷られた。2026-11-18）。画面の見た目は印刷の時しか変わらない
 function envPrint() {
   envPrintPrep();
-  window.addEventListener('afterprint', envPrintEnd, { once: true });
+  envAdjKeep();
   setTimeout(() => window.print(), 50);
 }
 function envNext() {

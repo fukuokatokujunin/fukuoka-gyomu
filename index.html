@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261118135029">
+<meta name="build" content="20261118135657">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -287,12 +287,14 @@
   header .tools { gap:12px; }
   /* メニュー（2026-11-18）：押すと全画面に広がり、背景がメニュー用の写真に切り替わる。三本線は「米」の形に交わる */
   #btnMenu:not(.hidden) { position:relative; display:block; width:36px; height:36px; padding:0 !important; border:0 !important; cursor:pointer; }
-  #btnMenu i { position:absolute; left:8px; right:8px; top:50%; height:1.5px; margin-top:-.75px; background:#fff; transition:transform .45s cubic-bezier(.65,0,.35,1); }
+  #btnMenu i { position:absolute; left:8px; right:8px; top:50%; height:1.5px; margin-top:-.75px; background:#fff; transition:transform .45s cubic-bezier(.65,0,.35,1), left .45s, right .45s; }
   #btnMenu i:nth-child(1) { transform:translateY(-6.5px); }
   #btnMenu i:nth-child(3) { transform:translateY(6.5px); }
   #btnMenu.menuOn i:nth-child(1) { transform:rotate(30deg); }
   #btnMenu.menuOn i:nth-child(2) { transform:rotate(90deg); }
   #btnMenu.menuOn i:nth-child(3) { transform:rotate(-30deg); }
+  #btnMenu.menuOn i { left:0; right:0; height:2px; margin-top:-1px; } /* 開いた時の米は大きく太く（PCでマウスの矢印に隠れないように。2026-11-18） */
+  @media (min-width:900px) { #btnMenu:not(.hidden) { width:48px; height:48px; } #btnMenu i { left:12px; right:12px; } #btnMenu.menuOn i { left:0; right:0; } }
   #menu { position:fixed; inset:0; z-index:-1; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:0; min-width:0;
     padding:96px 24px 48px; background:#222629; box-shadow:none; overflow-y:auto; opacity:0; visibility:hidden; transition:opacity .5s ease, visibility 0s linear .5s; }
   #menu::before { content:''; position:absolute; inset:0; z-index:-1; transform:scale(1.08); transition:transform 1.6s cubic-bezier(.2,.7,.2,1);

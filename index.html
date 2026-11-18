@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261118153950">
+<meta name="build" content="20261118155218">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -622,6 +622,14 @@
   #envPreview .envpage { position:absolute; left:0; top:0; transform-origin:0 0; }
   .envadj { margin-top:14px; font-size:13px; } .envadj summary { cursor:pointer; color:var(--sub); }
   .envadj .row { align-items:center; margin-top:6px; } .envadj input { width:6em; flex:none; padding:6px 4px; margin:0; }
+  #envSheet { display:none; }
+  @media print { /* 封筒印刷の時だけ：封筒1枚のほかは隠し、紙の左上にぴったり置く */
+    html:has(body.envPrinting) { background:#fff !important; }
+    body.envPrinting { margin:0 !important; padding:0 !important; background:#fff !important; }
+    body.envPrinting::before { display:none !important; }
+    body.envPrinting > *:not(#envSheet) { display:none !important; }
+    body.envPrinting #envSheet { display:block; position:absolute; left:0; top:0; margin:0; }
+  }
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Shippori+Mincho:wght@400;500;600&display=swap" rel="stylesheet">
@@ -1080,8 +1088,8 @@
         <button class="ghost" onclick="envNext()">続けて別の宛名を入力する</button>
         <details class="envadj"><summary>印字がずれる時（位置の調整）</summary>
           <p class="sub">プリンターによって少しずれることがあります。ずれた分をmmで入れてください（このパソコンに覚えます）</p>
-          <div class="row"><span>右へ</span><input id="envAdjX" type="number" step="0.5" onchange="envAdjSave()"><span>mm</span>
-            <span>下へ</span><input id="envAdjY" type="number" step="0.5" onchange="envAdjSave()"><span>mm</span></div>
+          <div class="row"><span>右へ</span><input id="envAdjX" type="number" step="0.5" oninput="envAdjSave()"><span>mm</span>
+            <span>下へ</span><input id="envAdjY" type="number" step="0.5" oninput="envAdjSave()"><span>mm</span></div>
           <p class="sub">左・上へずらす時はマイナス（例：-1.5）</p>
         </details>
       </div>
@@ -3654,19 +3662,18 @@ setTimeout(function(){print()},600)<\/script>`);
    手差しトレイ・プリンターの選択はブラウザからは決められない（プリンター側の設定） */
 const ENV_SIZES = { // 寸法・位置はmm（左上から）。box＝郵便番号の枠（日本郵便の規格：5.7×8mm、前3けた7mm間隔・後4けた6.8mm間隔）
   kaku2:  { label: '角2号', w: 240, h: 332, note: 'A4の書類を<br>折らずに入れる',
-            zip: { x: 45, y: 85, fs: 7.5 }, addr: { x: 45, y: 104, w: 180, fs: 7.5 }, name: { y: 141, fs: 8.5 } },
+            zip: { x: 28, y: 83, fs: 9 }, addr: { x: 28, y: 103, w: 192, fs: 9 }, name: { y: 141, fs: 11 } }, // 左へ・大きく（2026-11-18 ユーザー指定）
   naga3:  { label: '長3号', w: 120, h: 235, note: 'A4を<br>三つ折りで入れる',
-            box: { x: 63.2, y: 12, fs: 6 }, addr: { x: 12, y: 66.5, w: 98, fs: 6 }, name: { y: 86, fs: 6.5 } },
+            box: { x: 60, y: 12, fs: 6 }, addr: { x: 9, y: 66.5, w: 101, fs: 6 }, name: { y: 86, fs: 6.5 } }, // 左へ（2026-11-18 ユーザー指定）
   hagaki: { label: 'ハガキ', w: 100, h: 148, note: 'はがき<br>100×148mm',
-            box: { x: 44, y: 12, fs: 5.5, mincho: true }, addr: { x: 13, y: 51, w: 80, fs: 5, mincho: true }, name: { y: 68.5, fs: 6.5 } },
+            box: { x: 44, y: 12, fs: 5.5 }, addr: { x: 13, y: 51, w: 80, fs: 5 }, name: { y: 68.5, fs: 6.5 } },
 };
-// 封筒の紙面の見た目（画面の確認と印刷で同じものを使う）
+// 封筒の紙面の見た目（画面の確認と印刷で同じものを使う）。字はすべて明朝体（2026-11-18 ユーザー指定）、名前は太字
 const ENV_CSS = `.envpage{position:relative;background:#fff;color:#000;overflow:hidden;letter-spacing:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .envpage .in{position:absolute;inset:0}
-.envpage .el{position:absolute;white-space:nowrap;line-height:1.25;font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic","YuGothic","Meiryo",sans-serif;font-weight:700}
-.envpage .m{font-family:"Hiragino Mincho ProN","Yu Mincho","YuMincho","MS PMincho",serif;font-weight:400}
-.envpage .zd{text-align:center;font-weight:500}.envpage .zd.m{font-weight:400}
-.envpage .nm{text-align:center}
+.envpage .el{position:absolute;white-space:nowrap;line-height:1.25;font-family:"Hiragino Mincho ProN","Yu Mincho","YuMincho","MS PMincho","MS Mincho",serif;font-weight:500}
+.envpage .zd{text-align:center}
+.envpage .nm{text-align:center;font-weight:700}
 .envpage .ad.wrap{white-space:normal;word-break:break-all}
 .envpage .guide{position:absolute;border:.35mm solid #e8473b;box-sizing:border-box}`;
 (() => { const s = document.createElement('style'); s.textContent = ENV_CSS; document.head.appendChild(s); })();
@@ -3733,14 +3740,15 @@ function envPageHtml() {
   const addr = $('envAddr').value.trim().replace(/\s+/g, ' '), name = $('envName').value.trim() + '　' + $('envHon').value;
   let h = '';
   if (s.zip) h += `<div class="el" data-fs="${s.zip.fs}" style="left:${s.zip.x}mm;top:${s.zip.y}mm;width:${s.w - s.zip.x - 10}mm">〒${z.slice(0, 3)}-${z.slice(3)}</div>`;
+  let g = ''; // 印刷済みの郵便番号の枠（画面だけ。位置の調整では動かさない）
   if (s.box) z.split('').forEach((d, i) => {
     const x = s.box.x + (i < 3 ? i * 7 : 21.8 + (i - 3) * 6.8);
-    h += `<div class="guide" style="left:${x}mm;top:${s.box.y}mm;width:5.7mm;height:8mm"></div>`
-      + `<div class="el zd${s.box.mincho ? ' m' : ''}" style="left:${x}mm;top:${s.box.y}mm;width:5.7mm;height:8mm;line-height:8mm;font-size:${s.box.fs}mm">${d}</div>`;
+    g += `<div class="guide" style="left:${x}mm;top:${s.box.y}mm;width:5.7mm;height:8mm"></div>`;
+    h += `<div class="el zd" style="left:${x}mm;top:${s.box.y}mm;width:5.7mm;height:8mm;line-height:8mm;font-size:${s.box.fs}mm">${d}</div>`;
   });
-  h += `<div class="el ad${s.addr.mincho ? ' m' : ''}" data-fs="${s.addr.fs}" style="left:${s.addr.x}mm;top:${s.addr.y}mm;width:${s.addr.w}mm">${envEsc(addr)}</div>`;
+  h += `<div class="el ad" data-fs="${s.addr.fs}" style="left:${s.addr.x}mm;top:${s.addr.y}mm;width:${s.addr.w}mm">${envEsc(addr)}</div>`;
   h += `<div class="el nm" data-fs="${s.name.fs}" data-min=".5" style="left:8mm;top:${s.name.y}mm;width:${s.w - 16}mm">${envEsc(name)}</div>`;
-  return `<div class="envpage" style="width:${s.w}mm;height:${s.h}mm"><div class="in">${h}</div></div>`;
+  return `<div class="envpage" style="width:${s.w}mm;height:${s.h}mm">${g}<div class="in">${h}</div></div>`;
 }
 // 枠に入りきらない文字を小さくする。住所は小さくしても入らなければ2行に（スペースがあればそこで改行）
 function envFit(page) {
@@ -3779,6 +3787,7 @@ function envDraw() {
   envFit(page);
   const k = Math.min((box.clientWidth - 24) / (s.w * MM), Math.max(320, Math.min(560, innerHeight * .65)) / (s.h * MM), 1);
   page.style.transform = `scale(${k})`;
+  envAdjApply();
   sc.style.width = s.w * MM * k + 'px'; sc.style.height = s.h * MM * k + 'px';
 }
 // 位置の調整（大きさごと・このパソコンに覚える）
@@ -3786,42 +3795,45 @@ function envAdj() {
   try { const a = (JSON.parse(localStorage.getItem('envAdj') || '{}'))[envSize]; if (a) return { x: +a.x || 0, y: +a.y || 0 }; } catch (e) {}
   return { x: 0, y: 0 };
 }
-function envAdjSave() {
+function envAdjSave() { // 入れたらすぐ確認の画面にも映す（2026-11-18 ユーザー指定）
+  const a = { x: +$('envAdjX').value || 0, y: +$('envAdjY').value || 0 };
   try {
     const all = JSON.parse(localStorage.getItem('envAdj') || '{}');
-    all[envSize] = { x: +$('envAdjX').value || 0, y: +$('envAdjY').value || 0 };
+    all[envSize] = a;
     localStorage.setItem('envAdj', JSON.stringify(all));
-    show('位置の調整を覚えました（次の印刷から）');
   } catch (e) {}
+  envAdjApply(a);
 }
-function envPrint() {
-  const s = ENV_SIZES[envSize], a = envAdj();
-  const page = $('envPreview').querySelector('.envpage').cloneNode(true);
+// 位置の調整を確認の画面に映す（字だけ動かす。封筒と印刷済みの枠はそのまま）
+function envAdjApply(a) {
+  a = a || envAdj();
+  const el = $('envPreview').querySelector('.in');
+  if (el) el.style.transform = `translate(${a.x}mm,${a.y}mm)`;
+}
+// 印刷：この画面のまま、封筒1枚（#envSheet）だけを紙の左上に置いて刷る。
+// はじめは見えない枠（iframe・幅0）で刷っていたが、プリンターのプレビューで字が右へずれて見切れた（2026-11-18）ため、この方式に変えた
+function envPrintPrep() {
+  const s = ENV_SIZES[envSize];
+  const page = $('envPreview').querySelector('.envpage').cloneNode(true); // 位置の調整も映った状態のまま
   page.style.transform = '';
   page.querySelectorAll('.guide').forEach(g => g.remove()); // 赤い枠は封筒に印刷済みなので刷らない
-  page.querySelector('.in').style.transform = `translate(${a.x}mm,${a.y}mm)`;
-  const old = $('envFrame'); if (old) old.remove();
-  const f = document.createElement('iframe');
-  f.id = 'envFrame'; f.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
-  document.body.appendChild(f);
-  const d = f.contentDocument;
-  d.open();
-  d.write(`<!doctype html><html lang="ja"><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="noindex, nofollow">
-<title>福岡徳純院</title>
-<link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="icon-180.png">
-<link rel="icon" href="icon-192.png">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="徳純院">
-<meta name="apple-mobile-web-app-status-bar-style" content="black">
-<meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261118153950"><title>封筒（${s.label}）</title>
-<style>@page{size:${s.w}mm ${s.h}mm;margin:0}html,body{margin:0;padding:0;background:#fff}${ENV_CSS}</style><body>${page.outerHTML}</body></html>`);
-  d.close();
-  setTimeout(() => { f.contentWindow.focus(); f.contentWindow.print(); }, 300);
+  let sheet = $('envSheet');
+  if (!sheet) { sheet = document.createElement('div'); sheet.id = 'envSheet'; document.body.appendChild(sheet); }
+  sheet.innerHTML = ''; sheet.appendChild(page);
+  let st = $('envPageStyle');
+  if (!st) { st = document.createElement('style'); st.id = 'envPageStyle'; document.head.appendChild(st); }
+  st.textContent = `@page{size:${s.w}mm ${s.h}mm;margin:0}`;
+  document.body.classList.add('envPrinting');
+}
+function envPrintEnd() {
+  document.body.classList.remove('envPrinting');
+  const st = $('envPageStyle'); if (st) st.remove();
+  const sh = $('envSheet'); if (sh) sh.innerHTML = '';
+}
+function envPrint() {
+  envPrintPrep();
+  window.addEventListener('afterprint', envPrintEnd, { once: true });
+  setTimeout(() => window.print(), 50);
 }
 function envNext() {
   ['envZip', 'envAddr', 'envName'].forEach(id => $(id).value = '');

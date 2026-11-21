@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261121092606">
+<meta name="build" content="20261121093512">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -810,7 +810,7 @@
         <div id="calDay" class="hidden"></div>
         <p class="sub calnote">寺内スケジュールは3か月先までの予定を表示しています。開始日のある予定は開始日から期日まで帯で表示します。「選択」で一覧のその項目へ移動します</p>
       </div>
-      <!-- 日常業務（2026-11-18）：個別業務と同じ形。担当はなく全員で共有。前回完了日を出す。1週間以上先の期日は折りたたみ。PCは予定カレンダーの下、スマホは下部タブ -->
+      <!-- 日常業務（2026-11-18）：個別業務と同じ形。担当はなく全員で共有。前回完了日を出す。全部を折りたたみ（2026-11-21。以前は1週間以上先だけ）。PCは予定カレンダーの下、スマホは下部タブ -->
       <div class="card task hidden" id="dailyBox">
         <div class="head"><h3>日常業務 <span class="sub" id="dailyCount"></span></h3>
           <span><button class="hbtn" data-box="dailyDoneBox" onclick="toggleDone('daily')">完了済み</button><button class="hbtn" data-box="dailyRmBox" onclick="toggleRemoved('daily')">削除済み</button><button class="hbtn" id="dailyReload" onclick="reloadTasks('daily')">更新</button></span></div>
@@ -2435,7 +2435,7 @@ function drawTasks(list) {
 /** 個別業務・日常業務の言い方と、一覧の行の場所 */
 function tw(t) { return t && t.daily ? '日常業務' : '個別業務'; }
 function taskSel(id) { return `#tasks [data-id="${id}"], #daily [data-id="${id}"]`; }
-/** 個別業務（daily＝false）か日常業務（true）の一覧を描く。日常業務は担当がなく（依頼者・担当・MYは出さない）、前回完了日を出し、1週間以上先は折りたたむ */
+/** 個別業務（daily＝false）か日常業務（true）の一覧を描く。日常業務は担当がなく（依頼者・担当・MYは出さない）、前回完了日を出し、全部を折りたたむ（2026-11-21） */
 function drawTaskList(list, daily, today) {
   const box = $(daily ? 'daily' : 'tasks');
   $(daily ? 'dailyCount' : 'taskCount').textContent = list.length ? `${list.length}件` : '';
@@ -2502,10 +2502,11 @@ function drawTaskList(list, daily, today) {
       const cap = document.createElement('small'); cap.textContent = '削除';
       wrap.append(cap, del); row.appendChild(wrap);
     }
-    // 期日なし・超過・3日以内（日常業務は6日以内）・開始日を過ぎた分は常に表示。日常業務は1週間以上先を折りたたむ（2026-11-18）
-    (left !== null && left > (daily ? 6 : 3) && !inPeriod(t.start, t.due, today) ? far : near).push(row);
+    // 個別業務：期日なし・超過・3日以内・開始日を過ぎた分は常に表示し、4日以降先を折りたたむ。
+    // 日常業務：期日に関係なく全部を折りたたむ（2026-11-21 ユーザー指定。以前は1週間以上先だけ）
+    (daily || (left !== null && left > 3 && !inPeriod(t.start, t.due, today)) ? far : near).push(row);
   });
-  foldRows(box, near, far, daily ? '1週間以上先の日常業務' : '4日以降先の個別業務', daily ? 'daily' : 'tasks');
+  foldRows(box, near, far, daily ? '日常業務の一覧' : '4日以降先の個別業務', daily ? 'daily' : 'tasks');
 }
 
 /* ---- 予定カレンダー（2026-11-11）：勤務中の枠の下に、寺内スケジュール（藍）と個別業務（代赭）の期日を月・週で表示 ----

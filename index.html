@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261121093512">
+<meta name="build" content="20261121094916">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -301,6 +301,7 @@
   #menu.open::before { transform:scale(1); }
   html.menuLock { overflow:hidden; } /* body には付けない（付けると上の帯の固定が外れ、スクロールした所で開くと帯が上に見切れる。2026-11-18） */
   html.menuLock header { z-index:10; } /* 下のタブ・お知らせより上に */
+  #bookLinks { display:contents; } /* 表のボタンもほかと同じく縦に並べる（2026-11-21 塔婆カレンダー） */
   #menu button { width:min(320px,100%); margin:0; border:0 !important; border-bottom:1px solid rgba(255,255,255,.35) !important; padding:20px 8px !important; text-align:center;
     font-family:"Shippori Mincho","Hiragino Mincho ProN","Yu Mincho",serif; font-size:18px !important; font-weight:500; letter-spacing:.3em !important; color:#fff; background:transparent !important;
     text-shadow:0 1px 10px rgba(0,0,0,.6); opacity:0; transform:translateY(14px); transition:opacity .5s ease .15s, transform .7s cubic-bezier(.2,.7,.2,1) .15s, background .2s; }
@@ -707,6 +708,7 @@
       <button id="btnReq" class="hidden" onclick="view('req')">シフト希望</button>
       <button id="btnEnv" class="hidden" onclick="view('env')">封筒印刷</button>
       <button id="btnAdmin" class="hidden" onclick="view('admin')">管理</button>
+      <span id="bookLinks"></span><!-- 塔婆カレンダー（塔婆受付表）を開く（2026-11-21 東京と同じ） -->
       <button id="btnPush" class="hidden" onclick="testPushMe()">通知のテスト</button>
       <button id="btnLogout" class="hidden" onclick="logout()">ログアウト</button>
     </div>
@@ -1480,6 +1482,8 @@ function view(v) {
   $('main').classList.toggle('three', v === 'clock' && showTasks());
   $('btnReq').classList.toggle('hidden', v === 'req' || me.noAttend);
   $('btnAdmin').classList.toggle('hidden', v === 'admin' || !me.admin);
+  $('bookLinks').innerHTML = ''; // メニューの表のボタン（2026-11-21 塔婆カレンダー。東京と同じ）
+  (me.books || []).forEach(b => { const x = document.createElement('button'); x.textContent = b.label; x.onclick = () => window.open(bookUrl(b), '_blank'); $('bookLinks').appendChild(x); });
   $('main').classList.toggle('wide', v === 'admin');
   if (v !== 'clock') mobTab = 'home'; // 管理・シフト希望から戻った時はTOP
   mobBar();
@@ -1586,6 +1590,12 @@ function render(s) {
   alarmCheck();
 }
 
+/** メニューの表のURL。塔婆カレンダーは押した時の月のタブ（「2026.11」など）を開く。タブがまだなければ表をそのまま開く（2026-11-21） */
+function bookUrl(b, now) {
+  now = now || new Date();
+  const gid = (b.tabs || {})[`${now.getFullYear()}.${now.getMonth() + 1}`];
+  return gid == null ? b.url : `${b.url}#gid=${gid}`;
+}
 // 右上のメニュー：外側を押したら閉じる（2026-11-18 PCも折りたたみに）
 document.addEventListener('click', e => { const m = $('menu'); if (m.classList.contains('open') && !m.contains(e.target)) menuOpen(false); });
 // メニューの開け閉め：全画面に写真の背景で開き、三本線を「米」の形にする（2026-11-18）

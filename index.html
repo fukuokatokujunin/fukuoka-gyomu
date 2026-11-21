@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261121111238">
+<meta name="build" content="20261121112350">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -1614,7 +1614,7 @@ function bookUrl(b, now) {
   return gid == null ? b.url : `${b.url}#gid=${gid}`;
 }
 // 三本線メニューの並び（2026-11-21 ユーザー指定）：管理画面で決めた並び（me.menuOrder）＋まだ並びにない項目は元の並びで前の項目のすぐ後ろ
-const MENU_DEFAULT = ['req', 'env', 'admin', 'toba', 'mishu', 'stock', 'sokyaku', 'rule', 'contract', 'push', 'logout']; // 元の並び（WebApp.gs MENU_KEYS と同じ印）
+const MENU_DEFAULT = ['req', 'env', 'admin', 'toba', 'mishu', 'stock', 'sokyaku', 'kengaku', 'rule', 'contract', 'push', 'logout']; // 元の並び（WebApp.gs MENU_KEYS と同じ印）
 function menuKeys(order) {
   const out = (order || []).filter((k, i, a) => MENU_DEFAULT.includes(k) && a.indexOf(k) === i);
   MENU_DEFAULT.forEach((k, i) => {

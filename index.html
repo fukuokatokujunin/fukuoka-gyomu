@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261121112350">
+<meta name="build" content="20261121151132">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -201,6 +201,7 @@
   .head > h3 .sub { display:inline-block; white-space:nowrap; } /* 「34件」が途中で改行されないように */
   button.hbtn:active { background:#c9d8ee; box-shadow:none; transform:translateY(2px); }
   .hidden { display:none !important; }
+  #menu > .menuOff { display:none !important; } /* 管理画面で表示をオフにしたメニュー項目（2026-11-21） */
   /* ===== 和モダン（2026-10-31・楽芸工房TOPの雰囲気）：チャコール×薄グレー、明朝、広い字間、角のない平面、細線 ===== */
   :root { --bg:#e9eaea; --card:#fff; --ink:#222629; --sub:#7d8285; --pri:#222629; --acc:#8a7b5c; --ok:#3f6b55; --ng:#9b3a2e; --warn:#9a7a35; --line:#dcdedf; }
   body { font-family:"Noto Sans JP",-apple-system,"Hiragino Sans",sans-serif; letter-spacing:.06em; -webkit-font-smoothing:antialiased; }
@@ -1282,11 +1283,11 @@
           <button class="ghost" onclick="stampQrSheet(true)">QRコードを作り直す（古いQRは使えなくなります）</button>
         </div>
         <div class="card">
-          <strong>メニューの並び</strong>
-          <span class="sub">右上の三本線（≡）を押すと出るメニューの順番です。「▲」「▼」で上下に動かして、「この並びで保存」を押してください。全員のメニューがこの順番になります（ほかの人は、画面を開き直した時から）。</span>
+          <strong>メニューの並び・表示</strong>
+          <span class="sub">右上の三本線（≡）を押すと出るメニューの順番と、出すかどうかです。「▲」「▼」で上下に動かします。「表示」を押すと「非表示」になり、メニューから消えます（もう一度押すと「表示」に戻ります）。決めたら「この並びで保存」を押してください。全員のメニューがこの通りになります（ほかの人は、画面を開き直した時から）。</span>
           <div id="menuOrd"></div>
           <button class="sec" onclick="saveMenuOrd(false)">この並びで保存</button>
-          <button class="ghost" onclick="saveMenuOrd(true)">元の並びに戻す</button>
+          <button class="ghost" onclick="saveMenuOrd(true)">元に戻す（元の並び・全部表示）</button>
         </div>
         <div class="card">
           <strong>パスワードの初期化（緊急用）</strong>
@@ -1626,24 +1627,34 @@ function menuKeys(order) {
   return out;
 }
 function sortMenu() {
-  const m = $('menu');
-  menuKeys(me && me.menuOrder).forEach(k => { const b = m.querySelector(`:scope > [data-key="${k}"]`); if (b) m.appendChild(b); });
+  const m = $('menu'), off = (me && me.menuHide) || [];
+  menuKeys(me && me.menuOrder).forEach(k => { const b = m.querySelector(`:scope > [data-key="${k}"]`); if (b) { m.appendChild(b); b.classList.toggle('menuOff', k !== 'admin' && off.includes(k)); } });
 }
-// 管理画面「QR・設定」の「メニューの並び」：▲▼で動かして保存（全員のメニューに効く）
+// 管理画面「QR・設定」の「メニューの並び」：▲▼で動かし、「表示」のオンオフを決めて保存（全員のメニューに効く。オンオフは 2026-11-21）
 const MENU_NOTE = { req: 'シフト対象の人だけ', env: 'パソコンだけ', admin: '管理者だけ・スマホは下のタブ' };
-let menuOrd = [];
+let menuOrd = [], menuOff = [];
 function loadMenuOrd() {
   menuOrd = menuKeys(me && me.menuOrder).filter(k => k !== 'push' && $('menu').querySelector(`:scope > [data-key="${k}"]`)); // 通知のテストは今は出さないので並べない
+  menuOff = ((me && me.menuHide) || []).slice();
   drawMenuOrd();
 }
 function drawMenuOrd() {
   const box = $('menuOrd'); box.innerHTML = '';
   menuOrd.forEach((k, i) => {
     const row = document.createElement('div'); row.className = 'pwrow';
-    const t = document.createElement('div'); t.style.flex = '1';
+    const off = menuOff.includes(k);
+    const t = document.createElement('div'); t.style.flex = '1'; if (off) t.style.opacity = '.45';
     t.textContent = `${i + 1}. ${$('menu').querySelector(`:scope > [data-key="${k}"]`).textContent} `;
     if (MENU_NOTE[k]) { const n = document.createElement('small'); n.className = 'sub'; n.textContent = `（${MENU_NOTE[k]}）`; t.appendChild(n); }
     row.appendChild(t);
+    if (k === 'admin') { // 管理画面の入口は消せない（消すと、ここに戻れなくなる）
+      const n = document.createElement('small'); n.className = 'sub'; n.textContent = '常に表示'; row.appendChild(n);
+    } else {
+      const b = document.createElement('button'); b.className = off ? 'ghost' : 'sec'; b.textContent = off ? '非表示' : '表示';
+      b.setAttribute('aria-label', off ? 'メニューに出す' : 'メニューから消す'); b.setAttribute('aria-pressed', String(!off));
+      b.onclick = () => { menuOff = off ? menuOff.filter(x => x !== k) : menuOff.concat(k); drawMenuOrd(); };
+      row.appendChild(b);
+    }
     [['▲', -1], ['▼', 1]].forEach(([lb, d]) => {
       const b = document.createElement('button'); b.className = 'ghost'; b.textContent = lb;
       b.setAttribute('aria-label', d < 0 ? '上へ' : '下へ');
@@ -1655,12 +1666,13 @@ function drawMenuOrd() {
   });
 }
 async function saveMenuOrd(reset) {
-  if (reset && !await ask('メニューを元の並びに戻しますか？')) return;
+  if (reset && !await ask('メニューを元の並びに戻し、全部の項目を表示しますか？')) return;
   busy(true);
   try {
-    me.menuOrder = await call('adminMenuOrder', { order: reset ? [] : menuOrd });
+    const r = await call('adminMenuOrder', { order: reset ? [] : menuOrd, hide: reset ? [] : menuOff });
+    me.menuOrder = r.order; me.menuHide = r.hide;
     sortMenu(); loadMenuOrd();
-    show(reset ? 'メニューを元の並びに戻しました' : 'メニューの並びを保存しました（ほかの人は、画面を開き直した時から変わります）');
+    show(reset ? 'メニューを元の並びに戻し、全部の項目を表示しました' : 'メニューの並びと表示を保存しました（ほかの人は、画面を開き直した時から変わります）');
   } finally { busy(false); }
 }
 // 右上のメニュー：外側を押したら閉じる（2026-11-18 PCも折りたたみに）
@@ -1668,7 +1680,7 @@ document.addEventListener('click', e => { const m = $('menu'); if (m.classList.c
 // メニューの開け閉め：全画面に写真の背景で開き、三本線を「米」の形にする（2026-11-18）
 function menuOpen(on) {
   if (on) { // PCで出ている項目が5件以上なら2列（2026-11-21 ユーザー指定）
-    const n = [...$('menu').children].filter(x => x.tagName === 'BUTTON' && !x.classList.contains('hidden')).length;
+    const n = [...$('menu').children].filter(x => x.tagName === 'BUTTON' && !x.classList.contains('hidden') && !x.classList.contains('menuOff')).length;
     $('menu').classList.toggle('two', IS_PC && n >= 5);
     $('menu').style.setProperty('--rows', Math.ceil(n / 2));
   }

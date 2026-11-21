@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261121101633">
+<meta name="build" content="20261121103258">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -301,7 +301,6 @@
   #menu.open::before { transform:scale(1); }
   html.menuLock { overflow:hidden; } /* body には付けない（付けると上の帯の固定が外れ、スクロールした所で開くと帯が上に見切れる。2026-11-18） */
   html.menuLock header { z-index:10; } /* 下のタブ・お知らせより上に */
-  #bookLinks { display:contents; } /* 表のボタンもほかと同じく縦に並べる（2026-11-21 塔婆カレンダー） */
   #menu button { width:min(320px,100%); margin:0; border:0 !important; border-bottom:1px solid rgba(255,255,255,.35) !important; padding:20px 8px !important; text-align:center;
     font-family:"Shippori Mincho","Hiragino Mincho ProN","Yu Mincho",serif; font-size:18px !important; font-weight:500; letter-spacing:.3em !important; color:#fff; background:transparent !important;
     text-shadow:0 1px 10px rgba(0,0,0,.6); opacity:0; transform:translateY(14px); transition:opacity .5s ease .15s, transform .7s cubic-bezier(.2,.7,.2,1) .15s, background .2s; }
@@ -705,15 +704,15 @@
     <span class="who" id="who"></span>
     <button id="btnMenu" class="hidden" onclick="event.stopPropagation(); menuOpen(!$('menu').classList.contains('open'))" aria-label="メニュー"><i></i><i></i><i></i></button>
     <div id="menu" onclick="menuOpen(false)">
-      <button id="btnReq" class="hidden" onclick="view('req')">シフト希望</button>
-      <button id="btnEnv" class="hidden" onclick="view('env')">封筒印刷</button>
-      <button id="btnAdmin" class="hidden" onclick="view('admin')">管理</button>
-      <span id="bookLinks"></span><!-- 塔婆カレンダー（塔婆受付表）を開く（2026-11-21 東京と同じ）／未収簿（いちばん新しいページ。2026-11-21 福岡のみ） -->
-      <button id="btnStock" onclick="window.open('https://docs.google.com/spreadsheets/d/10ALkDv5xEvHXXn4O70_MjVPDLM6-rduD/edit?gid=939145550#gid=939145550', '_blank')">倉庫在庫管理表</button><!-- 2026-11-21 ユーザー指定。福岡のみ（東京には入れない）。全員に表示 -->
-      <button id="btnRule" onclick="window.open('https://docs.google.com/spreadsheets/d/1dbF4XRmlckRz0mRAcX-sPJRFSrP32HPJ/edit?gid=408161886#gid=408161886', '_blank')">ルール確認用</button><!-- 2026-11-21 ユーザー指定。福岡・東京共通の表。全員に表示 -->
-      <button id="btnContract" onclick="window.open('https://onedrive.live.com/:x:/g/personal/B56BF54E128331D4/ESiNm7q2Ts9JqedTZiwMOcQBC_VZemQxrl2SA8HH1qQtJQ?resid=B56BF54E128331D4!sba9b8d284eb649cfa9e753662c0c39c4&ithint=file%2Cxlsx&e=WfFBPL&migratedtospo=true&redeem=aHR0cHM6Ly8xZHJ2Lm1zL3gvYy9iNTZiZjU0ZTEyODMzMWQ0L0VTaU5tN3EyVHM5SnFlZFRaaXdNT2NRQkNfVlplbVF4cmwyU0E4SEgxcVF0SlE_ZT1XZkZCUEw', '_blank')">契約後依頼表</button><!-- 2026-11-21 ユーザー指定。福岡・東京共通の表（OneDrive）。全員に表示 -->
-      <button id="btnPush" class="hidden" onclick="testPushMe()">通知のテスト</button>
-      <button id="btnLogout" class="hidden" onclick="logout()">ログアウト</button>
+      <button id="btnReq" data-key="req" class="hidden" onclick="view('req')">シフト希望</button>
+      <button id="btnEnv" data-key="env" class="hidden" onclick="view('env')">封筒印刷</button>
+      <button id="btnAdmin" data-key="admin" class="hidden" onclick="view('admin')">管理</button>
+      <!-- ここに表のボタン（塔婆カレンダー・未収簿。view で作る）。並びは管理画面「QR・設定」の「メニューの並び」（sortMenu。2026-11-21） -->
+      <button id="btnStock" data-key="stock" onclick="window.open('https://docs.google.com/spreadsheets/d/10ALkDv5xEvHXXn4O70_MjVPDLM6-rduD/edit?gid=939145550#gid=939145550', '_blank')">倉庫在庫管理表</button><!-- 2026-11-21 ユーザー指定。福岡のみ（東京には入れない）。全員に表示 -->
+      <button id="btnRule" data-key="rule" onclick="window.open('https://docs.google.com/spreadsheets/d/1dbF4XRmlckRz0mRAcX-sPJRFSrP32HPJ/edit?gid=408161886#gid=408161886', '_blank')">ルール確認用</button><!-- 2026-11-21 ユーザー指定。福岡・東京共通の表。全員に表示 -->
+      <button id="btnContract" data-key="contract" onclick="window.open('https://onedrive.live.com/:x:/g/personal/B56BF54E128331D4/ESiNm7q2Ts9JqedTZiwMOcQBC_VZemQxrl2SA8HH1qQtJQ?resid=B56BF54E128331D4!sba9b8d284eb649cfa9e753662c0c39c4&ithint=file%2Cxlsx&e=WfFBPL&migratedtospo=true&redeem=aHR0cHM6Ly8xZHJ2Lm1zL3gvYy9iNTZiZjU0ZTEyODMzMWQ0L0VTaU5tN3EyVHM5SnFlZFRaaXdNT2NRQkNfVlplbVF4cmwyU0E4SEgxcVF0SlE_ZT1XZkZCUEw', '_blank')">契約後依頼表</button><!-- 2026-11-21 ユーザー指定。福岡・東京共通の表（OneDrive）。全員に表示 -->
+      <button id="btnPush" data-key="push" class="hidden" onclick="testPushMe()">通知のテスト</button>
+      <button id="btnLogout" data-key="logout" class="hidden" onclick="logout()">ログアウト</button>
     </div>
   </div>
 </header>
@@ -1276,6 +1275,13 @@
           <button class="ghost" onclick="stampQrSheet(true)">QRコードを作り直す（古いQRは使えなくなります）</button>
         </div>
         <div class="card">
+          <strong>メニューの並び</strong>
+          <span class="sub">右上の三本線（≡）を押すと出るメニューの順番です。「▲」「▼」で上下に動かして、「この並びで保存」を押してください。全員のメニューがこの順番になります（ほかの人は、画面を開き直した時から）。</span>
+          <div id="menuOrd"></div>
+          <button class="sec" onclick="saveMenuOrd(false)">この並びで保存</button>
+          <button class="ghost" onclick="saveMenuOrd(true)">元の並びに戻す</button>
+        </div>
+        <div class="card">
           <strong>パスワードの初期化（緊急用）</strong>
           <span class="sub">パスワードを忘れて、メールでも再設定できない人のパスワードを消します。本人は次にログインする時に、新しいパスワードを決めて入力します（その人のログイン中の端末も、ログインし直しになります）。</span>
           <div id="pwList"></div>
@@ -1485,8 +1491,9 @@ function view(v) {
   $('main').classList.toggle('three', v === 'clock' && showTasks());
   $('btnReq').classList.toggle('hidden', v === 'req' || me.noAttend);
   $('btnAdmin').classList.toggle('hidden', v === 'admin' || !me.admin);
-  $('bookLinks').innerHTML = ''; // メニューの表のボタン（2026-11-21 塔婆カレンダー。東京と同じ）
-  (me.books || []).forEach(b => { const x = document.createElement('button'); x.textContent = b.label; x.onclick = () => window.open(bookUrl(b), '_blank'); $('bookLinks').appendChild(x); });
+  document.querySelectorAll('#menu .bookBtn').forEach(x => x.remove()); // メニューの表のボタン（2026-11-21 塔婆カレンダー。東京と同じ）
+  (me.books || []).forEach(b => { const x = document.createElement('button'); x.className = 'bookBtn'; x.dataset.key = b.key || ''; x.textContent = b.label; x.onclick = () => window.open(bookUrl(b), '_blank'); $('menu').appendChild(x); });
+  sortMenu();
   $('main').classList.toggle('wide', v === 'admin');
   if (v !== 'clock') mobTab = 'home'; // 管理・シフト希望から戻った時はTOP
   mobBar();
@@ -1598,6 +1605,56 @@ function bookUrl(b, now) {
   now = now || new Date();
   const gid = (b.tabs || {})[`${now.getFullYear()}.${now.getMonth() + 1}`];
   return gid == null ? b.url : `${b.url}#gid=${gid}`;
+}
+// 三本線メニューの並び（2026-11-21 ユーザー指定）：管理画面で決めた並び（me.menuOrder）＋まだ並びにない項目は元の並びで前の項目のすぐ後ろ
+const MENU_DEFAULT = ['req', 'env', 'admin', 'toba', 'mishu', 'stock', 'rule', 'contract', 'push', 'logout']; // 元の並び（WebApp.gs MENU_KEYS と同じ印）
+function menuKeys(order) {
+  const out = (order || []).filter((k, i, a) => MENU_DEFAULT.includes(k) && a.indexOf(k) === i);
+  MENU_DEFAULT.forEach((k, i) => {
+    if (out.includes(k)) return;
+    let at = 0;
+    for (let j = i - 1; j >= 0; j--) { const p = out.indexOf(MENU_DEFAULT[j]); if (p >= 0) { at = p + 1; break; } }
+    out.splice(at, 0, k);
+  });
+  return out;
+}
+function sortMenu() {
+  const m = $('menu');
+  menuKeys(me && me.menuOrder).forEach(k => { const b = m.querySelector(`:scope > [data-key="${k}"]`); if (b) m.appendChild(b); });
+}
+// 管理画面「QR・設定」の「メニューの並び」：▲▼で動かして保存（全員のメニューに効く）
+const MENU_NOTE = { req: 'シフト対象の人だけ', env: 'パソコンだけ', admin: '管理者だけ・スマホは下のタブ' };
+let menuOrd = [];
+function loadMenuOrd() {
+  menuOrd = menuKeys(me && me.menuOrder).filter(k => k !== 'push' && $('menu').querySelector(`:scope > [data-key="${k}"]`)); // 通知のテストは今は出さないので並べない
+  drawMenuOrd();
+}
+function drawMenuOrd() {
+  const box = $('menuOrd'); box.innerHTML = '';
+  menuOrd.forEach((k, i) => {
+    const row = document.createElement('div'); row.className = 'pwrow';
+    const t = document.createElement('div'); t.style.flex = '1';
+    t.textContent = `${i + 1}. ${$('menu').querySelector(`:scope > [data-key="${k}"]`).textContent} `;
+    if (MENU_NOTE[k]) { const n = document.createElement('small'); n.className = 'sub'; n.textContent = `（${MENU_NOTE[k]}）`; t.appendChild(n); }
+    row.appendChild(t);
+    [['▲', -1], ['▼', 1]].forEach(([lb, d]) => {
+      const b = document.createElement('button'); b.className = 'ghost'; b.textContent = lb;
+      b.setAttribute('aria-label', d < 0 ? '上へ' : '下へ');
+      b.disabled = i + d < 0 || i + d >= menuOrd.length;
+      b.onclick = () => { [menuOrd[i], menuOrd[i + d]] = [menuOrd[i + d], menuOrd[i]]; drawMenuOrd(); };
+      row.appendChild(b);
+    });
+    box.appendChild(row);
+  });
+}
+async function saveMenuOrd(reset) {
+  if (reset && !await ask('メニューを元の並びに戻しますか？')) return;
+  busy(true);
+  try {
+    me.menuOrder = await call('adminMenuOrder', { order: reset ? [] : menuOrd });
+    sortMenu(); loadMenuOrd();
+    show(reset ? 'メニューを元の並びに戻しました' : 'メニューの並びを保存しました（ほかの人は、画面を開き直した時から変わります）');
+  } finally { busy(false); }
 }
 // 右上のメニュー：外側を押したら閉じる（2026-11-18 PCも折りたたみに）
 document.addEventListener('click', e => { const m = $('menu'); if (m.classList.contains('open') && !m.contains(e.target)) menuOpen(false); });
@@ -4285,7 +4342,7 @@ function showRes(title, list) {
 function adminTab(t) {
   document.querySelectorAll('.atab').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
   ['shift', 'req', 'actual', 'saido', 'info', 'etc'].forEach(x => $('at-' + x).classList.toggle('hidden', x !== t));
-  if (t === 'etc') loadPwList();
+  if (t === 'etc') { loadPwList(); loadMenuOrd(); }
   if (t === 'saido') loadSaido();
   if (t === 'actual') loadRevert();
   try { localStorage.setItem('adminTab', t); } catch (e) {}

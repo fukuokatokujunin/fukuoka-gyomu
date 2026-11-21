@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261121101117">
+<meta name="build" content="20261121101200">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -709,6 +709,7 @@
       <button id="btnEnv" class="hidden" onclick="view('env')">封筒印刷</button>
       <button id="btnAdmin" class="hidden" onclick="view('admin')">管理</button>
       <span id="bookLinks"></span><!-- 塔婆カレンダー（塔婆受付表）を開く（2026-11-21 東京と同じ）／未収簿（いちばん新しいページ。2026-11-21 福岡のみ） -->
+      <button id="btnStock" onclick="window.open('https://docs.google.com/spreadsheets/d/10ALkDv5xEvHXXn4O70_MjVPDLM6-rduD/edit?gid=939145550#gid=939145550', '_blank')">倉庫在庫管理表</button><!-- 2026-11-21 ユーザー指定。福岡のみ（東京には入れない）。全員に表示 -->
       <button id="btnRule" onclick="window.open('https://docs.google.com/spreadsheets/d/1dbF4XRmlckRz0mRAcX-sPJRFSrP32HPJ/edit?gid=408161886#gid=408161886', '_blank')">ルール確認用</button><!-- 2026-11-21 ユーザー指定。福岡・東京共通の表。全員に表示 -->
       <button id="btnContract" onclick="window.open('https://onedrive.live.com/:x:/g/personal/B56BF54E128331D4/ESiNm7q2Ts9JqedTZiwMOcQBC_VZemQxrl2SA8HH1qQtJQ?resid=B56BF54E128331D4!sba9b8d284eb649cfa9e753662c0c39c4&ithint=file%2Cxlsx&e=WfFBPL&migratedtospo=true&redeem=aHR0cHM6Ly8xZHJ2Lm1zL3gvYy9iNTZiZjU0ZTEyODMzMWQ0L0VTaU5tN3EyVHM5SnFlZFRaaXdNT2NRQkNfVlplbVF4cmwyU0E4SEgxcVF0SlE_ZT1XZkZCUEw', '_blank')">契約後依頼表</button><!-- 2026-11-21 ユーザー指定。福岡・東京共通の表（OneDrive）。全員に表示 -->
       <button id="btnPush" class="hidden" onclick="testPushMe()">通知のテスト</button>

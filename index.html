@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261121103258">
+<meta name="build" content="20261121104049">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -782,7 +782,17 @@
         <button class="out" onclick="clockOut()">チェックして退勤</button>
         <p class="sub center">今日もお疲れ様でした！</p>
       </div>
-      <!-- 業務追加・引き継ぎ事項（2026-11-18 勤務中の枠の下・予定カレンダーの上へ移した） -->      <details class="card foldbox hidden" id="addBox">
+      <!-- 予定カレンダー（2026-11-11）：勤務中の枠の下（2026-11-21 業務追加・引き継ぎ事項の上へ移した）。寺内スケジュールと個別業務の期日を月・週で見る（PC・スマホのTOP） -->
+      <div class="card" id="calBox">
+        <div class="calhead"><h3>予定カレンダー</h3>
+          <div class="calmode"><button data-m="month" onclick="scMode('month')">月</button><button data-m="week" onclick="scMode('week')">週</button></div></div>
+        <div class="calnav"><button class="arw" onclick="scMove(-1)" aria-label="前へ">‹</button><b id="calTitle"></b><button class="arw" onclick="scMove(1)" aria-label="次へ">›</button><button class="tdy" onclick="scToday()">今日</button></div>
+        <div class="callegend"><span class="an">寺内スケジュール</span><span class="tk">個別業務</span></div>
+        <div id="calBody"></div>
+        <div id="calDay" class="hidden"></div>
+        <p class="sub calnote">寺内スケジュールは3か月先までの予定を表示しています。開始日のある予定は開始日から期日まで帯で表示します。「選択」で一覧のその項目へ移動します</p>
+      </div>
+      <!-- 業務追加・引き継ぎ事項（2026-11-18 勤務中の枠の下・予定カレンダーの上へ移した）。2026-11-21 予定カレンダーの下へ -->      <details class="card foldbox hidden" id="addBox">
         <summary>業務追加</summary>
         <div class="mobhead"><h3 data-en="ADD">業務追加</h3></div>
         <div class="newbtns">
@@ -804,16 +814,6 @@
         </div>
         <div id="hoList"></div><!-- 引き継ぎ事項の一覧（2026-11-18）：全員の引き継ぎを新しい順に。消すまで残る -->
       </details>
-      <!-- 予定カレンダー（2026-11-11）：勤務中の枠の下。寺内スケジュールと個別業務の期日を月・週で見る（PC・スマホのTOP） -->
-      <div class="card" id="calBox">
-        <div class="calhead"><h3>予定カレンダー</h3>
-          <div class="calmode"><button data-m="month" onclick="scMode('month')">月</button><button data-m="week" onclick="scMode('week')">週</button></div></div>
-        <div class="calnav"><button class="arw" onclick="scMove(-1)" aria-label="前へ">‹</button><b id="calTitle"></b><button class="arw" onclick="scMove(1)" aria-label="次へ">›</button><button class="tdy" onclick="scToday()">今日</button></div>
-        <div class="callegend"><span class="an">寺内スケジュール</span><span class="tk">個別業務</span></div>
-        <div id="calBody"></div>
-        <div id="calDay" class="hidden"></div>
-        <p class="sub calnote">寺内スケジュールは3か月先までの予定を表示しています。開始日のある予定は開始日から期日まで帯で表示します。「選択」で一覧のその項目へ移動します</p>
-      </div>
       <!-- 日常業務（2026-11-18）：個別業務と同じ形。担当はなく全員で共有。前回完了日を出す。全部を折りたたみ（2026-11-21。以前は1週間以上先だけ）。PCは予定カレンダーの下、スマホは下部タブ -->
       <div class="card task hidden" id="dailyBox">
         <div class="head"><h3>日常業務 <span class="sub" id="dailyCount"></span></h3>

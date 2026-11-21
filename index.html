@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261121151132">
+<meta name="build" content="20261121172715">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -710,15 +710,15 @@
   <div class="tools">
     <span class="who" id="who"></span>
     <button id="btnMenu" class="hidden" onclick="event.stopPropagation(); menuOpen(!$('menu').classList.contains('open'))" aria-label="メニュー"><i></i><i></i><i></i></button>
-    <div id="menu" onclick="menuOpen(false)">
-      <button id="btnReq" data-key="req" class="hidden" onclick="view('req')">シフト希望</button>
-      <button id="btnEnv" data-key="env" class="hidden" onclick="view('env')">封筒印刷</button>
-      <button id="btnAdmin" data-key="admin" class="hidden" onclick="view('admin')">管理</button>
+    <div id="menu" onclick="menuClick(event)">
+      <button id="btnReq" data-key="req" class="hidden" onclick="view('req', true)">シフト希望</button>
+      <button id="btnEnv" data-key="env" class="hidden" onclick="view('env', true)">封筒印刷</button>
+      <button id="btnAdmin" data-key="admin" class="hidden" onclick="view('admin', true)">管理</button>
       <!-- ここに表のボタン（塔婆カレンダー・未収簿。view で作る）。並びは管理画面「QR・設定」の「メニューの並び」（sortMenu。2026-11-21） -->
-      <button id="btnStock" data-key="stock" onclick="window.open('https://docs.google.com/spreadsheets/d/10ALkDv5xEvHXXn4O70_MjVPDLM6-rduD/edit?gid=939145550#gid=939145550', '_blank')">倉庫在庫管理表</button><!-- 2026-11-21 ユーザー指定。福岡のみ（東京には入れない）。全員に表示 -->
-      <button id="btnSokyaku" data-key="sokyaku" onclick="window.open('https://drive.google.com/drive/folders/1A5BTULzq2My_UgvbwXNYNADC1ok_vaYh', '_blank')">送客受付フォルダ</button><!-- 2026-11-21 ユーザー指定。福岡のみ（東京には入れない）。全員に表示。Googleドライブのフォルダ -->
-      <button id="btnRule" data-key="rule" onclick="window.open('https://docs.google.com/spreadsheets/d/1dbF4XRmlckRz0mRAcX-sPJRFSrP32HPJ/edit?gid=408161886#gid=408161886', '_blank')">ルール確認用</button><!-- 2026-11-21 ユーザー指定。福岡・東京共通の表。全員に表示 -->
-      <button id="btnContract" data-key="contract" onclick="window.open('https://onedrive.live.com/:x:/g/personal/B56BF54E128331D4/ESiNm7q2Ts9JqedTZiwMOcQBC_VZemQxrl2SA8HH1qQtJQ?resid=B56BF54E128331D4!sba9b8d284eb649cfa9e753662c0c39c4&ithint=file%2Cxlsx&e=WfFBPL&migratedtospo=true&redeem=aHR0cHM6Ly8xZHJ2Lm1zL3gvYy9iNTZiZjU0ZTEyODMzMWQ0L0VTaU5tN3EyVHM5SnFlZFRaaXdNT2NRQkNfVlplbVF4cmwyU0E4SEgxcVF0SlE_ZT1XZkZCUEw', '_blank')">契約後依頼表</button><!-- 2026-11-21 ユーザー指定。福岡・東京共通の表（OneDrive）。全員に表示 -->
+      <button id="btnStock" data-key="stock" data-ext="1" onclick="window.open('https://docs.google.com/spreadsheets/d/10ALkDv5xEvHXXn4O70_MjVPDLM6-rduD/edit?gid=939145550#gid=939145550', '_blank')">倉庫在庫管理表</button><!-- 2026-11-21 ユーザー指定。福岡のみ（東京には入れない）。全員に表示 -->
+      <button id="btnSokyaku" data-key="sokyaku" data-ext="1" onclick="window.open('https://drive.google.com/drive/folders/1A5BTULzq2My_UgvbwXNYNADC1ok_vaYh', '_blank')">送客受付フォルダ</button><!-- 2026-11-21 ユーザー指定。福岡のみ（東京には入れない）。全員に表示。Googleドライブのフォルダ -->
+      <button id="btnRule" data-key="rule" data-ext="1" onclick="window.open('https://docs.google.com/spreadsheets/d/1dbF4XRmlckRz0mRAcX-sPJRFSrP32HPJ/edit?gid=408161886#gid=408161886', '_blank')">ルール確認用</button><!-- 2026-11-21 ユーザー指定。福岡・東京共通の表。全員に表示 -->
+      <button id="btnContract" data-key="contract" data-ext="1" onclick="window.open('https://onedrive.live.com/:x:/g/personal/B56BF54E128331D4/ESiNm7q2Ts9JqedTZiwMOcQBC_VZemQxrl2SA8HH1qQtJQ?resid=B56BF54E128331D4!sba9b8d284eb649cfa9e753662c0c39c4&ithint=file%2Cxlsx&e=WfFBPL&migratedtospo=true&redeem=aHR0cHM6Ly8xZHJ2Lm1zL3gvYy9iNTZiZjU0ZTEyODMzMWQ0L0VTaU5tN3EyVHM5SnFlZFRaaXdNT2NRQkNfVlplbVF4cmwyU0E4SEgxcVF0SlE_ZT1XZkZCUEw', '_blank')">契約後依頼表</button><!-- 2026-11-21 ユーザー指定。福岡・東京共通の表（OneDrive）。全員に表示 -->
       <button id="btnPush" data-key="push" class="hidden" onclick="testPushMe()">通知のテスト</button>
       <button id="btnLogout" data-key="logout" class="hidden" onclick="logout()">ログアウト</button>
     </div>
@@ -1074,7 +1074,7 @@
 
     <!-- シフト希望 -->
     <section id="v-req" class="hidden">
-      <button class="ghost back" onclick="view('clock')">← TOPに戻る</button>
+      <button class="ghost back vback" onclick="event.stopPropagation(); viewBack()">← TOPに戻る</button>
       <div class="card">
         <div class="reqmonths hidden" id="reqMonths"></div>
         <strong id="reqTitle"></strong>
@@ -1096,7 +1096,7 @@
 
     <!-- 封筒印刷（2026-11-18）：①大きさ → ②宛先の入力 → ③印字の確認・印刷 -->
     <section id="v-env" class="hidden">
-      <button class="ghost back" onclick="view('clock')">← TOPに戻る</button>
+      <button class="ghost back vback" onclick="event.stopPropagation(); viewBack()">← TOPに戻る</button>
       <div class="card" id="envStep1">
         <h3>封筒印刷</h3>
         <p class="sub">封筒の大きさを選んでください</p>
@@ -1140,7 +1140,7 @@
 
     <!-- 管理 -->
     <section id="v-admin" class="hidden">
-      <button class="ghost back" onclick="view('clock')">← TOPに戻る</button>
+      <button class="ghost back vback" onclick="event.stopPropagation(); viewBack()">← TOPに戻る</button>
       <!-- 上段：対象月・状態・希望の提出状況（どのタブでも共通） -->
       <div class="card admtop">
         <select id="ym" onchange="loadAdmin()"></select>
@@ -1491,8 +1491,11 @@ function logout() {
   saveQueue.then(pushOff).then(out, out); // 保存が終わってから（この端末の通知も止める）
 }
 
-function view(v) {
+let menuBack = false; // メニューから開いた画面（シフト希望・封筒印刷・管理）なら、戻るでメニューに戻す（2026-11-21 ユーザー指定）
+function view(v, fromMenu) {
   cur = v;
+  menuBack = !!fromMenu && v !== 'clock';
+  document.querySelectorAll('.vback').forEach(b => { b.textContent = menuBack ? '← メニューに戻る' : '← TOPに戻る'; });
   ['clock', 'req', 'env', 'admin'].forEach(x => $('v-' + x).classList.toggle('hidden', v !== x));
   $('btnEnv').classList.toggle('hidden', v === 'env' || !IS_PC); // 封筒印刷はパソコンだけ（スマホ・iPadは用紙を選べないので出さない。2026-11-18 ユーザー指定）
   $('main').classList.toggle('split', v === 'clock');
@@ -1500,7 +1503,7 @@ function view(v) {
   $('btnReq').classList.toggle('hidden', v === 'req' || me.noAttend);
   $('btnAdmin').classList.toggle('hidden', v === 'admin' || !me.admin);
   document.querySelectorAll('#menu .bookBtn').forEach(x => x.remove()); // メニューの表のボタン（2026-11-21 塔婆カレンダー。東京と同じ）
-  (me.books || []).forEach(b => { const x = document.createElement('button'); x.className = 'bookBtn'; x.dataset.key = b.key || ''; x.textContent = b.label; x.onclick = () => window.open(bookUrl(b), '_blank'); $('menu').appendChild(x); });
+  (me.books || []).forEach(b => { const x = document.createElement('button'); x.className = 'bookBtn'; x.dataset.key = b.key || ''; x.dataset.ext = '1'; x.textContent = b.label; x.onclick = () => window.open(bookUrl(b), '_blank'); $('menu').appendChild(x); });
   sortMenu();
   $('main').classList.toggle('wide', v === 'admin');
   if (v !== 'clock') mobTab = 'home'; // 管理・シフト希望から戻った時はTOP
@@ -1675,6 +1678,16 @@ async function saveMenuOrd(reset) {
     show(reset ? 'メニューを元の並びに戻し、全部の項目を表示しました' : 'メニューの並びと表示を保存しました（ほかの人は、画面を開き直した時から変わります）');
   } finally { busy(false); }
 }
+// 画面の「戻る」：メニューから開いた時はメニューを開き直す（2026-11-21 ユーザー指定）
+function viewBack() { const m = menuBack; view('clock'); if (m) menuOpen(true); }
+// メニューを押した時：別のタブで開く項目（data-ext）はメニューを開いたままにする（戻ってきた時にTOPにならないように。2026-11-21 ユーザー指定）
+function menuClick(e) { const b = e.target.closest('button'); if (!(b && b.dataset.ext)) menuOpen(false); }
+// 新しい版への切り替え（読み直し）の前にメニューが開いていたら、読み直した後も開く
+function menuRestore() {
+  let k = false;
+  try { k = sessionStorage.getItem('menuKeep') === '1'; sessionStorage.removeItem('menuKeep'); } catch (e) {}
+  if (k) menuOpen(true);
+}
 // 右上のメニュー：外側を押したら閉じる（2026-11-18 PCも折りたたみに）
 document.addEventListener('click', e => { const m = $('menu'); if (m.classList.contains('open') && !m.contains(e.target)) menuOpen(false); });
 // メニューの開け閉め：全画面に写真の背景で開き、三本線を「米」の形にする（2026-11-18）
@@ -1783,6 +1796,7 @@ function checkUpdate() {
   if (!BUILD || document.hidden || tkCur || savePending || scan || (typeof preOpen !== 'undefined' && preOpen)) return; // 入力中・保存中は避ける
   fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' }).then(r => r.text()).then(t => {
     const m = t.match(/<meta name="build" content="(\d+)">/);
+    if (m && m[1] !== BUILD) { try { if ($('menu').classList.contains('open')) sessionStorage.setItem('menuKeep', '1'); } catch (e) {} } // 戻ってきた時に切り替わってもメニューのまま
     if (m && m[1] !== BUILD) location.replace(location.pathname + '?b=' + m[1]); // 普通の再読込だと古い画面が出ることがあるので版番号を付けて読み直す
   }).catch(() => {});
 }
@@ -4795,13 +4809,13 @@ if (saved) { // 名前一覧を待たずにログインを始める
     try {
       const sa = JSON.parse(localStorage.getItem('snapAnnual') || 'null');
       if (sa) snap.s.annual = sa;
-      me = { annual: snap.s.annual }; render(snap.s); $('app').classList.remove('hidden'); view('clock');
+      me = { annual: snap.s.annual }; render(snap.s); $('app').classList.remove('hidden'); view('clock'); menuRestore();
     } catch (e) {}
     stale = true; lockStamp(); show('最新の情報を読み込み中…');
   } else show('読み込み中…');
   call('login').then(s => {
     stale = false; lockStamp();
-    render(s); $('app').classList.remove('hidden'); show(''); view('clock');
+    render(s); $('app').classList.remove('hidden'); show(''); view('clock'); menuRestore();
     tasksAt = Date.now(); doGo();
     pushSync(); mailPrompt();
   }).catch(() => {

@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261121105707">
+<meta name="build" content="20261121110717">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -310,7 +310,7 @@
   @media (min-width:760px) {
     #menu.two { display:grid; grid-auto-flow:column; grid-template-rows:repeat(var(--rows,3), auto); grid-template-columns:repeat(2, 320px);
       justify-content:center; align-content:center; column-gap:56px; }
-    #menu.two button { width:100%; }
+    #menu.two button { width:100%; grid-column:auto; justify-self:stretch; } /* ログアウトの古い指定（header #btnLogout の grid-column:1）で先頭に来ないように */
   }
   @media (max-width:640px) {
     header { grid-template-columns:auto 1fr auto; }

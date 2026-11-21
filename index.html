@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261121104633">
+<meta name="build" content="20261121105707">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -306,6 +306,12 @@
     text-shadow:0 1px 10px rgba(0,0,0,.6); opacity:0; transform:translateY(14px); transition:opacity .5s ease .15s, transform .7s cubic-bezier(.2,.7,.2,1) .15s, background .2s; }
   #menu.open button { opacity:1; transform:none; }
   #menu button:hover { background:rgba(255,255,255,.12) !important; }
+  /* PCで項目が5件以上なら2列（2026-11-21 ユーザー指定）。左の列を上から下へ、続けて右の列。行の数は menuOpen で --rows に。狭い窓では1列のまま */
+  @media (min-width:760px) {
+    #menu.two { display:grid; grid-auto-flow:column; grid-template-rows:repeat(var(--rows,3), auto); grid-template-columns:repeat(2, 320px);
+      justify-content:center; align-content:center; column-gap:56px; }
+    #menu.two button { width:100%; }
+  }
   @media (max-width:640px) {
     header { grid-template-columns:auto 1fr auto; }
     header strong { grid-column:1; justify-self:start; }
@@ -1661,6 +1667,11 @@ async function saveMenuOrd(reset) {
 document.addEventListener('click', e => { const m = $('menu'); if (m.classList.contains('open') && !m.contains(e.target)) menuOpen(false); });
 // メニューの開け閉め：全画面に写真の背景で開き、三本線を「米」の形にする（2026-11-18）
 function menuOpen(on) {
+  if (on) { // PCで出ている項目が5件以上なら2列（2026-11-21 ユーザー指定）
+    const n = [...$('menu').children].filter(x => x.tagName === 'BUTTON' && !x.classList.contains('hidden')).length;
+    $('menu').classList.toggle('two', IS_PC && n >= 5);
+    $('menu').style.setProperty('--rows', Math.ceil(n / 2));
+  }
   $('menu').classList.toggle('open', on); $('btnMenu').classList.toggle('menuOn', on);
   document.documentElement.classList.toggle('menuLock', on);
 }

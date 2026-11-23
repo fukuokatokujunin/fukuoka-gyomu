@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261121172715">
+<meta name="build" content="20261123121926">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -562,8 +562,11 @@
   #calBox .calnav b { flex:1; text-align:center; font-family:"Shippori Mincho","Hiragino Mincho ProN","Yu Mincho",serif; font-weight:500; font-size:17px; letter-spacing:.12em; white-space:nowrap; }
   #calBox .calnav .arw { width:38px; height:34px; border:1px solid var(--line); font-size:18px; line-height:1; letter-spacing:0; }
   #calBox .calnav .tdy { padding:4px 2px; border-bottom:1px solid var(--ink); font-size:12px; }
-  .callegend { display:flex; gap:16px; justify-content:flex-end; font-size:11px; color:var(--sub); margin-bottom:8px; letter-spacing:.05em; }
-  .callegend span::before { content:''; display:inline-block; width:10px; height:10px; margin-right:5px; vertical-align:-1px; }
+  .callegend { display:flex; gap:6px; justify-content:flex-end; font-size:11px; color:var(--sub); margin-bottom:8px; letter-spacing:.05em; }
+  /* 表示の切替（2026-11-23）：すべて／寺内スケジュール／個別業務。凡例を兼ねる */
+  #calBox .callegend button { padding:4px 10px; font-size:11px; letter-spacing:.05em; color:var(--sub); border:1px solid var(--line); white-space:nowrap; }
+  #calBox .callegend button.on { color:var(--ink); border-color:var(--ink); font-weight:500; }
+  .callegend .an::before, .callegend .tk::before { content:''; display:inline-block; width:10px; height:10px; margin-right:5px; vertical-align:-1px; }
   .callegend .an::before { background:var(--an); } .callegend .tk::before { background:var(--tk); }
   /* 月表示 */
   .scgrid { display:grid; grid-template-columns:repeat(7, minmax(0,1fr)); border-top:1px solid var(--line); border-left:1px solid var(--line); }
@@ -795,10 +798,10 @@
         <div class="calhead"><h3>予定カレンダー</h3>
           <div class="calmode"><button data-m="month" onclick="scMode('month')">月</button><button data-m="week" onclick="scMode('week')">週</button></div></div>
         <div class="calnav"><button class="arw" onclick="scMove(-1)" aria-label="前へ">‹</button><b id="calTitle"></b><button class="arw" onclick="scMove(1)" aria-label="次へ">›</button><button class="tdy" onclick="scToday()">今日</button></div>
-        <div class="callegend"><span class="an">寺内スケジュール</span><span class="tk">個別業務</span></div>
+        <div class="callegend"><button data-f="all" onclick="scFilt('all')">すべて</button><button class="an" data-f="an" onclick="scFilt('an')">寺内スケジュール</button><button class="tk" data-f="tk" onclick="scFilt('tk')">個別業務</button></div>
         <div id="calBody"></div>
         <div id="calDay" class="hidden"></div>
-        <p class="sub calnote">寺内スケジュールは3か月先までの予定を表示しています。開始日のある予定は開始日から期日まで帯で表示します。「選択」で一覧のその項目へ移動します</p>
+        <p class="sub calnote">寺内スケジュールは3か月先までの予定を表示しています。開始日のある予定は開始日から期日まで帯で表示します。月表示で入りきらない分は「+数字」になります（日付を押すと全部出ます。「個別業務」「寺内スケジュール」を押すと片方だけを全部表示します）。「選択」で一覧のその項目へ移動します</p>
       </div>
       <!-- 業務追加・引き継ぎ事項（2026-11-18 勤務中の枠の下・予定カレンダーの上へ移した）。2026-11-21 予定カレンダーの下へ -->      <details class="card foldbox hidden" id="addBox">
         <summary>業務追加</summary>
@@ -2622,6 +2625,14 @@ function drawTaskList(list, daily, today) {
    日付・項目を押すとその日の一覧／一覧のその項目へ。月・週の選択は端末に覚える */
 let scView = 'month', scBase = null, scSel = null;
 try { if (localStorage.getItem('calView') === 'week') scView = 'week'; } catch (e) {}
+// 表示の切替（2026-11-23）：all＝すべて／an＝寺内スケジュール（行事を含む）だけ／tk＝個別業務だけ。月表示で寺内の期間の帯に個別業務が押し出されて「+n」に隠れるため
+let scFilter = 'all';
+try { const f = localStorage.getItem('calFilter'); if (f === 'an' || f === 'tk') scFilter = f; } catch (e) {}
+function scFilt(f) {
+  scFilter = f === 'an' || f === 'tk' ? f : 'all';
+  try { localStorage.setItem('calFilter', scFilter); } catch (e) {}
+  scDraw();
+}
 const scDate = s => new Date(s + 'T00:00:00');
 /** 日付ごとの項目 { 'YYYY-MM-DD': [{ kind:'an'|'tk', text, evt, sel, start, end, both }] }（寺内スケジュールが先、個別業務が後）。
  *  開始日のある項目（2026-11-11）は開始日から期日までの毎日に同じ項目（同じオブジェクト）を入れる＝期間表記。
@@ -2636,7 +2647,8 @@ function scItems() {
     else { x.start = ''; put(x.end, x); }
   };
   const byId = {}, byNorm = {};
-  ((me && me.annual) || []).forEach(a => {
+  // 個別業務だけの時は寺内スケジュールを出さない（寺内とまとめていた分も個別業務として出る）
+  if (scFilter !== 'tk') ((me && me.annual) || []).forEach(a => {
     const st = Object.assign({ [a.date]: a.start || '' }, a.laterStart || {});
     [...new Set([a.date].concat(a.later || []))].forEach(d => {
       const x = { kind: 'an', text: a.text, evt: !!a.event, sel: a.event ? '' : `#annual [data-aid="${a.id}"]`, start: st[d] || '', end: d };
@@ -2644,7 +2656,7 @@ function scItems() {
       if (!a.event) { byId[a.id + '|' + d] = x; byNorm[scNorm(a.text) + '|' + d] = byNorm[scNorm(a.text) + '|' + d] || x; }
     });
   });
-  if (me && showTasks()) (me.tasks || []).forEach(t => {
+  if (me && showTasks() && scFilter !== 'an') (me.tasks || []).forEach(t => {
     if (!t.due || t.daily) return; // 日常業務はカレンダーに出さない（2026-11-18）
     const same = (t.annualId && byId[t.annualId + '|' + t.due]) || (t.from === '寺内スケジュール' && byNorm[scNorm(t.text) + '|' + t.due]);
     if (same) { same.both = true; return; } // 寺内スケジュールと同じ予定（着手して個別業務にも入れた分）
@@ -2715,8 +2727,11 @@ function scDraw() {
   if (!me || !$('calBox')) return;
   const today = ymd(new Date());
   if (!scBase) scBase = today;
+  if (!showTasks() && scFilter !== 'all') scFilter = 'all'; // 個別業務のない人（パートなど）は切替を出さない
   const map = scItems(), b = scDate(scBase), W = '日月火水木金土';
   document.querySelectorAll('#calBox .calmode button').forEach(x => x.classList.toggle('on', x.dataset.m === scView));
+  document.querySelector('#calBox .callegend').classList.toggle('hidden', !showTasks());
+  document.querySelectorAll('#calBox .callegend button').forEach(x => x.classList.toggle('on', x.dataset.f === scFilter));
   const body = $('calBody'); body.innerHTML = '';
   const wcls = w => w === 0 ? ' sun' : w === 6 ? ' sat' : '';
   if (scView === 'month') {
@@ -2726,7 +2741,8 @@ function scDraw() {
     W.split('').forEach((w, i) => { const h = document.createElement('div'); h.className = 'w' + wcls(i); h.textContent = w; g.appendChild(h); });
     const first = new Date(y, m, 1), last = new Date(y, m + 1, 0);
     const cells = first.getDay() + last.getDate() + (6 - last.getDay());
-    const lim = matchMedia('(max-width:599px)').matches ? 2 : 3; // 1日に出す段の数（残りは「+n」）
+    // 1日に出す段の数（残りは「+n」）。片方だけの表示（2026-11-23）では制限なし＝全部出す
+    const lim = scFilter !== 'all' ? Infinity : matchMedia('(max-width:599px)').matches ? 2 : 3;
     let lanes = [], prev = new Set(); // prev＝前の日に出した帯（続きの日は文字を出さない）
     for (let i = 0; i < cells; i++) {
       const dt = new Date(y, m, 1 - first.getDay() + i), d = ymd(dt);

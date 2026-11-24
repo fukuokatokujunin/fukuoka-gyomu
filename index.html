@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261124110746">
+<meta name="build" content="20261124135922">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -1890,6 +1890,8 @@ async function toggleRequested() {
   try { drawRequested(await call('requestedTasks')); } catch (e) { $('reqd').innerHTML = ''; }
 }
 function drawRequested(list) {
+  me.requested = list || [];
+  if (ntKind === 'reqd' && !$('ntBox').classList.contains('hidden')) drawNotes();
   $('reqd').innerHTML = list.length ? '' : '<p class="sub">他の人に頼んだ個別業務はありません</p>';
   list.forEach(g => {
     const d = document.createElement('div'); d.className = 'rqd' + (g.open ? '' : ' closed');
@@ -1904,7 +1906,8 @@ function drawRequested(list) {
       c.textContent = `${nb(p.name)}：${p.state}${p.doneAt ? '（' + p.doneAt + '）' : ''}`;
       who.appendChild(c);
     });
-    d.append(t, sub, who); $('reqd').appendChild(d);
+    const nbx = document.createElement('div'); nbx.className = 'sub'; nbx.appendChild(noteButton(g.notes, () => openTaskNotes(g.id, 'reqd'))); // 進捗（2026-11-24）
+    d.append(t, sub, who, nbx); $('reqd').appendChild(d);
   });
 }
 async function toggleDone(kind) {
@@ -2300,10 +2303,23 @@ async function saveEdit() {
 }
 
 /* 進捗（Ver1.2。旧称 備考）：着手した人が進み具合を時系列で書き足す。全員が見られる。自分の書き込みは消せる */
-let ntCur = null;
-function openNotes(a) { ntCur = a.id; $('ntInput').value = ''; ntImages = []; drawNtImages(); drawNotes(); $('ntBox').classList.remove('hidden'); }
-function closeNotes() { ntCur = null; $('ntBox').classList.add('hidden'); }
+let ntCur = null, ntKind = 'annual'; // ntKind：annual＝寺内スケジュール、task＝自分の個別業務、reqd＝依頼した個別業務（2026-11-24）
+function openNotes(a) { ntKind = 'annual'; ntCur = a.id; $('ntInput').value = ''; ntImages = []; drawNtImages(); drawNotes(); $('ntBox').classList.remove('hidden'); }
+function closeNotes() { ntCur = null; ntKind = 'annual'; $('ntBox').classList.add('hidden'); }
+/** 進捗ボタン（書き込みがあれば件数と薄い青） */
+function noteButton(notes, open) {
+  const nb = document.createElement('button'); nb.className = 'pp nt';
+  nb.textContent = (notes || []).length ? `進捗 ${notes.length}` : '進捗';
+  if ((notes || []).length) nb.classList.add('has');
+  nb.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); open(); }; // 行はlabelなのでチェックが入らないように
+  return nb;
+}
+/* 個別業務の進捗（2026-11-24）：同じ依頼の担当者と依頼した人が読める・書ける。自分の書き込みは消せる */
+function openTaskNotes(id, kind) { ntKind = kind; ntCur = id; $('ntInput').value = ''; ntImages = []; drawNtImages(); drawNotes(); $('ntBox').classList.remove('hidden'); }
+function ntTask() { return ntKind === 'task' ? (me.tasks || []).find(x => x.id === ntCur) : (me.requested || []).find(x => x.id === ntCur); }
+function ntAfterTask(r) { drawTasks(r.tasks); if (!$('reqdBox').classList.contains('hidden')) drawRequested(r.requested); else me.requested = r.requested; drawNotes(); }
 function drawNotes() {
+  if (ntKind !== 'annual') return drawTaskNotes();
   const a = me.annual.find(x => !x.event && x.id === ntCur);
   if (!a) { closeNotes(); return; }
   $('ntWho').textContent = (a.starters || []).length ? '着手している人：' + nbs(a.starters.map(p => p.name)) : 'まだだれも着手していません';
@@ -2325,7 +2341,39 @@ function drawNotes() {
   $('ntNotYet').textContent = '書き足せるのは着手している人だけです（「着手」を押して着手してください）';
   $('ntList').scrollTop = $('ntList').scrollHeight; // 新しい書き込みが見えるように
 }
+function drawTaskNotes() {
+  const t = ntTask();
+  if (!t) { closeNotes(); return; }
+  const people = ntKind === 'task' ? [t.from && t.from !== me.name ? '依頼：' + (t.from === '寺内スケジュール' ? '寺内スケジュールから' : nb(t.from)) : '', '担当：' + nbs(['あなた'].concat(t.mates || []))]
+    : ['担当：' + nbs((t.people || []).map(p => p.name))];
+  $('ntWho').textContent = people.filter(Boolean).join('　');
+  $('ntList').innerHTML = (t.notes || []).length ? '' : '<p class="sub" style="margin:0">まだ書き込みはありません</p>';
+  (t.notes || []).forEach(n => {
+    const d = document.createElement('div'); d.className = 'ne';
+    const w = document.createElement('div'); w.className = 'who'; w.textContent = `${nb(n.name)}　${n.at}`;
+    if (String(n.empId) === String(auth.id)) {
+      const x = document.createElement('span'); x.className = 'del'; x.textContent = '消す';
+      x.onclick = () => delNote(n.id); w.appendChild(x);
+    }
+    const tx = document.createElement('div'); tx.className = 'tx'; tx.append(linked(n.text));
+    d.append(w, tx, thumbs(n.images)); $('ntList').appendChild(d);
+  });
+  $('ntForm').classList.remove('hidden'); $('ntNotYet').classList.add('hidden');
+  $('ntList').scrollTop = $('ntList').scrollHeight;
+}
 async function addNote() {
+  if (ntKind !== 'annual') {
+    const t = ntTask(), text = $('ntInput').value.trim();
+    if (!t) return;
+    if (!text && !ntImages.length) { alert('進捗を入れてください'); return; }
+    busy(true);
+    try {
+      await saveQueue;
+      ntAfterTask(await call('addTaskNote', { id: t.id, text, images: ntImages }));
+      $('ntInput').value = ''; ntImages = []; drawNtImages(); show('進捗を書き足しました');
+    } finally { busy(false); }
+    return;
+  }
   const a = me.annual.find(x => !x.event && x.id === ntCur), text = $('ntInput').value.trim();
   if (!a) return;
   if (!text && !ntImages.length) { alert('進捗を入れてください'); return; }
@@ -2339,7 +2387,7 @@ async function addNote() {
 async function delNote(noteId) {
   if (!await ask('この書き込みを消しますか？')) return;
   busy(true);
-  try { await saveQueue; drawAnnual(await call('delAnnualNote', { noteId })); show('書き込みを消しました'); }
+  try { await saveQueue; if (ntKind !== 'annual') ntAfterTask(await call('delTaskNote', { noteId })); else drawAnnual(await call('delAnnualNote', { noteId })); show('書き込みを消しました'); }
   finally { busy(false); }
 }
 
@@ -2536,6 +2584,7 @@ function cbBox(cb) { const l = document.createElement('label'); l.className = 'c
 const ymd = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 function drawTasks(list) {
   me.tasks = list;
+  if (ntKind === 'task' && !$('ntBox').classList.contains('hidden')) setTimeout(drawNotes); // 進捗の窓を開いていれば読み直す（2026-11-24）
   saveSnap(me); // 完了・延長したものが次に開いた時に一瞬戻って見えないように
   mobBar(); // スマホの下部タブの件数の印（2026-11-11）
   const today = ymd(new Date());
@@ -2600,6 +2649,7 @@ function drawTaskList(list, daily, today) {
       mv.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); openTaskToAnnual(t); }; // 行はlabelなのでチェックが入らないように
       meta.appendChild(mv);
     }
+    if (!daily && !String(t.id).startsWith('tmp-')) meta.appendChild(noteButton(t.notes, () => openTaskNotes(t.id, 'task'))); // 進捗（2026-11-24。寺内スケジュールと同じ）
     const eb = document.createElement('button'); eb.className = 'pp nt'; eb.textContent = '編集';
     eb.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); openTaskEdit(t); };
     meta.appendChild(eb);

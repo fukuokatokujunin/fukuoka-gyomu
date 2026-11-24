@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261124110546">
+<meta name="build" content="20261124110746">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -3714,7 +3714,7 @@ document.addEventListener('visibilitychange', alarmCheck);
 async function ack(id, cb) {
   // 確認した後、自分の一覧から消すかは受けた人が選ぶ（2026-11-21 ユーザー指定）。消すのは自分の画面だけ（送った人・ほかの人の一覧には残る）
   const hide = (await choose('確認しました。\n\nこの引き継ぎを、自分の「引き継ぎ事項」の一覧に残しますか？消しますか？\n（消すのは自分の画面だけです。送った人やほかの宛先の人の一覧には残ります。\n残した場合も、あとで「自分の画面から消す」で消せます。消した分は「消した引き継ぎ」から7日間戻せます）',
-    ['自分の画面から消す', '残す'])) === 0;
+    ['自分の画面から消す', '残す'])) === 0 && await hoHideSure(((me.hoList || []).find(x => x.mine === id) || (me.handovers || []).find(x => String(x.id) === String(id)) || {}).text || '（引き継ぎ）'); // 消す時は「本当に消しますか？」をもう一度（2026-11-24 ユーザー指定）。いいえなら残して確認だけ
   busy(true);
   try { render(await call('ackHandover', { id, hide })); show(hide ? '確認しました（自分の一覧から消しました。「消した引き継ぎ」から戻せます）' : '確認しました'); if (hide) refreshHoRemoved(); } // 2026-11-18 個別業務へ移すのは廃止（引き継ぎ事項の一覧に残る）
   catch (e) { if (cb) cb.checked = false; }
@@ -3756,7 +3756,13 @@ function refreshHoRemoved() {
   rawCall('hoRemoved', auth).then(drawHoRemoved).catch(() => {});
 }
 /* 確認済みの引き継ぎを自分の一覧から消す（2026-11-21）。ほかの人の一覧には残る */
+/* 「本当に消しますか？」の二重チェック（2026-11-24 ユーザー指定）。text があれば、何を消すかを添える */
+function hoHideSure(text) {
+  return ask('本当に自分の画面から消しますか？\n\nはい＝消す\nいいえ＝残す', text ? 'あなたの選択：自分の画面から消す\n引き継ぎ：' + (text.length > 40 ? text.slice(0, 40) + '…' : text) : '');
+}
 async function hideHo(h) {
+  if (!await ask('この引き継ぎを、自分の画面から消しますか？\n（送った人やほかの宛先の人の一覧には残ります。7日間は「消した引き継ぎ」から戻せます）')) return;
+  if (!await hoHideSure(h.text)) return;
   busy(true);
   try { render(await call('hideHandover', { id: h.hide })); show('自分の一覧から消しました（ほかの人の一覧には残ります。「消した引き継ぎ」から戻せます）'); refreshHoRemoved(); }
   catch (e) {}

@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261124135922">
+<meta name="build" content="20261124181747">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -895,7 +895,7 @@
       <div class="overlay hidden" id="scanBox">
         <div class="modal center">
           <strong id="scanTitle">QRコードを写してください</strong>
-          <video id="scanVideo" playsinline muted style="width:100%;border-radius:10px;background:#000;margin:10px 0"></video>
+          <video id="scanVideo" playsinline muted autoplay style="width:100%;border-radius:10px;background:#000;margin:10px 0"></video>
           <p class="sub" id="scanMsg">事務所の打刻用QRコードを枠の中に写してください</p>
           <button class="ghost" onclick="stopScan(null)">キャンセル</button>
         </div>
@@ -1809,6 +1809,27 @@ function checkUpdate() {
 document.addEventListener('visibilitychange', checkUpdate);
 window.addEventListener('pageshow', checkUpdate); // ホーム画面アプリを開いた時も確認
 setInterval(checkUpdate, 30 * 60 * 1000);
+/* iPhone で上の帯・下のタブが画面の途中にずれる対策（2026-11-24）。
+   キーボード・確認の窓（alert）・カメラを閉じた後や、アプリに戻った時に、固定表示の位置が古いまま残ることがある（スクロールすると直る）。
+   その時に画面を1pxだけ動かして戻し、位置を合わせ直させる。文字入力中（キーボードが出ている間）は何もしない */
+let vpTimer = 0;
+function vpFix() {
+  clearTimeout(vpTimer);
+  vpTimer = setTimeout(() => {
+    const a = document.activeElement, vv = window.visualViewport;
+    if (a && (a.tagName === 'TEXTAREA' || a.isContentEditable || (a.tagName === 'INPUT' && !/^(checkbox|radio|button|submit|file|range|color)$/.test(a.type)))) return;
+    if (vv && vv.scale > 1.01) return; // 指で拡大している間は動かさない
+    const y = window.scrollY;
+    window.scrollTo(window.scrollX, y + 1);
+    requestAnimationFrame(() => window.scrollTo(window.scrollX, y));
+  }, 250);
+}
+if (window.visualViewport) window.visualViewport.addEventListener('resize', vpFix);
+document.addEventListener('focusout', vpFix);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) vpFix(); });
+window.addEventListener('pageshow', vpFix);
+window.addEventListener('orientationchange', vpFix);
+{ const nativeAlert = window.alert.bind(window); window.alert = m => { nativeAlert(m); vpFix(); }; }
 // 個別業務は勤務中かどうかに関係なく常に表示（2026-10-31 変更。落合さんなど対象外の人は出さない）
 function showTasks() { return !!me && !me.noTasks; }
 
@@ -3820,6 +3841,7 @@ async function hideHo(h) {
 }
 /* ---- QR読み取り（出勤・退勤ボタンでカメラを起動） ---- */
 let scan = null; // { stream, done, timer }
+let scanStarting = false; // カメラを起動している途中（二重起動を防ぐ）
 function loadJsQR() {
   if (window.jsQR) return Promise.resolve();
   return new Promise((ok, ng) => {
@@ -3837,7 +3859,9 @@ function stopScan(code) {
   if (!scan) return;
   clearInterval(scan.timer);
   scan.stream.getTracks().forEach(t => t.stop());
+  $('scanVideo').srcObject = null;
   $('scanBox').classList.add('hidden');
+  vpFix(); // カメラを閉じた後に上の帯・下のタブがずれないように
   const done = scan.done; scan = null;
   done(code);
 }
@@ -3845,13 +3869,34 @@ function stopScan(code) {
 async function scanQr(title) {
   if (stampQr) { const q = stampQr; stampQr = ''; return q; } // スマホのカメラで直接読み取って開いた場合
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('この端末・ブラウザではカメラを使えません');
-  await loadJsQR();
+  // 2026-11-24：ボタンを続けて押すとカメラが2回起動し、1回目が「The operation was aborted.」で止まる（2回目のカメラは動く）。
+  //  起動中・読み取り中は2回目を無視する。枠を先に出してから映像を流し（隠れたまま再生すると止まることがある）、
+  //  再生の中断（AbortError）は英語のエラーを出さずにやり直す。失敗した時はカメラを必ず止める
+  if (scan || scanStarting) return null;
+  scanStarting = true;
   let stream;
-  try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false }); }
-  catch (e) { throw new Error('カメラを起動できませんでした。ブラウザの設定でカメラを許可してください'); }
-  const v = $('scanVideo'); v.srcObject = stream; await v.play();
-  $('scanTitle').textContent = title; $('scanMsg').textContent = '事務所の打刻用QRコードを枠の中に写してください';
-  $('scanBox').classList.remove('hidden');
+  const v = $('scanVideo');
+  try {
+    await loadJsQR();
+    try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false }); }
+    catch (e) { throw new Error('カメラを起動できませんでした。ブラウザの設定でカメラを許可してください'); }
+    $('scanTitle').textContent = title; $('scanMsg').textContent = '事務所の打刻用QRコードを枠の中に写してください';
+    $('scanBox').classList.remove('hidden');
+    v.srcObject = stream;
+    for (let k = 0; ; k++) {
+      try { await v.play(); break; }
+      catch (e) {
+        if (e.name === 'AbortError' && k < 3) { await new Promise(r => setTimeout(r, 300)); continue; }
+        if (v.videoWidth) break; // 映像は来ている
+        throw new Error('カメラの映像を表示できませんでした。もう一度押してください');
+      }
+    }
+  } catch (e) {
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    v.srcObject = null;
+    $('scanBox').classList.add('hidden');
+    throw e;
+  } finally { scanStarting = false; }
   const cv = document.createElement('canvas'), cx = cv.getContext('2d', { willReadFrequently: true });
   return new Promise(done => {
     scan = { stream, done, timer: setInterval(() => {

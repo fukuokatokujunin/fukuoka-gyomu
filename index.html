@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261125093914">
+<meta name="build" content="20261125094725">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -2620,13 +2620,28 @@ function drawTasks(list) {
 /** 個別業務・日常業務の言い方と、一覧の行の場所 */
 function tw(t) { return t && t.daily ? '日常業務' : '個別業務'; }
 function taskSel(id) { return `#tasks [data-id="${id}"], #daily [data-id="${id}"]`; }
+/* 日常業務の並び（2026-11-25 ユーザー指定）：期日が来た分（超過・今日）が上、まだの分が下。それぞれの中では周期の短いものを上に。
+   周期が同じなら次回が早い順、それも同じなら内容の順 */
+function cycleDays(rule) {
+  const [k, a] = String(rule || '').split(':'), n = Number(a) || 1;
+  if (k === 'ED') return n; if (k === 'EW') return 7 * n; if (k === 'EM') return 30 * n; // ○日ごと・○週間ごと・○ヶ月ごと
+  if (k === 'D') return 1; if (k === 'WD') return 7 / 5;
+  if (k === 'W') return 7 / Math.max(1, String(a || '').split(',').filter(Boolean).length);
+  if (k === 'M' || k === 'MN') return 30; if (k === 'Y') return 365;
+  return Infinity; // 繰り返さない
+}
+function dailyOrder(list, today) {
+  const come = t => !!t.due && t.due <= today;
+  return list.slice().sort((x, y) => (come(y) - come(x)) || (cycleDays(x.rule) - cycleDays(y.rule)) ||
+    (x.due || '9999').localeCompare(y.due || '9999') || String(x.text).localeCompare(String(y.text), 'ja'));
+}
 /** 個別業務（daily＝false）か日常業務（true）の一覧を描く。日常業務は担当がなく（依頼者・担当・MYは出さない）、前回完了日を出し、全部を折りたたむ（2026-11-21） */
 function drawTaskList(list, daily, today) {
   const box = $(daily ? 'daily' : 'tasks');
   $(daily ? 'dailyCount' : 'taskCount').textContent = list.length ? `${list.length}件` : '';
   box.innerHTML = list.length ? '' : `<p class="sub">未完了の${daily ? '日常業務' : '個別業務'}はありません</p>`;
   const near = [], far = [];
-  periodFirst(list, today).forEach(t => { // 開始日から期日までの分を上へ（2026-11-11）
+  (daily ? dailyOrder(list, today) : periodFirst(list, today)).forEach(t => { // 開始日から期日までの分を上へ（2026-11-11）。日常業務は dailyOrder（2026-11-25）
     let left = null;
     const row = document.createElement('div'); row.className = 'titem'; // 行全体は反応させない（□・ボタンだけ。Ver1.2）
     const cb = document.createElement('input'); cb.type = 'checkbox';

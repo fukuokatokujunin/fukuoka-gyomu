@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261125095039">
+<meta name="build" content="20261125100200">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -1593,7 +1593,6 @@ function render(s) {
   $('hoCard').classList.toggle('hidden', !(s.working || s.noAttend || (s.hoList || []).length)); // 一覧が残っていれば勤務外でも見られる（2026-11-18）
   $('hoForm').classList.toggle('hidden', !(s.working || s.noAttend)); // 送るのはこれまでどおり勤務中・シフト対象外の人
   drawHoList(s.hoList || []);
-  setTimeout(hoDoneAsk, 0); // 自分が送った引き継ぎを全員が確認していれば、削除するか聞く（2026-11-18）
   if ([...$('hoTo').options].some(o => o.value === hoKeep)) $('hoTo').value = hoKeep;
 
   // タスク（勤務中のみ表示）
@@ -4028,25 +4027,6 @@ function drawHoList(list) {
     const cap = document.createElement('small'); cap.textContent = '削除';
     wrap.append(cap, del); row.append(body, wrap); box.appendChild(row);
   });
-}
-/* 全員が確認した引き継ぎ（2026-11-18）：送った人の画面で、削除するか1回だけ聞く。「残す」を選んでも一覧のゴミ箱からいつでも削除できる。
-   ほかの確認の窓が出ている時は出さない（次に画面を読み直した時に聞く） */
-let hoAsking = false;
-async function hoDoneAsk() {
-  const h = (me.hoList || []).find(x => x.ask);
-  if (!h || hoAsking || document.querySelector('.overlay:not(.hidden)')) return; // ほかの窓（メール登録・期日が近い等）が出ている間は聞かない
-  hoAsking = true;
-  try {
-    const t = h.text.length > 60 ? h.text.slice(0, 60) + '…' : h.text;
-    const n = await choose(`送った引き継ぎを${h.to === '全員' ? '全員' : h.to + 'さん'}が確認しました\n\n「${t}」\n\n引き継ぎ事項から削除しますか？\n（残しても、あとで一覧のゴミ箱からいつでも削除できます）`,
-      ['削除する', '残す']);
-    busy(true);
-    try {
-      render(await call('hoDoneAnswer', { id: h.id, remove: n === 0 }));
-      show(n === 0 ? '引き継ぎを削除しました' : '一覧に残しました（ゴミ箱からいつでも削除できます）');
-    } finally { busy(false); }
-  } catch (e) { /* 失敗した時は次に読み直した時にまた聞く */ }
-  finally { hoAsking = false; }
 }
 function openHoEdit(h) {
   edCur = h; edKind = 'ho';

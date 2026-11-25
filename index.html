@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261124181747">
+<meta name="build" content="20261125093914">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -2324,7 +2324,7 @@ async function saveEdit() {
 }
 
 /* 進捗（Ver1.2。旧称 備考）：着手した人が進み具合を時系列で書き足す。全員が見られる。自分の書き込みは消せる */
-let ntCur = null, ntKind = 'annual'; // ntKind：annual＝寺内スケジュール、task＝自分の個別業務、reqd＝依頼した個別業務（2026-11-24）
+let ntCur = null, ntKind = 'annual'; // ntKind：annual＝寺内スケジュール、task＝自分の個別業務、reqd＝依頼した個別業務（2026-11-24）、ho＝引き継ぎ事項（2026-11-25）
 function openNotes(a) { ntKind = 'annual'; ntCur = a.id; $('ntInput').value = ''; ntImages = []; drawNtImages(); drawNotes(); $('ntBox').classList.remove('hidden'); }
 function closeNotes() { ntCur = null; ntKind = 'annual'; $('ntBox').classList.add('hidden'); }
 /** 進捗ボタン（書き込みがあれば件数と薄い青） */
@@ -2337,8 +2337,8 @@ function noteButton(notes, open) {
 }
 /* 個別業務の進捗（2026-11-24）：同じ依頼の担当者と依頼した人が読める・書ける。自分の書き込みは消せる */
 function openTaskNotes(id, kind) { ntKind = kind; ntCur = id; $('ntInput').value = ''; ntImages = []; drawNtImages(); drawNotes(); $('ntBox').classList.remove('hidden'); }
-function ntTask() { return ntKind === 'task' ? (me.tasks || []).find(x => x.id === ntCur) : (me.requested || []).find(x => x.id === ntCur); }
-function ntAfterTask(r) { drawTasks(r.tasks); if (!$('reqdBox').classList.contains('hidden')) drawRequested(r.requested); else me.requested = r.requested; drawNotes(); }
+function ntTask() { return ntKind === 'ho' ? (me.hoList || []).find(x => x.id === ntCur) : ntKind === 'task' ? (me.tasks || []).find(x => x.id === ntCur) : (me.requested || []).find(x => x.id === ntCur); }
+function ntAfterTask(r) { if (ntKind === 'ho') { drawHoList(r.hoList); drawNotes(); return; } drawTasks(r.tasks); if (!$('reqdBox').classList.contains('hidden')) drawRequested(r.requested); else me.requested = r.requested; drawNotes(); }
 function drawNotes() {
   if (ntKind !== 'annual') return drawTaskNotes();
   const a = me.annual.find(x => !x.event && x.id === ntCur);
@@ -2365,7 +2365,8 @@ function drawNotes() {
 function drawTaskNotes() {
   const t = ntTask();
   if (!t) { closeNotes(); return; }
-  const people = ntKind === 'task' ? [t.from && t.from !== me.name ? '依頼：' + (t.from === '寺内スケジュール' ? '寺内スケジュールから' : nb(t.from)) : '', '担当：' + nbs(['あなた'].concat(t.mates || []))]
+  const people = ntKind === 'ho' ? [`${nb(t.from)}より → ${t.to === '全員' ? '全員' : nb(t.to)}`, '引き継ぎ：' + (t.text.length > 40 ? t.text.slice(0, 40) + '…' : t.text)] // 引き継ぎ事項（2026-11-25）
+    : ntKind === 'task' ? [t.from && t.from !== me.name ? '依頼：' + (t.from === '寺内スケジュール' ? '寺内スケジュールから' : nb(t.from)) : '', '担当：' + nbs(['あなた'].concat(t.mates || []))]
     : ['担当：' + nbs((t.people || []).map(p => p.name))];
   $('ntWho').textContent = people.filter(Boolean).join('　');
   $('ntList').innerHTML = (t.notes || []).length ? '' : '<p class="sub" style="margin:0">まだ書き込みはありません</p>';
@@ -2390,7 +2391,7 @@ async function addNote() {
     busy(true);
     try {
       await saveQueue;
-      ntAfterTask(await call('addTaskNote', { id: t.id, text, images: ntImages }));
+      ntAfterTask(await call(ntKind === 'ho' ? 'addHoNote' : 'addTaskNote', { id: t.id, text, images: ntImages }));
       $('ntInput').value = ''; ntImages = []; drawNtImages(); show('進捗を書き足しました');
     } finally { busy(false); }
     return;
@@ -2408,7 +2409,7 @@ async function addNote() {
 async function delNote(noteId) {
   if (!await ask('この書き込みを消しますか？')) return;
   busy(true);
-  try { await saveQueue; if (ntKind !== 'annual') ntAfterTask(await call('delTaskNote', { noteId })); else drawAnnual(await call('delAnnualNote', { noteId })); show('書き込みを消しました'); }
+  try { await saveQueue; if (ntKind !== 'annual') ntAfterTask(await call(ntKind === 'ho' ? 'delHoNote' : 'delTaskNote', { noteId })); else drawAnnual(await call('delAnnualNote', { noteId })); show('書き込みを消しました'); }
   finally { busy(false); }
 }
 
@@ -3979,6 +3980,7 @@ async function clockOut() {
    自分あてで未確認なら「確認した」。編集・ゴミ箱は同じ引き継ぎの全員分（個別業務と同じボタン）。期日・延期はない。件数は折りたたんでも見出しに出す ---- */
 function drawHoList(list) {
   me.hoList = list || [];
+  if (ntKind === 'ho' && !$('ntBox').classList.contains('hidden')) setTimeout(drawNotes); // 進捗の窓を開いていれば読み直す（2026-11-25）
   const box = $('hoList'), n = me.hoList.length;
   box.innerHTML = '';
   const unread = me.hoList.filter(h => h.mine).length; // 未読件数＝自分あてでまだ確認していない分だけ。「確認した」を押したら消える（2026-11-21 ユーザー指定）
@@ -3997,6 +3999,7 @@ function drawHoList(list) {
     const btns = document.createElement('div'); btns.className = 'sub';
     if (h.mine) { const b = document.createElement('button'); b.className = 'pp st'; b.textContent = '確認した'; b.onclick = () => ack(h.mine); btns.appendChild(b); }
     if (h.hide) { const b = document.createElement('button'); b.className = 'pp nt'; b.textContent = '自分の画面から消す'; b.title = '自分の一覧からだけ消します（ほかの人の一覧には残ります）'; b.onclick = () => hideHo(h); btns.appendChild(b); } // 自分あてで確認済み（2026-11-21）
+    btns.appendChild(noteButton(h.notes, () => openTaskNotes(h.id, 'ho'))); // 対応の進捗（送った人・宛先の人が書ける。2026-11-25 ユーザー指定）
     const eb = document.createElement('button'); eb.className = 'pp nt'; eb.textContent = '編集'; eb.onclick = () => openHoEdit(h); btns.appendChild(eb);
     body.append(txt, thumbs(h.images), meta, st, btns);
     const del = document.createElement('button'); del.className = 'ghost trash'; del.title = '削除'; del.onclick = () => removeHo(h);

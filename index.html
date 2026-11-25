@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261125094725">
+<meta name="build" content="20261125095039">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -2635,13 +2635,19 @@ function dailyOrder(list, today) {
   return list.slice().sort((x, y) => (come(y) - come(x)) || (cycleDays(x.rule) - cycleDays(y.rule)) ||
     (x.due || '9999').localeCompare(y.due || '9999') || String(x.text).localeCompare(String(y.text), 'ja'));
 }
+/* 個別業務の並び（2026-11-25 ユーザー指定。日常業務とそろえて期日が来た分を一番上に）：
+   ①期日が来た分（過ぎた分・今日が期日）②開始日を過ぎて期日前（期間中）③そのほか。それぞれの中はサーバーの並び（期日が早い順、期日なしは最後）のまま */
+function taskOrder(list, today) {
+  const rank = t => t.due && t.due <= today ? 0 : inPeriod(t.start, t.due, today) ? 1 : 2;
+  return list.map((t, i) => [t, i]).sort((x, y) => rank(x[0]) - rank(y[0]) || x[1] - y[1]).map(x => x[0]);
+}
 /** 個別業務（daily＝false）か日常業務（true）の一覧を描く。日常業務は担当がなく（依頼者・担当・MYは出さない）、前回完了日を出し、全部を折りたたむ（2026-11-21） */
 function drawTaskList(list, daily, today) {
   const box = $(daily ? 'daily' : 'tasks');
   $(daily ? 'dailyCount' : 'taskCount').textContent = list.length ? `${list.length}件` : '';
   box.innerHTML = list.length ? '' : `<p class="sub">未完了の${daily ? '日常業務' : '個別業務'}はありません</p>`;
   const near = [], far = [];
-  (daily ? dailyOrder(list, today) : periodFirst(list, today)).forEach(t => { // 開始日から期日までの分を上へ（2026-11-11）。日常業務は dailyOrder（2026-11-25）
+  (daily ? dailyOrder(list, today) : taskOrder(list, today)).forEach(t => { // 個別業務は taskOrder・日常業務は dailyOrder（2026-11-25）
     let left = null;
     const row = document.createElement('div'); row.className = 'titem'; // 行全体は反応させない（□・ボタンだけ。Ver1.2）
     const cb = document.createElement('input'); cb.type = 'checkbox';

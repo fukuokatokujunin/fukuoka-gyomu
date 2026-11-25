@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261125102210">
+<meta name="build" content="20261125132447">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -4192,17 +4192,17 @@ function envFit(page) {
     const base = +el.dataset.fs, min = base * (+el.dataset.min || .75);
     let fs = base;
     const set = v => { fs = v; el.style.fontSize = v.toFixed(2) + 'mm'; };
-    set(base);
-    while (over(el) && fs > min) set(fs - .1);
-    if (!over(el) || !el.classList.contains('ad')) return;
-    const t = el.textContent, sp = t.lastIndexOf(' ');
-    if (sp > 0) { // 建物名などの前のスペースで2行に
+    const ad = el.classList.contains('ad'), t = el.textContent, sp = ad ? t.lastIndexOf(' ') : -1;
+    if (sp > 0) { // 住所にスペースがあれば、小さくして1行に収めるより先に、そこ（建物名などの前）で必ず2行に（2026-11-25 ユーザー指摘：角2で2行にならなかった）
       el.innerHTML = envEsc(t.slice(0, sp)) + '<br>' + envEsc(t.slice(sp + 1));
-      set(base * .9);
+      set(base);
       while (over(el) && fs > base * .6) set(fs - .1);
       if (!over(el)) return;
       el.textContent = t;
     }
+    set(base);
+    while (over(el) && fs > min) set(fs - .1);
+    if (!over(el) || !ad) return;
     el.classList.add('wrap'); set(base * .85); // 字の切れ目で2行に
     const lines = () => el.scrollHeight / (fs * MM * 1.25);
     while (lines() > 2.05 && fs > base * .5) set(fs - .1);

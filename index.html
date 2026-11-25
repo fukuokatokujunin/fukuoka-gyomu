@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="徳純院">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#1e2533">
-<meta name="build" content="20261125100200">
+<meta name="build" content="20261125102210">
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --pri:#2563eb; --ok:#059669; --ng:#dc2626; --warn:#d97706; --line:#e5e7eb; }
   * { box-sizing:border-box; }
@@ -444,7 +444,7 @@
   #annualBox .head > span, :is(#taskBox, #dailyBox) .head > span { margin-left:auto; }
   #annualBox .head button.hbtn, :is(#taskBox, #dailyBox) .head button.hbtn { margin-left:12px; letter-spacing:.12em; }
   .rqd { padding:10px 0; border-bottom:1px solid var(--line); } .rqd:last-child { border-bottom:0; } .rqd.closed { opacity:.6; }
-  .rqd .t { font-size:15px; } .rqd .sub { font-size:12px; margin-top:2px; }
+  .rqd .t { font-size:15px; white-space:pre-wrap; word-break:break-word; } .rqd .sub { font-size:12px; margin-top:2px; }
   .rqd .who { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
   .rqd .who span { font-size:12px; padding:2px 8px; border:1px solid var(--line); background:#fff; letter-spacing:.05em; }
   .rqd .who span.s-未確認 { border-color:var(--ng); color:var(--ng); } .rqd .who span.s-完了, .rqd .who span.s-今回分完了 { border-color:var(--ok); color:var(--ok); }
@@ -2249,7 +2249,7 @@ function openEdit(a) {
   $('edBox').classList.remove('hidden');
 }
 async function saveEdit() {
-  const text = $('edText').value.replace(/\s+/g, ' ').trim(), date = $('edDate').value;
+  const text = cleanText($('edText').value), date = $('edDate').value; // 改行は残す（2026-11-25）
   if (!text) { alert('内容を入れてください'); return; }
   if (edKind === 'ho') { // 引き継ぎ（2026-11-18）：内容だけ。同じ引き継ぎの全員分
     $('edBox').classList.add('hidden');
@@ -2599,6 +2599,8 @@ function linked(text) {
   if (last < s.length) f.append(s.slice(last));
   return f;
 }
+/** 入れた内容：改行は残し、行ごとに続く空白を1つに・前後の空白を消す（サーバーの cleanText_ と同じ。2026-11-25） */
+function cleanText(t) { return String(t || '').replace(/\r\n?/g, '\n').split('\n').map(l => l.replace(/\s+/g, ' ').trim()).join('\n').replace(/\n{3,}/g, '\n\n').trim(); }
 function cbBox(cb) { const l = document.createElement('label'); l.className = 'cbw'; l.appendChild(cb); return l; }
 
 /* ---- タスク ---- */
@@ -3553,7 +3555,7 @@ function rqRepNote() {
   $('rqRepNote').textContent = n > 1 ? '（担当が複数の時は必須。完了した人から一人ずつ消え、完了の時にこの繰り返しをお知らせします）' : '（選ばなければ繰り返さない）';
 }
 async function doRequest() {
-  const p = { text: $('rqText').value.replace(/\s+/g, ' ').trim(), due: $('rqDue').value, start: $('rqStart').value, kind: $('rqRep').value,
+  const p = { text: cleanText($('rqText').value), due: $('rqDue').value, start: $('rqStart').value, kind: $('rqRep').value,
     ids: [...$('rqWho').querySelectorAll('input:checked')].map(c => Number(c.value)),
     days: [...$('rqDays').querySelectorAll('input:checked')].map(c => Number(c.value)) };
   const daily = rqCat === 'daily', w = daily ? '日常業務' : '個別業務';
@@ -3634,7 +3636,7 @@ function jaRepHint() {
 }
 async function doJinaiAdd() {
   const cycle = $('jaRep').value;
-  const p = { text: $('jaText').value.replace(/\s+/g, ' ').trim(), date: $('jaDate').value, start: $('jaStart').value, kind: $('jaKind').value,
+  const p = { text: cleanText($('jaText').value), date: $('jaDate').value, start: $('jaStart').value, kind: $('jaKind').value,
     repeat: cycle !== 'none', cycle, days: cycle === 'W' ? jaDaysSel() : [] };
   if (!p.text) { alert('内容を入れてください'); return; }
   if (!p.date) { alert('初回期限を選んでください'); return; }
